@@ -1,0 +1,67 @@
+services:
+  app:
+    build: .
+    container_name: crm-laravel-app
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - mysql
+    ports:
+      - "9001:9000"  # CRM Xdebug port
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: crm
+      DB_USERNAME: laravel
+      DB_PASSWORD: secret
+    restart: unless-stopped
+
+  web:
+    image: nginx:alpine
+    container_name: crm-nginx
+    depends_on:
+      - app
+      - mysql
+    ports:
+      - "8001:80"   # CRM projekt port 8001
+    volumes:
+      - .:/var/www/html
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    container_name: crm-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: crm
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: secret
+    volumes:
+      - crm_dbdata:/var/lib/mysql
+    ports:
+      - "3308:3306"  # Erinev port kui RMP (3307)
+    command: --default-authentication-plugin=mysql_native_password
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: crm-phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      UPLOAD_LIMIT: 512M
+      PHP_UPLOAD_MAX_FILESIZE: 512M
+      PHP_POST_MAX_SIZE: 512M
+      PHP_MAX_INPUT_VARS: 10000
+      PHP_MEMORY_LIMIT: 512M
+      PHP_MAX_EXECUTION_TIME: 600
+    ports:
+      - "8082:80"   # Erinev port kui RMP (8081)
+    depends_on:
+      - mysql
+    restart: unless-stopped
+
+volumes:
+  crm_dbdata:
