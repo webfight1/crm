@@ -56,6 +56,7 @@ Route::middleware('auth')->group(function () {
     
     // Email Campaign Routes
     Route::resource('email-campaigns', EmailCampaignController::class);
+    Route::get('email-campaigns/batch/{batch}', [EmailCampaignController::class, 'showBatch'])->name('email-campaigns.batch.show');
     Route::post('email-campaigns/start-sending', [EmailCampaignController::class, 'startSending'])->name('email-campaigns.start-sending');
     Route::get('email-campaigns-progress', [EmailCampaignController::class, 'progress'])->name('email-campaigns.progress');
 });

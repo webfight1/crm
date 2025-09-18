@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\EmailCampaign;
+use App\Models\EmailCampaignBatch;
 use App\Models\Customer;
 use App\Models\Company;
 use Illuminate\Http\Request;
@@ -17,7 +18,7 @@ class EmailCampaignController extends Controller
     use AuthorizesRequests;
     public function index()
     {
-        $campaigns = EmailCampaign::forUser(Auth::id())
+        $batches = EmailCampaignBatch::forUser(Auth::id())
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
@@ -25,12 +26,12 @@ class EmailCampaignController extends Controller
             'total_sent' => EmailCampaign::forUser(Auth::id())->successful()->count(),
             'total_failed' => EmailCampaign::forUser(Auth::id())->failed()->count(),
             'pending' => EmailCampaign::forUser(Auth::id())->where('status', 'pending')->count(),
-            'recent_campaigns' => EmailCampaign::forUser(Auth::id())
+            'recent_batches' => EmailCampaignBatch::forUser(Auth::id())
                 ->whereDate('created_at', today())
                 ->count(),
         ];
 
-        return view('email-campaigns.index', compact('campaigns', 'stats'));
+        return view('email-campaigns.index', compact('batches', 'stats'));
     }
 
     public function create()
@@ -44,6 +45,7 @@ class EmailCampaignController extends Controller
     public function store(Request $request)
     {
         $request->validate([
+            'campaign_name' => 'required|string|max:255',
             'csv_file' => 'required|file|mimes:csv,txt|max:10240', // 10MB max
             'email_column' => 'required|string',
             'name_column' => 'nullable|string',
@@ -116,12 +118,26 @@ class EmailCampaignController extends Controller
             $csvData = array_slice($csvData, 0, 5000);
         }
 
+        // Create batch first
+        $batch = EmailCampaignBatch::create([
+            'user_id' => Auth::id(),
+            'name' => $request->campaign_name,
+            'csv_filename' => $filename,
+            'subject' => $request->subject,
+            'subject_ru' => $request->subject_ru,
+            'message' => $request->message,
+            'message_ru' => $request->message_ru,
+            'total_emails' => count($csvData),
+            'status' => 'pending',
+        ]);
+
         $campaignIds = [];
 
         // Create campaign records for each email
         foreach ($csvData as $row) {
             $campaign = EmailCampaign::create([
                 'user_id' => Auth::id(),
+                'batch_id' => $batch->id,
                 'subject' => $request->subject,
                 'subject_ru' => $request->subject_ru,
                 'message' => $request->message,
@@ -143,13 +159,13 @@ class EmailCampaignController extends Controller
         }
 
         // Log successful creation
-        Log::info('Email campaigns created', [
+        Log::info('Email batch created', [
             'user_id' => Auth::id(),
+            'batch_id' => $batch->id,
             'count' => count($campaignIds),
             'filename' => $filename
         ]);
 
-        // Don't start sending immediately - let user manually trigger or use a separate process
         return redirect()->route('email-campaigns.index')
             ->with('success', 'Email kampaania loodud! ' . count($csvData) . ' kirja ootab saatmist.');
     }
@@ -162,6 +178,17 @@ class EmailCampaignController extends Controller
         }
 
         return view('email-campaigns.show', compact('emailCampaign'));
+    }
+
+    public function showBatch(EmailCampaignBatch $batch)
+    {
+        if ($batch->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
+
+        $campaigns = $batch->campaigns()->paginate(50);
+        
+        return view('email-campaigns.batch-show', compact('batch', 'campaigns'));
     }
 
     public function startSending()
@@ -177,15 +204,21 @@ class EmailCampaignController extends Controller
                 ->with('error', 'Pole ühtegi ootel kampaaniat saatmiseks.');
         }
 
-        // Start sending process in background
-        ignore_user_abort(true);
-        set_time_limit(0);
-        
-        // Start sending emails
-        $this->startEmailSending($pendingCampaigns);
+        // Update batch status to 'sending'
+        $batches = EmailCampaignBatch::forUser($userId)->where('status', 'pending')->get();
+        foreach ($batches as $batch) {
+            $batch->update([
+                'status' => 'sending',
+                'started_at' => now(),
+            ]);
+        }
+
+        // Start background process using exec (non-blocking)
+        $command = "cd " . base_path() . " && php artisan email:send-campaigns > /dev/null 2>&1 &";
+        exec($command);
 
         return redirect()->route('email-campaigns.index')
-            ->with('success', 'Email saatmine alustatud! ' . count($pendingCampaigns) . ' kirja saadetakse.');
+            ->with('success', 'Email saatmine alustatud! ' . count($pendingCampaigns) . ' kirja saadetakse taustal.');
     }
 
     public function progress()
@@ -292,6 +325,11 @@ class EmailCampaignController extends Controller
                         'sent_at' => now(),
                     ]);
                     
+                    // Update batch progress
+                    if ($campaign->batch) {
+                        $campaign->batch->updateProgress();
+                    }
+                    
                     Log::info('Email sent successfully via Zone API', [
                         'campaign_id' => $campaignId,
                         'recipient' => $campaign->recipient_email
@@ -315,6 +353,11 @@ class EmailCampaignController extends Controller
                         'status' => 'failed',
                         'error_message' => $e->getMessage(),
                     ]);
+                    
+                    // Update batch progress
+                    if ($campaign->batch) {
+                        $campaign->batch->updateProgress();
+                    }
                 }
             }
         }

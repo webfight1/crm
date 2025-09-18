@@ -82,8 +82,8 @@
                                 </div>
                             </div>
                             <div class="ml-4">
-                                <p class="text-sm font-medium text-gray-500">Täna Saadetud</p>
-                                <p class="text-2xl font-semibold text-gray-900">{{ $stats['recent_campaigns'] }}</p>
+                                <p class="text-sm font-medium text-gray-500">Täna Loodud</p>
+                                <p class="text-2xl font-semibold text-gray-900">{{ $stats['recent_batches'] }}</p>
                             </div>
                         </div>
                     </div>
@@ -92,67 +92,61 @@
 
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
-                    @if($campaigns->count() > 0)
+                    @if($batches->count() > 0)
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Saaja
-                                        </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Teema
-                                        </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Ettevõte
-                                        </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Staatus
-                                        </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Saadetud
-                                        </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Toimingud
-                                        </th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kampaania</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teema</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">E-mailide arv</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staatus</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loodud</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Toimingud</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
-                                    @foreach($campaigns as $campaign)
+                                    @foreach($batches as $batch)
                                         <tr>
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <div>
                                                     <div class="text-sm font-medium text-gray-900">
-                                                        {{ $campaign->recipient_email }}
+                                                        {{ $batch->name }}
                                                     </div>
-                                                    @if($campaign->recipient_name)
-                                                        <div class="text-sm text-gray-500">
-                                                            {{ $campaign->recipient_name }}
-                                                        </div>
-                                                    @endif
                                                 </div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {{ Str::limit($campaign->subject, 50) }}
+                                                {{ Str::limit($batch->subject, 60) }}
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {{ $campaign->company_name ?: 'N/A' }}
+                                                {{ $batch->total_emails }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                                    <div class="bg-blue-600 h-2 rounded-full" style="width: {{ $batch->progress_percentage }}%"></div>
+                                                </div>
+                                                <div class="text-xs text-gray-500 mt-1">
+                                                    {{ $batch->sent_emails }}/{{ $batch->total_emails }} ({{ $batch->progress_percentage }}%)
+                                                </div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                                    @if($campaign->status === 'sent') bg-green-100 text-green-800
-                                                    @elseif($campaign->status === 'failed') bg-red-100 text-red-800
+                                                    @if($batch->status === 'completed') bg-green-100 text-green-800
+                                                    @elseif($batch->status === 'failed') bg-red-100 text-red-800
+                                                    @elseif($batch->status === 'sending') bg-blue-100 text-blue-800
                                                     @else bg-yellow-100 text-yellow-800 @endif">
-                                                    @if($campaign->status === 'sent') Saadetud
-                                                    @elseif($campaign->status === 'failed') Ebaõnnestus
+                                                    @if($batch->status === 'completed') Lõpetatud
+                                                    @elseif($batch->status === 'failed') Ebaõnnestus
+                                                    @elseif($batch->status === 'sending') Saatmine
                                                     @else Ootel @endif
                                                 </span>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {{ $campaign->sent_at ? $campaign->sent_at->format('d.m.Y H:i') : '-' }}
+                                                {{ $batch->created_at->format('d.m.Y H:i') }}
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <a href="{{ route('email-campaigns.show', $campaign) }}" class="text-indigo-600 hover:text-indigo-900">
+                                                <a href="{{ route('email-campaigns.batch.show', $batch) }}" class="text-indigo-600 hover:text-indigo-900">
                                                     Vaata
                                                 </a>
                                             </td>
@@ -163,7 +157,7 @@
                         </div>
 
                         <div class="mt-6">
-                            {{ $campaigns->links() }}
+                            {{ $batches->links() }}
                         </div>
                     @else
                         <div class="text-center py-8">
