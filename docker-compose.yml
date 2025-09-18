@@ -16,6 +16,8 @@ services:
       DB_DATABASE: crm
       DB_USERNAME: laravel
       DB_PASSWORD: secret
+      ZONE_EMAIL_API_URL: "https://your-zone-domain.ee/api/email_sender_api.php"
+      ZONE_EMAIL_API_TOKEN: "your-secure-api-token-here-change-this"
     restart: unless-stopped
 
   web:

@@ -150,8 +150,9 @@ class EmailCampaignController extends Controller
 
     private function startEmailSending($campaignIds)
     {
-        // In a real application, you would dispatch this to a queue
-        // For now, we'll use a simple approach similar to the original script
+        // Zone.eu API seaded
+        $zoneApiUrl = env('ZONE_EMAIL_API_URL', 'https://your-zone-domain.ee/api/email_sender_api.php');
+        $zoneApiToken = env('ZONE_EMAIL_API_TOKEN', 'your-secure-api-token-here-change-this');
         
         foreach ($campaignIds as $campaignId) {
             try {
@@ -166,27 +167,40 @@ class EmailCampaignController extends Controller
                 $subject = $isRussian && $campaign->subject_ru ? $campaign->subject_ru : $campaign->subject;
                 $message = $isRussian && $campaign->message_ru ? $campaign->message_ru : $campaign->message;
 
-                // Replace placeholders
-                $message = str_replace('{company_name}', $campaign->company_name ?? '', $message);
+                // Prepare data for Zone API
+                $apiData = [
+                    'api_token' => $zoneApiToken,
+                    'recipient_email' => $campaign->recipient_email,
+                    'subject' => $subject,
+                    'message' => $message,
+                    'company_name' => $campaign->company_name,
+                    'recipient_name' => $campaign->recipient_name,
+                ];
 
-                // Send email (you'll need to configure mail settings)
-                Mail::raw($message, function ($mail) use ($campaign, $subject) {
-                    $mail->to($campaign->recipient_email)
-                         ->subject($subject);
-                });
+                // Send request to Zone.eu API
+                $response = $this->sendToZoneApi($zoneApiUrl, $apiData);
 
-                // Update campaign status
-                $campaign->update([
-                    'status' => 'sent',
-                    'sent_at' => now(),
-                ]);
+                if ($response && $response['success']) {
+                    // Update campaign status as sent
+                    $campaign->update([
+                        'status' => 'sent',
+                        'sent_at' => now(),
+                    ]);
+                    
+                    Log::info('Email sent successfully via Zone API', [
+                        'campaign_id' => $campaignId,
+                        'recipient' => $campaign->recipient_email
+                    ]);
+                } else {
+                    throw new \Exception($response['error'] ?? 'Unknown API error');
+                }
 
                 // Add delay between emails (7 seconds as in original)
                 sleep(7);
 
             } catch (\Exception $e) {
                 // Log error and mark as failed
-                Log::error('Email sending failed', [
+                Log::error('Email sending failed via Zone API', [
                     'campaign_id' => $campaignId,
                     'error' => $e->getMessage()
                 ]);
@@ -199,5 +213,44 @@ class EmailCampaignController extends Controller
                 }
             }
         }
+    }
+
+    private function sendToZoneApi($apiUrl, $data)
+    {
+        $ch = curl_init();
+        
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $apiUrl,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($data),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'User-Agent: Laravel CRM System'
+            ],
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        
+        if ($error) {
+            throw new \Exception("cURL error: $error");
+        }
+        
+        if ($httpCode !== 200) {
+            throw new \Exception("HTTP error: $httpCode");
+        }
+        
+        $decoded = json_decode($response, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \Exception("Invalid JSON response from Zone API");
+        }
+        
+        return $decoded;
     }
 }
