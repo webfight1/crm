@@ -6,6 +6,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DealController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\EmailCampaignController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
@@ -52,6 +53,10 @@ Route::middleware('auth')->group(function () {
     Route::resource('contacts', ContactController::class);
     Route::resource('deals', DealController::class);
     Route::resource('tasks', TaskController::class);
+    
+    // Email Campaign Routes
+    Route::resource('email-campaigns', EmailCampaignController::class);
+    Route::get('email-campaigns-progress', [EmailCampaignController::class, 'progress'])->name('email-campaigns.progress');
 });
 
 require __DIR__.'/auth.php';

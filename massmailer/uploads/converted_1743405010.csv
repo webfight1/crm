@@ -1,0 +1,341 @@
+id,company_id,sector,emtak,name,phone
+2519,573,Hotellid,55101,"2Korrus OÜ",
+4251,2121,Hotellid,55101,"Ammende Hotell OÜ","+372 58867855"
+6364,4103,Hotellid,55101,"Animar Grupp OÜ","+372 5129464"
+8044,5722,Hotellid,55101,"Antur Grupp OÜ",
+9111,6679,Hotellid,55101,"Aquamarinepirita OÜ","+372 53056977"
+9180,6737,Hotellid,55101,"Aqva Hotels Osaühing",
+9222,6773,Hotellid,55101,"Arado Group OÜ",
+9521,7027,Hotellid,55101,"Arcatea Hotels OÜ",
+9919,7377,Hotellid,55101,"Arena OÜ","+372 53011988"
+10573,7951,Hotellid,55101,"ARIPO OÜ","+372 53309444"
+14440,11060,Hotellid,55101,"AS Sokotel","+372 56809606"
+15021,11491,Hotellid,55101,"AS Wasa",
+15843,12195,Hotellid,55101,"AT Sadama Villa osaühing","+372 56694210"
+19667,15497,Hotellid,55101,"Baltic Beach Holding OÜ",
+19680,15507,Hotellid,55101,"Baltic beds OÜ","+372 54564127"
+28687,23457,Hotellid,55101,"BS Apartments OÜ","+372 56257750"
+28941,23672,Hotellid,55101,"BUBIS OÜ",
+29018,23740,Hotellid,55101,"Buffo Ehitus OÜ",
+30368,24932,Hotellid,55101,"Campingud OÜ",
+32168,26519,Hotellid,55101,"Centennial Hospitality OÜ",
+33483,27704,Hotellid,55101,"Citybox Tallinn OÜ",
+33544,27760,Hotellid,55101,"City Inn OÜ",
+33631,27835,Hotellid,55101,"Citystudio OÜ",
+33667,27863,Hotellid,55101,"City Yard Inn OÜ",
+38005,31718,Hotellid,55101,"Cru Grupp OÜ","+372 5030383"
+39165,32747,Hotellid,55101,"Daily Hotels OÜ",
+46651,39440,Hotellid,55101,"Duco MP OÜ","+372 6994400"
+46655,39443,Hotellid,55101,"Duco Styles OÜ","+372 6996391"
+47936,40573,Hotellid,55101,"Economy Hotel OÜ",
+47972,40606,Hotellid,55101,"Ecopress OÜ","+372 5056013"
+50889,43327,Hotellid,55101,"Eesti Spordiselts Põhjakotkas",
+51682,44051,Hotellid,55101,"Egnever OÜ",
+52850,45085,Hotellid,55101,"Ekopuit OÜ","+372 56902344"
+53390,45538,Hotellid,55101,"Elda Angels OÜ",
+55797,47854,Hotellid,55101,"Emajõe Keeltekool OÜ","+372 58167882"
+60601,52109,Hotellid,55101,"ESTMA HPT OÜ","+372 5044408"
+60603,52111,Hotellid,55101,"Estmak Management OÜ","+372 6780005"
+60984,52448,Hotellid,55101,"Estonia Spa Hotels AS",
+61258,52687,Hotellid,55101,"EstTruffe OÜ","+372 5049739"
+62165,53465,Hotellid,55101,"EuroHotel OÜ",
+67620,58354,Hotellid,55101,"Finest Rannahotell OÜ",
+69915,60414,Hotellid,55101,"Foor Jõhvi OÜ","+372 53980872"
+77910,67539,Hotellid,55101,"Gourmancello OÜ",
+78264,67841,Hotellid,55101,"Grand Hotell Fellin OÜ","+372 5093210"
+78264,67841,Hotellid,55101,"Grand Hotell Fellin OÜ","+372 5178801"
+78907,68405,Hotellid,55101,"Green Hospitality OÜ","+372 56239302"
+79743,69129,Hotellid,55101,"GroupRumi OÜ",
+82313,71666,Hotellid,55101,"Hansa Akadeemia OÜ","+372 58167882"
+82376,71720,Hotellid,55101,"Hansahotell - Tartu OÜ",
+84990,74265,Hotellid,55101,"Hektor Design Hostels OÜ",
+84991,74266,Hotellid,55101,"Hektor Design Hostels Tallinn OÜ","+372 5053649"
+85859,75048,Hotellid,55101,"HELLOGOODBYE OÜ",
+86680,75775,Hotellid,55101,"Hermiona Home OÜ",
+88529,77516,Hotellid,55101,"HMP Hotellid OÜ",
+88959,77889,Hotellid,55101,"Holmi Holding OÜ","+372 5096987"
+90774,79592,Hotellid,55101,"HotCon OÜ",
+90780,79598,Hotellid,55101,"Hotel Group BaltInn OÜ",
+90788,79603,Hotellid,55101,"Hotell Antonius OÜ",
+90791,79604,Hotellid,55101,"Hotell Centrum Viljandi osaühing",
+90793,79605,Hotellid,55101,"Hotel Lembitu OÜ",
+90803,79615,Hotellid,55101,"HOTELL OLÜMPIA AS",
+90814,79618,Hotellid,55101,"Hotell Tartu OÜ",
+90817,79619,Hotellid,55101,"Hotell Tähetorni OÜ","+372 5043072"
+90819,79621,Hotellid,55101,"HOTELL VAKSAL OÜ","+358 504327956"
+90823,79622,Hotellid,55101,"Hotell Wesset OÜ",
+90825,79624,Hotellid,55101,"Hotel Operator Mogotel Estonia OÜ",
+90831,79630,Hotellid,55101,"Hotelweb OÜ","+372 56970330"
+94021,82478,Hotellid,55101,"Ikkunapojat OÜ","+358 400981252"
+94021,82478,Hotellid,55101,"Ikkunapojat OÜ","+372 58533442"
+94392,82824,Hotellid,55101,"Ilmaveere Õun OÜ",
+97049,85172,Hotellid,55101,"Inn2 Estonia OÜ",
+106082,93331,Hotellid,55101,"Juhkentali Hotel OÜ","+372 53915555"
+106413,93629,Hotellid,55101,"Juniper-Villas OÜ",
+115892,103162,Hotellid,55101,"Kentmanni Hotell OÜ",
+119249,106210,Hotellid,55101,"K&J&Co Est OÜ","+372 55562925"
+120378,107177,Hotellid,55101,"KMK Wabrik OÜ",
+124243,111172,Hotellid,55101,"Kotka Invest OÜ","+372 55555349"
+124942,111768,Hotellid,55101,"K-Reedik OÜ","+372 5527817"
+127765,114262,Hotellid,55101,"Kuninga Kapital OÜ","+372 53811147"
+129301,115627,Hotellid,55101,"Kõue mõis OÜ","+372 5046509"
+132488,118405,Hotellid,55101,"LaSpa Group OÜ",
+134784,120436,Hotellid,55101,"Lembitu LHS OÜ","+372 5013829"
+136130,121628,Hotellid,55101,"L Hotels OÜ",
+139817,124908,Hotellid,55101,"Logistikakorralduse Osaühing","+372 5176896"
+140337,125419,Hotellid,55101,"Loodusspaahotell OÜ","+372 5099201"
+140918,125914,Hotellid,55101,"Lossi Catering OÜ",
+142900,127739,Hotellid,55101,"LUX HOSTEL OÜ",
+144257,129464,Hotellid,55101,"Maahotell Laitz OÜ",
+145784,130919,Hotellid,55101,"Mahot OÜ",
+147487,132475,Hotellid,55101,"Management Mill OÜ","+372 6001004"
+147990,132913,Hotellid,55101,"Mapungane Gandaganga OÜ",
+148763,133621,Hotellid,55101,"MARGO NARITS",
+150570,135292,Hotellid,55101,"Marno OÜ",
+151373,136001,Hotellid,55101,"Maryna Yakovlieva",
+153299,137691,Hotellid,55101,"Medaset OÜ",
+154424,138702,Hotellid,55101,"Mehntack OÜ","+372 56675980"
+155595,139721,Hotellid,55101,"Merekarp Living OÜ",
+155691,139800,Hotellid,55101,"Merepargi Aparthotel OÜ","+372 5112739"
+155691,139800,Hotellid,55101,"Merepargi Aparthotel OÜ","+372 55963035"
+156119,140172,Hotellid,55101,"MERITON HOTELS OÜ",
+159796,143336,Hotellid,55101,"Mini3 OÜ",
+162585,145948,Hotellid,55101,"Mittetulundusühing Hobused & Sport","+372 5641572"
+162585,145948,Hotellid,55101,"Mittetulundusühing Hobused & Sport","+372 5643864"
+163022,146373,Hotellid,55101,"mittetulundusühing Kaali Külastuskeskus","+372 5050434"
+169969,152962,Hotellid,55101,"Mogotel development Estonia OÜ",
+170436,153386,Hotellid,55101,"Monins OÜ","+372 58186655"
+171372,154216,Hotellid,55101,"MoSpa OÜ",
+172167,154929,Hotellid,55101,"MR kinnisvara OÜ",
+180328,162798,Hotellid,55101,"My City Hotel OÜ",
+181448,163820,Hotellid,55101,"NareKaks OÜ","+372 6440130"
+181468,163839,Hotellid,55101,"Narmet OÜ","+372 56678168"
+181497,163864,Hotellid,55101,"Narva 2014 Osaühing","+372 5171975"
+181497,163864,Hotellid,55101,"Narva 2014 Osaühing","+372 55674340"
+181497,163864,Hotellid,55101,"Narva 2014 Osaühing","+400 784478"
+185704,167834,Hotellid,55101,"N&K Invest OÜ","+357 99419999"
+186500,168556,Hotellid,55101,"Noorus OÜ","+372 5142948"
+186929,168919,Hotellid,55101,"Nord Hostel OÜ","+372 5041795"
+189443,171122,Hotellid,55101,"Nunne Kvartal OÜ",
+191722,173186,Hotellid,55101,"Old Hapsal Hotel OÜ","+372 5092126"
+192324,173763,Hotellid,55101,"Olive Hospitality OÜ",
+193603,174907,Hotellid,55101,"Operating Reg.Tall. OÜ","+372 58879701"
+194735,175903,Hotellid,55101,"Osaühing Aara","+372 5074547"
+195802,176680,Hotellid,55101,"osaühing Allee residents","+372 5044891"
+195944,176785,Hotellid,55101,"OSAÜHING ALSTOK PUIT","+372 5097207"
+196087,176903,Hotellid,55101,"osaühing Amer Invest","+372 5034864"
+196710,177322,Hotellid,55101,"Osaühing Arensburg",
+197447,177862,Hotellid,55101,"osaühing Aurigena",
+197898,178176,Hotellid,55101,"Osaühing Baltic Refund","+372 5643864"
+197945,178220,Hotellid,55101,"Osaühing BALTISKA VIRU",
+198311,178497,Hotellid,55101,"Osaühing Bilaina","+372 55922524"
+198935,178942,Hotellid,55101,"Osaühing Carolina Tuur","+372 5092529"
+199030,179011,Hotellid,55101,"Osaühing Central Hotell",
+199270,179183,Hotellid,55101,"Osaühing CONIERY","+372 5063534"
+200110,179800,Hotellid,55101,"osaühing Dorpat",
+201657,180935,Hotellid,55101,"Osaühing ESTVAN","+372 53060603"
+201657,180935,Hotellid,55101,"Osaühing ESTVAN","+372 5643864"
+201682,180951,Hotellid,55101,"Osaühing ETAPP SN",
+201857,181072,Hotellid,55101,"Osaühing Euterpe",
+202717,181677,Hotellid,55101,"Osaühing Fortuna Travel",
+203624,182353,Hotellid,55101,"Osaühing Haapsalu Linna Spordibaasid","+372 5069115"
+203989,182604,Hotellid,55101,"osaühing HAVELI INVEST",
+204538,182968,Hotellid,55101,"osaühing Hore","+372 5103996"
+204538,182968,Hotellid,55101,"osaühing Hore","+372 5518895"
+204570,182991,Hotellid,55101,"osaühing Hotel L'Ermitage",
+204574,182993,Hotellid,55101,"osaühing HOTELL PALLAS",
+204575,182994,Hotellid,55101,"osaühing Hotell Pärnu","+372 5026656"
+206061,184097,Hotellid,55101,"Osaühing Kagureis",
+206351,184304,Hotellid,55101,"Osaühing Kariplon","+372 5655119"
+207509,185082,Hotellid,55101,"Osaühing Kongo Hotell","+372 5298751"
+207747,185241,Hotellid,55101,"Osaühing Kreemela Maxi","+372 58535595"
+207895,185348,Hotellid,55101,"Osaühing KRUNK",
+208215,185582,Hotellid,55101,"Osaühing Kõpu Talu",
+209199,186295,Hotellid,55101,"osaühing LINEA BALTIC","+372 5030060"
+209733,186676,Hotellid,55101,"Osaühing MAALETOR","+372 5092544"
+209733,186676,Hotellid,55101,"Osaühing MAALETOR","+372 51941337"
+209892,186793,Hotellid,55101,"osaühing MaineGrupp","+372 5052661"
+210414,187178,Hotellid,55101,"Osaühing Maurellis","+372 56497319"
+210414,187178,Hotellid,55101,"Osaühing Maurellis","+372 56497320"
+211620,188045,Hotellid,55101,"Osaühing Morteron",
+211943,188269,Hotellid,55101,"Osaühing Mäenurga Talu","+372 5069020"
+211943,188269,Hotellid,55101,"Osaühing Mäenurga Talu","+372 56480052"
+212541,188692,Hotellid,55101,"Osaühing Nordic Hotels","+372 5040766"
+212788,188877,Hotellid,55101,"Osaühing Nurm","+372 5050897"
+213573,189427,Hotellid,55101,"Osaühing Pantole","+372 5182143"
+214885,190352,Hotellid,55101,"osaühing Päeva Villa","+372 53488222"
+215502,190761,Hotellid,55101,"Osaühing RAUER",
+215768,190952,Hotellid,55101,"Osaühing Reinup Reisid",
+215832,190997,Hotellid,55101,"Osaühing REKTARON","+372 5158231"
+216541,191518,Hotellid,55101,"Osaühing ROCCA HOTELLIGRUPP",
+217012,191859,Hotellid,55101,"osaühing RÄPINA REISID",
+217152,191957,Hotellid,55101,"Osaühing Sadamarket",
+217411,192132,Hotellid,55101,"Osaühing SANESI","+372 58664954"
+218698,193083,Hotellid,55101,"osaühing SPA Rossia","+372 5044300"
+218811,193161,Hotellid,55101,"osaühing Staadioni Hotell","+372 5262039"
+219185,193429,Hotellid,55101,"Osaühing STV Group",
+220514,194341,Hotellid,55101,"Osaühing Tervise Paradiis",
+220526,194349,Hotellid,55101,"OSAÜHING TESMASAN","+372 55686253"
+220594,194397,Hotellid,55101,"osaühing Theodor VVH",
+220776,194533,Hotellid,55101,"Osaühing TLG HOTELL",
+221151,194810,Hotellid,55101,"Osaühing Traus-RAK","+372 5167777"
+221156,194813,Hotellid,55101,"Osaühing Travel Balt",
+222027,195454,Hotellid,55101,"Osaühing Valaste Grupp","+372 58023182"
+222239,195588,Hotellid,55101,"Osaühing Vana-Tooma Talu","+372 5253540"
+222833,195999,Hotellid,55101,"Osaühing VIDKAM","+372 5643864"
+223847,196697,Hotellid,55101,"Osaühing WESMO",
+225230,197931,Hotellid,55101,"OÜ 13 Kapital",
+225349,198034,Hotellid,55101,"OÜ Aadlipreili",
+226665,199096,Hotellid,55101,"OÜ ALTMÕISA",
+227875,200043,Hotellid,55101,"OÜ Asa Spa",
+230398,202073,Hotellid,55101,"OÜ Confident Grupp","+372 58942199"
+231648,203093,Hotellid,55101,"OÜ EASY STAY HOSPITALITY GROUP","+372 5290130"
+233441,204532,Hotellid,55101,"OÜ Exo Trade","+372 5178640"
+234985,205812,Hotellid,55101,"OÜ GoHotels",
+235065,205877,Hotellid,55101,"OÜ Gospa",
+235135,205921,Hotellid,55101,"OÜ Grand Hotel Viljandi",
+236641,207107,Hotellid,55101,"OÜ HOTEL 24",
+236643,207108,Hotellid,55101,"OÜ Hotell Euroopa",
+236652,207113,Hotellid,55101,"OÜ Hotell Kadriorg",
+236655,207114,Hotellid,55101,"OÜ Hotell London",
+236656,207115,Hotellid,55101,"OÜ Hotell Sõnajala",
+236659,207116,Hotellid,55101,"OÜ Hotell Telegraaf",
+236660,207117,Hotellid,55101,"OÜ Hotel Management Services",
+238916,208949,Hotellid,55101,"OÜ Kalevi Veekeskus",
+239266,209223,Hotellid,55101,"OÜ KARUPESA HOTELL","+372 5064528"
+240308,210072,Hotellid,55101,"OÜ K- KONDOR",
+240638,210340,Hotellid,55101,"OÜ KOIDULAPARK HOTELL",
+242266,211621,Hotellid,55101,"OÜ Laidoneri KV",
+243274,212401,Hotellid,55101,"OÜ Linda Hotell",
+244191,213116,Hotellid,55101,"OÜ Lydia Hotell",
+244554,213410,Hotellid,55101,"OÜ Majaspets Kinnisvara","+372 5188363"
+244635,213478,Hotellid,55101,"OÜ Malex","+372 56975292"
+245522,214179,Hotellid,55101,"OÜ Mega City","+372 5519642"
+245860,214439,Hotellid,55101,"OÜ MERITEL","+372 5029563"
+245860,214439,Hotellid,55101,"OÜ MERITEL","+372 5127466"
+246726,215125,Hotellid,55101,"OÜ Mogotel Estonia",
+247825,215958,Hotellid,55101,"OÜ Narva SPA","+372 5044300"
+248726,216683,Hotellid,55101,"OÜ Nuustaku SPA",
+248735,216689,Hotellid,55101,"OÜ N&V","+372 53807018"
+249001,216908,Hotellid,55101,"OÜ OLD BARON","+372 56504444"
+249576,217347,Hotellid,55101,"OÜ PADU HOTELL",
+249852,217554,Hotellid,55101,"OÜ Pargi kultuurikeskus",
+250574,218123,Hotellid,55101,"OÜ Pintmann Grupp",
+251062,218525,Hotellid,55101,"OÜ PREMIER HOTELS","+372 5034722"
+252000,219258,Hotellid,55101,"OÜ Raadi Hotell Teenused","+372 5540150"
+254379,221135,Hotellid,55101,"OÜ Saare Hotell","+372 5122272"
+254763,221427,Hotellid,55101,"OÜ Sangaste Mõis","+372 5042554"
+255525,222037,Hotellid,55101,"OÜ Siilik",
+256493,222820,Hotellid,55101,"OÜ SPA Tours",
+256686,222982,Hotellid,55101,"OÜ Starest",
+257334,223500,Hotellid,55101,"OÜ Swissotel Estonia",
+257380,223539,Hotellid,55101,"OÜ Säde Hotell","+372 5527817"
+259514,225221,Hotellid,55101,"OÜ Torrox",
+260021,225649,Hotellid,55101,"OÜ TT Hotels","+372 56850415"
+261795,227072,Hotellid,55101,"OÜ VESKISILLA","+372 5014975"
+262596,227701,Hotellid,55101,"OÜ von Ramm","+372 5032406"
+265393,230137,Hotellid,55101,"Pansionaat OÜ",
+267507,232093,Hotellid,55101,"Pelle Kaubamaja Osaühing","+372 53468303"
+269341,233720,Hotellid,55101,"Pikk 40 Apartments OÜ",
+269871,234183,Hotellid,55101,"Pinelle Group OÜ",
+270788,235012,Hotellid,55101,"PJK Haldus OÜ",
+274186,237996,Hotellid,55101,"Primering OÜ",
+280073,244514,Hotellid,55101,"Pärnu Spa Hotell OÜ",
+284208,249010,Hotellid,55101,"Rannaniidu OÜ","+372 58076080"
+284208,249010,Hotellid,55101,"Rannaniidu OÜ","+791 19296333"
+290157,254313,Hotellid,55101,"Reval-Spordi Teeninduse Osaühing",
+291004,255048,Hotellid,55101,"Riga Old Town Hotels OÜ",
+292512,256355,Hotellid,55101,"RK HOTELS OÜ","+372 5288491"
+295871,259949,Hotellid,55101,"Saka Mõis OÜ","+372 5108097"
+296612,260739,Hotellid,55101,"Samay Glamping OÜ",
+299016,263113,Hotellid,55101,"Schlossfellin OÜ","+372 5030777"
+302040,265805,Hotellid,55101,"Solidvision OÜ","+372 56450003"
+305468,268877,Hotellid,55101,"Star Baltic OÜ","+372 56488606"
+314902,277631,Hotellid,55101,"TallinnHotels OÜ",
+318179,282572,Hotellid,55101,"TCR Operating OÜ","+372 53905288"
+322453,286412,Hotellid,55101,"Tondi 55 Hotel OÜ","+372 5109837"
+322531,286477,Hotellid,55101,"TONY OÜ","+372 5019173"
+325805,289501,Hotellid,55101,"Tulundusühistu HEDI","+372 5076666"
+327279,290767,Hotellid,55101,"Tõrva Hotellide OÜ","+372 5093819"
+327373,290918,Hotellid,55101,"Tõstamaa Meierei OÜ","+372 58870556"
+329021,292571,Hotellid,55101,"Ugandi Majutus OÜ","+372 5221543"
+329903,293325,Hotellid,55101,"Ungrumaja OÜ","+372 55531230"
+330428,293788,Hotellid,55101,"Universal group OÜ",
+330752,294090,Hotellid,55101,"UPHotel Group OÜ",
+333290,296426,Hotellid,55101,"Vabaduse 40 OÜ","+372 5049882"
+334686,297885,Hotellid,55101,"Valge Kodu OÜ",
+339729,302314,Hotellid,55101,"Vihula Manor Hospitality Osaühing","+372 5048199"
+340055,302912,Hotellid,55101,"Viinistu Kultuuri-ja konverentsikeskus OÜ","+372 5142372"
+340087,302940,Hotellid,55101,"Viirelaid Thailand Resort OÜ",
+341290,304557,Hotellid,55101,"Villa Fannyhof OÜ","+49 1751662922"
+341326,304588,Hotellid,55101,"Villa Meri OÜ","+372 58666666"
+341329,304591,Hotellid,55101,"Villa Müllerbeck OÜ",
+341359,304617,Hotellid,55101,"Villa Theresa OÜ","+372 53052325"
+341683,304899,Hotellid,55101,"Vinemax OÜ",
+342479,305732,Hotellid,55101,"VIRUMAA KINNISVARAARENDUSE OÜ","+372 5040320"
+343334,306567,Hotellid,55101,"Viva Hotels OÜ",
+343336,306569,Hotellid,55101,"Viva Kinnisvara OÜ","+372 56201302"
+345313,308322,Hotellid,55101,"V SpaaHotell OÜ",
+346951,310278,Hotellid,55101,"Wagenküll Hotell OÜ",
+349648,312636,Hotellid,55101,"WINWINSTAY Estonia OÜ",
+350121,313050,Hotellid,55101,"Wolf Hotel OÜ",
+10663,8032,"Motellid jms majutus",55102,"Arkadel Invest OÜ","+372 53493321"
+12472,9605,"Motellid jms majutus",55102,"Artur Osaühing","+372 55607046"
+20529,16217,"Motellid jms majutus",55102,"Baltiski Aljans Reisibüroo OÜ","+372 5111426"
+51851,44202,"Motellid jms majutus",55102,"EHE Hostel OÜ","+372 56900710"
+53441,45579,"Motellid jms majutus",55102,"EL Duende OÜ","+372 5515559"
+65430,56418,"Motellid jms majutus",55102,"Fat Margaret OÜ","+372 5025013"
+66344,57211,"Motellid jms majutus",55102,"Feyena Group OÜ","+372 5545626"
+70862,61211,"Motellid jms majutus",55102,"Four Monks OÜ","+372 5025013"
+76716,66497,"Motellid jms majutus",55102,"Glorion OÜ",
+79195,68657,"Motellid jms majutus",55102,"Gregmart OÜ",
+81041,70508,"Motellid jms majutus",55102,"Haava Majutus OÜ","+372 56111900"
+88891,77827,"Motellid jms majutus",55102,"Holiday OÜ",
+90963,79751,"Motellid jms majutus",55102,"Housing OÜ","+372 56200398"
+90963,79751,"Motellid jms majutus",55102,"Housing OÜ","+372 56319269"
+110914,98207,"Motellid jms majutus",55102,"Kallaste Turismitalu OÜ","+372 5076138"
+110914,98207,"Motellid jms majutus",55102,"Kallaste Turismitalu OÜ","+372 55513013"
+116346,103578,"Motellid jms majutus",55102,"Kerubo Wawuda OÜ",
+118347,105455,"Motellid jms majutus",55102,"Kirele OÜ",
+124107,111058,"Motellid jms majutus",55102,"Kosmonautika OÜ","+372 5020947"
+128416,114838,"Motellid jms majutus",55102,"Kuuplep OÜ",
+145756,130896,"Motellid jms majutus",55102,"MAHIS OÜ","+372 53902951"
+154932,139140,"Motellid jms majutus",55102,"Meliran OÜ","+372 56657862"
+160935,144365,"Motellid jms majutus",55102,"Mittetulundusühing Alternatiivenergia Keskus","+372 56560484"
+167297,150542,"Motellid jms majutus",55102,"Mittetulundusühing TrioSpeed","+372 56560484"
+179297,161824,"Motellid jms majutus",55102,"MWM World OÜ",
+195181,176222,"Motellid jms majutus",55102,"OSAÜHING AGILAN",
+201471,180807,"Motellid ja muu sarnane majutus",55102,"Osaühing ESTEETIKA JA TANTSUKOOL",
+203694,182398,"Motellid jms majutus",55102,"Osaühing Halinga Keskus","+372 56266167"
+203767,182456,"Motellid jms majutus",55102,"Osaühing Hankasport","+372 5527489"
+207190,184878,"Motellid jms majutus",55102,"osaühing Klaas",
+208808,185999,"Motellid jms majutus",55102,"OSAÜHING LEIDREK","+372 5117246"
+208808,185999,"Motellid jms majutus",55102,"OSAÜHING LEIDREK","+372 5149995"
+209085,186207,"Motellid jms majutus",55102,"Osaühing Liisbet Invest","+372 5065675"
+211636,188055,"Motellid jms majutus",55102,"osaühing Motel Maria",
+213372,189302,"Motellid jms majutus",55102,"Osaühing Paesalu","+372 5020947"
+215405,190707,"Motellid jms majutus",55102,"Osaühing Rapijata",
+215848,191007,"Motellid jms majutus",55102,"Osaühing Reldor",
+215871,191020,"Motellid jms majutus",55102,"osaühing ""RELVO SPORT-MOTELL""","+372 5096148"
+216659,191599,"Motellid jms majutus",55102,"Osaühing Romvelli","+372 56232270"
+218372,192834,"Motellid jms majutus",55102,"Osaühing SJ","+372 5104191"
+220661,194452,"Motellid jms majutus",55102,"Osaühing TIKVEL","+372 51901616"
+220661,194452,"Motellid jms majutus",55102,"Osaühing TIKVEL","+372 5271901"
+222075,195484,"Motellid jms majutus",55102,"Osaühing Valev Udras",
+222919,196062,"Motellid jms majutus",55102,"Osaühing Viitna Puhkekeskus","+372 5032502"
+222919,196062,"Motellid jms majutus",55102,"Osaühing Viitna Puhkekeskus","+372 5530627"
+223697,196603,"Motellid jms majutus",55102,"osaühing WAIDE",
+241264,210833,"Motellid jms majutus",55102,"OÜ KRISTAMUS",
+247147,215470,"Motellid jms majutus",55102,"OÜ MUIDEX","+372 55580251"
+252464,219622,"Motellid jms majutus",55102,"OÜ RATHIS","+372 53427191"
+261445,226808,"Motellid jms majutus",55102,"OÜ Vedic",
+264082,228921,"Motellid jms majutus",55102,"Padise Mõis OÜ",
+274978,238698,"Motellid jms majutus",55102,"ProEst OÜ","+372 5222006"
+293835,257503,"Motellid jms majutus",55102,"Rõmeda Majutus OÜ",
+297714,261714,"Motellid ja muu sarnane majutus",55102,"Sassialex OÜ","+372 53427870"
+301710,265512,"Motellid jms majutus",55102,"Solange Grupp OÜ","+372 53561791"
+304053,267576,"Motellid jms majutus",55102,"Spordihostel Võidu 17a UÜ","+372 53602894"
+304053,267576,"Motellid jms majutus",55102,"Spordihostel Võidu 17a UÜ","+372 56622729"
+304703,268193,"Motellid jms majutus",55102,"Spring Cafe OÜ","+372 5287275"
+348504,311641,"Motellid jms majutus",55102,"Werrew OÜ",
+351780,314526,"Motellid jms majutus",55102,"Ökonet OÜ","+372 5103388"
