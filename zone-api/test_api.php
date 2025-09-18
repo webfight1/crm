@@ -5,8 +5,8 @@
  */
 
 // API seaded
-$apiUrl = 'https://your-zone-domain.ee/api/email_sender_api.php'; // Muuda see õigeks URL-iks
-$apiToken = 'your-secure-api-token-here-change-this'; // Muuda see samaks mis API failis
+$apiUrl = 'https://webfight.ee/zone-api/email_sender_api.php';
+$apiToken = 'YLLsJS0QmkvsJQwQNb_jHGR6aeQ1DCaRT53CYQH3qRVwfG4CMi0eVdUZ-JcSOb1J';
 
 // Test andmed
 $testData = [

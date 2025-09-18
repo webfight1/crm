@@ -10,9 +10,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class EmailCampaignController extends Controller
 {
+    use AuthorizesRequests;
     public function index()
     {
         $campaigns = EmailCampaign::forUser(Auth::id())
@@ -22,6 +24,7 @@ class EmailCampaignController extends Controller
         $stats = [
             'total_sent' => EmailCampaign::forUser(Auth::id())->successful()->count(),
             'total_failed' => EmailCampaign::forUser(Auth::id())->failed()->count(),
+            'pending' => EmailCampaign::forUser(Auth::id())->where('status', 'pending')->count(),
             'recent_campaigns' => EmailCampaign::forUser(Auth::id())
                 ->whereDate('created_at', today())
                 ->count(),
@@ -52,11 +55,61 @@ class EmailCampaignController extends Controller
 
         // Store CSV file
         $csvFile = $request->file('csv_file');
+        
+        if (!$csvFile) {
+            return redirect()->back()->withErrors(['csv_file' => 'CSV file is required']);
+        }
+        
+        if (!$csvFile->isValid()) {
+            return redirect()->back()->withErrors(['csv_file' => 'CSV file upload failed']);
+        }
+        
         $filename = time() . '_' . $csvFile->getClientOriginalName();
+        
+        Log::info('Attempting to store CSV file', [
+            'original_name' => $csvFile->getClientOriginalName(),
+            'filename' => $filename,
+            'size' => $csvFile->getSize(),
+            'mime' => $csvFile->getMimeType()
+        ]);
+        
         $csvPath = $csvFile->storeAs('email-campaigns', $filename, 'local');
+        
+        Log::info('CSV storage result', [
+            'csvPath' => $csvPath,
+            'success' => $csvPath !== false
+        ]);
+        
+        if (!$csvPath) {
+            Log::error('Failed to store CSV file', [
+                'filename' => $filename,
+                'error' => 'storeAs returned false'
+            ]);
+            return redirect()->back()->withErrors(['csv_file' => 'Failed to store CSV file']);
+        }
+        
+        // Check both possible locations
+        $fullPath = storage_path('app/' . $csvPath);
+        $privatePath = storage_path('app/private/' . $csvPath);
+        
+        if (file_exists($privatePath)) {
+            $fullPath = $privatePath;
+        } elseif (!file_exists($fullPath)) {
+            // Try to find the file anywhere in storage
+            $searchPath = storage_path('app');
+            $foundFiles = glob($searchPath . '/**/' . basename($csvPath), GLOB_BRACE);
+            if (!empty($foundFiles)) {
+                $fullPath = $foundFiles[0];
+            }
+        }
+        
+        if (!file_exists($fullPath)) {
+            Log::error('CSV file not found after storage', ['path' => $fullPath, 'csvPath' => $csvPath]);
+            return redirect()->back()->withErrors(['csv_file' => 'CSV file not found after upload']);
+        }
 
         // Process CSV file
-        $csvData = $this->processCsvFile(storage_path('app/' . $csvPath), $request->email_column, $request->name_column);
+        $csvData = $this->processCsvFile($fullPath, $request->email_column, $request->name_column);
 
         // Limit to 5000 emails as per original script
         if (count($csvData) > 5000) {
@@ -78,23 +131,61 @@ class EmailCampaignController extends Controller
                 'company_name' => $row['name'] ?? null,
                 'csv_filename' => $filename,
                 'status' => 'pending',
+                'csv_id' => $row['csv_id'] ?? null,
+                'csv_company_id' => $row['csv_company_id'] ?? null,
+                'sector' => $row['sector'] ?? null,
+                'emtak' => $row['emtak'] ?? null,
+                'phone' => $row['phone'] ?? null,
+                'website' => $row['website'] ?? null,
             ]);
 
             $campaignIds[] = $campaign->id;
         }
 
-        // Start background email sending process
-        $this->startEmailSending($campaignIds);
+        // Log successful creation
+        Log::info('Email campaigns created', [
+            'user_id' => Auth::id(),
+            'count' => count($campaignIds),
+            'filename' => $filename
+        ]);
 
+        // Don't start sending immediately - let user manually trigger or use a separate process
         return redirect()->route('email-campaigns.index')
-            ->with('success', 'Email kampaania alustatud! Saadetakse ' . count($csvData) . ' kirja.');
+            ->with('success', 'Email kampaania loodud! ' . count($csvData) . ' kirja ootab saatmist.');
     }
 
     public function show(EmailCampaign $emailCampaign)
     {
-        $this->authorize('view', $emailCampaign);
+        // Simple check instead of authorize for now
+        if ($emailCampaign->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
 
         return view('email-campaigns.show', compact('emailCampaign'));
+    }
+
+    public function startSending()
+    {
+        $userId = Auth::id();
+        $pendingCampaigns = EmailCampaign::forUser($userId)
+            ->where('status', 'pending')
+            ->pluck('id')
+            ->toArray();
+
+        if (empty($pendingCampaigns)) {
+            return redirect()->route('email-campaigns.index')
+                ->with('error', 'Pole ühtegi ootel kampaaniat saatmiseks.');
+        }
+
+        // Start sending process in background
+        ignore_user_abort(true);
+        set_time_limit(0);
+        
+        // Start sending emails
+        $this->startEmailSending($pendingCampaigns);
+
+        return redirect()->route('email-campaigns.index')
+            ->with('success', 'Email saatmine alustatud! ' . count($pendingCampaigns) . ' kirja saadetakse.');
     }
 
     public function progress()
@@ -130,6 +221,14 @@ class EmailCampaignController extends Controller
             $emailIndex = array_search($emailColumn, $header);
             $nameIndex = $nameColumn ? array_search($nameColumn, $header) : false;
             
+            // Find indexes for all CSV columns
+            $idIndex = array_search('id', $header);
+            $companyIdIndex = array_search('company_id', $header);
+            $sectorIndex = array_search('sector', $header);
+            $emtakIndex = array_search('emtak', $header);
+            $phoneIndex = array_search('phone', $header);
+            $wwwIndex = array_search('www', $header);
+            
             if ($emailIndex === false) {
                 throw new \Exception("Email column '{$emailColumn}' not found in CSV");
             }
@@ -139,6 +238,12 @@ class EmailCampaignController extends Controller
                     $data[] = [
                         'email' => $row[$emailIndex],
                         'name' => ($nameIndex !== false && isset($row[$nameIndex])) ? $row[$nameIndex] : null,
+                        'csv_id' => ($idIndex !== false && isset($row[$idIndex])) ? $row[$idIndex] : null,
+                        'csv_company_id' => ($companyIdIndex !== false && isset($row[$companyIdIndex])) ? $row[$companyIdIndex] : null,
+                        'sector' => ($sectorIndex !== false && isset($row[$sectorIndex])) ? $row[$sectorIndex] : null,
+                        'emtak' => ($emtakIndex !== false && isset($row[$emtakIndex])) ? $row[$emtakIndex] : null,
+                        'phone' => ($phoneIndex !== false && isset($row[$phoneIndex])) ? $row[$phoneIndex] : null,
+                        'website' => ($wwwIndex !== false && isset($row[$wwwIndex])) ? $row[$wwwIndex] : null,
                     ];
                 }
             }

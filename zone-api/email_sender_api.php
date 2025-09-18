@@ -15,8 +15,8 @@ $smtp_port = 25;
 $from_email = 'veiko@webfight.ee';
 $from_name = 'CRM System';
 
-// API turvalisuse token (muuda see!)
-$api_token = 'your-secure-api-token-here-change-this';
+// API turvalisuse token
+$api_token = 'YLLsJS0QmkvsJQwQNb_jHGR6aeQ1DCaRT53CYQH3qRVwfG4CMi0eVdUZ-JcSOb1J';
 
 // Logi funktsioon
 function logMessage($message) {
@@ -33,7 +33,7 @@ function sendEmail($to, $subject, $message, $from_email, $from_name) {
     $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
     $headers .= "X-Mailer: Zone CRM API\r\n";
     
-    return mail($to, $subject, $message, headers: $headers);
+    return mail($to, $subject, $message, $headers);
 }
 
 // Kontrolli meetodit

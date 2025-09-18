@@ -25,6 +25,54 @@
                             <dd class="mt-1 text-sm text-gray-900">{{ $emailCampaign->company_name ?: 'N/A' }}</dd>
                         </div>
 
+                        @if($emailCampaign->csv_id)
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">CSV ID</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ $emailCampaign->csv_id }}</dd>
+                        </div>
+                        @endif
+
+                        @if($emailCampaign->csv_company_id)
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Ettevõtte ID</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ $emailCampaign->csv_company_id }}</dd>
+                        </div>
+                        @endif
+
+                        @if($emailCampaign->sector)
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Sektor</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ $emailCampaign->sector }}</dd>
+                        </div>
+                        @endif
+
+                        @if($emailCampaign->emtak)
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">EMTAK</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ $emailCampaign->emtak }}</dd>
+                        </div>
+                        @endif
+
+                        @if($emailCampaign->phone)
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Telefon</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ $emailCampaign->phone }}</dd>
+                        </div>
+                        @endif
+
+                        @if($emailCampaign->website)
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Veebileht</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                @if(filter_var($emailCampaign->website, FILTER_VALIDATE_URL))
+                                    <a href="{{ $emailCampaign->website }}" target="_blank" class="text-blue-600 hover:text-blue-800">{{ $emailCampaign->website }}</a>
+                                @else
+                                    {{ $emailCampaign->website }}
+                                @endif
+                            </dd>
+                        </div>
+                        @endif
+
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Teema</dt>
                             <dd class="mt-1 text-sm text-gray-900">{{ $emailCampaign->subject }}</dd>

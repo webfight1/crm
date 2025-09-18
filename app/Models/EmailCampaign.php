@@ -23,6 +23,12 @@ class EmailCampaign extends Model
         'sent_at',
         'status',
         'error_message',
+        'csv_id',
+        'csv_company_id',
+        'sector',
+        'emtak',
+        'phone',
+        'website',
     ];
 
     protected $casts = [

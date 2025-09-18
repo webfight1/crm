@@ -4,9 +4,24 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 {{ __('Email Kampaaniad') }}
             </h2>
-            <a href="{{ route('email-campaigns.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                Uus Kampaania
-            </a>
+            <div class="flex space-x-4">
+                @php
+                    $pendingCount = $stats['pending'] ?? 0;
+                @endphp
+                
+                @if($pendingCount > 0)
+                    <form method="POST" action="{{ route('email-campaigns.start-sending') }}" class="inline">
+                        @csrf
+                        <button type="submit" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                            Alusta Saatmist ({{ $pendingCount }})
+                        </button>
+                    </form>
+                @endif
+                
+                <a href="{{ route('email-campaigns.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Uus Kampaania
+                </a>
+            </div>
         </div>
     </x-slot>
 
