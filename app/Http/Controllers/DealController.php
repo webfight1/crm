@@ -8,9 +8,11 @@ use App\Models\Company;
 use App\Models\Contact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class DealController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Display a listing of the resource.
      */
@@ -67,7 +69,9 @@ class DealController extends Controller
      */
     public function show(Deal $deal)
     {
-        $this->authorize('view', $deal);
+        if ($deal->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
         
         $deal->load(['customer', 'company', 'contact', 'tasks']);
         
@@ -79,7 +83,9 @@ class DealController extends Controller
      */
     public function edit(Deal $deal)
     {
-        $this->authorize('update', $deal);
+        if ($deal->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
         
         $customers = Customer::where('user_id', Auth::id())->get();
         $companies = Company::where('user_id', Auth::id())->get();
@@ -93,7 +99,9 @@ class DealController extends Controller
      */
     public function update(Request $request, Deal $deal)
     {
-        $this->authorize('update', $deal);
+        if ($deal->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -120,7 +128,9 @@ class DealController extends Controller
      */
     public function destroy(Deal $deal)
     {
-        $this->authorize('delete', $deal);
+        if ($deal->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
         
         $deal->delete();
 

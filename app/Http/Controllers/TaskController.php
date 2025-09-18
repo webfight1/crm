@@ -9,9 +9,11 @@ use App\Models\Contact;
 use App\Models\Deal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class TaskController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Display a listing of the resource.
      */
@@ -70,7 +72,9 @@ class TaskController extends Controller
      */
     public function show(Task $task)
     {
-        $this->authorize('view', $task);
+        if ($task->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
         
         $task->load(['customer', 'company', 'contact', 'deal']);
         
@@ -82,14 +86,14 @@ class TaskController extends Controller
      */
     public function edit(Task $task)
     {
-        $this->authorize('update', $task);
+        if ($task->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
         
         $customers = Customer::where('user_id', Auth::id())->get();
         $companies = Company::where('user_id', Auth::id())->get();
-        $contacts = Contact::where('user_id', Auth::id())->get();
-        $deals = Deal::where('user_id', Auth::id())->get();
         
-        return view('tasks.edit', compact('task', 'customers', 'companies', 'contacts', 'deals'));
+        return view('tasks.edit', compact('task', 'customers', 'companies'));
     }
 
     /**
@@ -97,7 +101,9 @@ class TaskController extends Controller
      */
     public function update(Request $request, Task $task)
     {
-        $this->authorize('update', $task);
+        if ($task->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -131,7 +137,9 @@ class TaskController extends Controller
      */
     public function destroy(Task $task)
     {
-        $this->authorize('delete', $task);
+        if ($task->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
         
         $task->delete();
 

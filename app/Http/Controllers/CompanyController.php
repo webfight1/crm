@@ -3,11 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
+use App\Models\Customer;
+use App\Models\Contact;
+use App\Models\Deal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class CompanyController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Display a listing of the resource.
      */
@@ -63,7 +68,9 @@ class CompanyController extends Controller
      */
     public function show(Company $company)
     {
-        $this->authorize('view', $company);
+        if ($company->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
         
         $company->load(['customers', 'contacts', 'deals', 'tasks']);
         
@@ -75,7 +82,9 @@ class CompanyController extends Controller
      */
     public function edit(Company $company)
     {
-        $this->authorize('update', $company);
+        if ($company->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
         
         return view('companies.edit', compact('company'));
     }
@@ -85,7 +94,9 @@ class CompanyController extends Controller
      */
     public function update(Request $request, Company $company)
     {
-        $this->authorize('update', $company);
+        if ($company->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -115,7 +126,9 @@ class CompanyController extends Controller
      */
     public function destroy(Company $company)
     {
-        $this->authorize('delete', $company);
+        if ($company->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
         
         $company->delete();
 

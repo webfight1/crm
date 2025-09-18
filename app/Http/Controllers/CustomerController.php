@@ -4,11 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Customer;
 use App\Models\Company;
+use App\Models\Contact;
+use App\Models\Deal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class CustomerController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Display a listing of the resource.
      */
@@ -64,7 +68,9 @@ class CustomerController extends Controller
      */
     public function show(Customer $customer)
     {
-        $this->authorize('view', $customer);
+        if ($customer->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
         
         $customer->load(['company', 'contacts', 'deals', 'tasks']);
         
@@ -76,7 +82,9 @@ class CustomerController extends Controller
      */
     public function edit(Customer $customer)
     {
-        $this->authorize('update', $customer);
+        if ($customer->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
         
         $companies = Company::where('user_id', Auth::id())->get();
         
@@ -88,7 +96,9 @@ class CustomerController extends Controller
      */
     public function update(Request $request, Customer $customer)
     {
-        $this->authorize('update', $customer);
+        if ($customer->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
 
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
@@ -117,7 +127,9 @@ class CustomerController extends Controller
      */
     public function destroy(Customer $customer)
     {
-        $this->authorize('delete', $customer);
+        if ($customer->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
         
         $customer->delete();
 

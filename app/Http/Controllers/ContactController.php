@@ -7,9 +7,11 @@ use App\Models\Customer;
 use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class ContactController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Display a listing of the resource.
      */
@@ -64,7 +66,9 @@ class ContactController extends Controller
      */
     public function show(Contact $contact)
     {
-        $this->authorize('view', $contact);
+        if ($contact->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
         
         $contact->load(['customer', 'company', 'deals', 'tasks']);
         
@@ -76,7 +80,9 @@ class ContactController extends Controller
      */
     public function edit(Contact $contact)
     {
-        $this->authorize('update', $contact);
+        if ($contact->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
         
         $customers = Customer::where('user_id', Auth::id())->get();
         $companies = Company::where('user_id', Auth::id())->get();
@@ -89,7 +95,9 @@ class ContactController extends Controller
      */
     public function update(Request $request, Contact $contact)
     {
-        $this->authorize('update', $contact);
+        if ($contact->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
 
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
@@ -115,7 +123,9 @@ class ContactController extends Controller
      */
     public function destroy(Contact $contact)
     {
-        $this->authorize('delete', $contact);
+        if ($contact->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
         
         $contact->delete();
 
