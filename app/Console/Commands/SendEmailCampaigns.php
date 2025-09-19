@@ -85,8 +85,9 @@ class SendEmailCampaigns extends Command
 
                 // Send request to Zone.eu API
                 $response = $this->sendToZoneApi(env('ZONE_EMAIL_API_URL'), $apiData);
+                $responseData = json_decode($response, true);
 
-                if ($response && $response['success']) {
+                if ($responseData && $responseData['success']) {
                     // Update campaign status as sent
                     $campaign->update([
                         'status' => 'sent',
@@ -99,7 +100,7 @@ class SendEmailCampaigns extends Command
                         $campaign->recipient_email,
                         $subject,
                         $campaign->id,
-                        json_encode($response)
+                        $response
                     );
                     
                     // Update batch progress
@@ -109,7 +110,7 @@ class SendEmailCampaigns extends Command
                     
                     $this->info("✓ Sent successfully");
                 } else {
-                    throw new \Exception($response['error'] ?? 'Unknown API error');
+                    throw new \Exception($responseData['error'] ?? 'Unknown API error');
                 }
 
                 // Add delay between emails
@@ -171,6 +172,22 @@ class SendEmailCampaigns extends Command
             throw new \Exception("Invalid JSON response from Zone API");
         }
         
-        return $decoded;
+        return $response;
+    }
+
+    /**
+     * Check if email domain suggests Russian language preference
+     */
+    private function isRussianEmail($email)
+    {
+        $russianDomains = ['.ru', '.by', '.kz', '.ua', 'mail.ru', 'yandex.ru', 'yandex.com'];
+        
+        foreach ($russianDomains as $domain) {
+            if (strpos($email, $domain) !== false) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 }
