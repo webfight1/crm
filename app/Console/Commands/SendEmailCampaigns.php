@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\EmailCampaign;
 use App\Models\EmailCampaignBatch;
+use App\Models\EmailLog;
 use Illuminate\Support\Facades\Log;
 
 class SendEmailCampaigns extends Command
@@ -42,11 +43,33 @@ class SendEmailCampaigns extends Command
         $this->info('Found ' . $pendingCampaigns->count() . ' pending campaigns');
 
         foreach ($pendingCampaigns as $campaign) {
+            $this->info("Checking: {$campaign->recipient_email}");
+            
             try {
+                // Check cooldown period (14 days by default)
+                $cooldownDays = env('EMAIL_COOLDOWN_DAYS', 14);
+                if (EmailLog::isInCooldown($campaign->recipient_email, $campaign->user_id, $cooldownDays)) {
+                    $this->warn("⏸ Skipping {$campaign->recipient_email} - in cooldown period ({$cooldownDays} days)");
+                    
+                    // Mark as skipped (we'll use 'sent' status to avoid resending)
+                    $campaign->update([
+                        'status' => 'sent',
+                        'sent_at' => now(),
+                        'error_message' => "Skipped - in cooldown period ({$cooldownDays} days)",
+                    ]);
+                    
+                    // Update batch progress
+                    if ($campaign->batch) {
+                        $campaign->batch->updateProgress();
+                    }
+                    
+                    continue;
+                }
+                
                 $this->info("Sending to: {$campaign->recipient_email}");
                 
-                // Determine subject and message based on email domain
-                $isRussian = str_ends_with($campaign->recipient_email, '.ru');
+                // Check for Russian email domains and use appropriate language
+                $isRussian = $this->isRussianEmail($campaign->recipient_email);
                 $subject = $isRussian && $campaign->subject_ru ? $campaign->subject_ru : $campaign->subject;
                 $message = $isRussian && $campaign->message_ru ? $campaign->message_ru : $campaign->message;
 
@@ -70,6 +93,15 @@ class SendEmailCampaigns extends Command
                         'sent_at' => now(),
                     ]);
                     
+                    // Log successful email send for cooldown tracking
+                    EmailLog::logSent(
+                        $campaign->user_id,
+                        $campaign->recipient_email,
+                        $subject,
+                        $campaign->id,
+                        json_encode($response)
+                    );
+                    
                     // Update batch progress
                     if ($campaign->batch) {
                         $campaign->batch->updateProgress();
@@ -80,9 +112,10 @@ class SendEmailCampaigns extends Command
                     throw new \Exception($response['error'] ?? 'Unknown API error');
                 }
 
-                // Add delay between emails (7 seconds as in original)
-                $this->info("Waiting 7 seconds...");
-                sleep(7);
+                // Add delay between emails
+                $delaySeconds = env('EMAIL_SEND_DELAY', 15);
+                $this->info("Waiting {$delaySeconds} seconds...");
+                sleep($delaySeconds);
 
             } catch (\Exception $e) {
                 $this->error("✗ Failed to send to {$campaign->recipient_email}: " . $e->getMessage());

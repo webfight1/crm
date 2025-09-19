@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\EmailCampaign;
 use App\Models\EmailCampaignBatch;
+use App\Models\EmailLog;
 use App\Models\Customer;
 use App\Models\Company;
 use Illuminate\Http\Request;
@@ -240,7 +241,7 @@ class EmailCampaignController extends Controller
             'failed' => $failed,
             'pending' => $pending,
             'message' => $pending > 0 ? "Saatmine käib... {$sent} saadetud, {$failed} ebaõnnestunud" : "Saatmine lõpetatud",
-            'nextSendIn' => $pending > 0 ? 7 : 0, // 7 second delay as in original
+            'nextSendIn' => $pending > 0 ? env('EMAIL_SEND_DELAY', 15) : 0, // configurable delay
         ]);
     }
 

@@ -33,6 +33,9 @@
                     <x-nav-link :href="route('email-campaigns.index')" :active="request()->routeIs('email-campaigns.*')">
                         {{ __('Email Kampaaniad') }}
                     </x-nav-link>
+                    <x-nav-link :href="route('email-logs.index')" :active="request()->routeIs('email-logs.*')">
+                        {{ __('Email Logid') }}
+                    </x-nav-link>
                 </div>
             </div>
 

@@ -7,6 +7,7 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DealController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\EmailCampaignController;
+use App\Http\Controllers\EmailLogController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
@@ -54,11 +55,15 @@ Route::middleware('auth')->group(function () {
     Route::resource('deals', DealController::class);
     Route::resource('tasks', TaskController::class);
     
-    // Email Campaign Routes
+    // Email campaigns
     Route::resource('email-campaigns', EmailCampaignController::class);
-    Route::get('email-campaigns/batch/{batch}', [EmailCampaignController::class, 'showBatch'])->name('email-campaigns.batch.show');
-    Route::post('email-campaigns/start-sending', [EmailCampaignController::class, 'startSending'])->name('email-campaigns.start-sending');
-    Route::get('email-campaigns-progress', [EmailCampaignController::class, 'progress'])->name('email-campaigns.progress');
+    Route::post('/email-campaigns/start-sending', [EmailCampaignController::class, 'startSending'])->name('email-campaigns.start-sending');
+    Route::get('/email-campaigns/progress', [EmailCampaignController::class, 'progress'])->name('email-campaigns.progress');
+    Route::get('/email-campaigns/batch/{batch}', [EmailCampaignController::class, 'showBatch'])->name('email-campaigns.batch.show');
+    
+    // Email logs
+    Route::get('/email-logs', [EmailLogController::class, 'index'])->name('email-logs.index');
+    Route::get('/email-logs/cooldown-status', [EmailLogController::class, 'cooldownStatus'])->name('email-logs.cooldown-status');
 });
 
 require __DIR__.'/auth.php';
