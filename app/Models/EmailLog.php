@@ -37,7 +37,9 @@ class EmailLog extends Model
      */
     public static function isInCooldown(string $email, int $userId, int $cooldownDays = 14): bool
     {
-        $cooldownDate = Carbon::now()->subDays($cooldownDays);
+        // Ensure cooldownDays is an integer
+        $days = (int)$cooldownDays;
+        $cooldownDate = Carbon::now()->subDays($days);
         
         return self::where('email', $email)
             ->where('user_id', $userId)
@@ -51,7 +53,9 @@ class EmailLog extends Model
      */
     public static function getEmailsInCooldown(int $userId, int $cooldownDays = 14): array
     {
-        $cooldownDate = Carbon::now()->subDays($cooldownDays);
+        // Ensure cooldownDays is an integer
+        $days = (int)$cooldownDays;
+        $cooldownDate = Carbon::now()->subDays($days);
         
         return self::where('user_id', $userId)
             ->where('status', 'sent')

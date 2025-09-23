@@ -86,7 +86,9 @@
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 @php
-                                                    $cooldownEnd = $log->sent_at->addDays(env('EMAIL_COOLDOWN_DAYS', 14));
+                                                    // Ensure EMAIL_COOLDOWN_DAYS is an integer
+                                                    $cooldownDays = (int)env('EMAIL_COOLDOWN_DAYS', 14);
+                                                    $cooldownEnd = $log->sent_at->copy()->addDays($cooldownDays);
                                                     $isInCooldown = $cooldownEnd->isFuture();
                                                 @endphp
                                                 @if($isInCooldown)
