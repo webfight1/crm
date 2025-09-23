@@ -16,6 +16,13 @@ services:
       DB_DATABASE: crm
       DB_USERNAME: laravel
       DB_PASSWORD: secret
+      # External database for company search (using same MySQL container)
+      EXTERNAL_DB_DRIVER: mysql
+      EXTERNAL_DB_HOST: mysql
+      EXTERNAL_DB_PORT: 3306
+      EXTERNAL_DB_DATABASE: ettevotted
+      EXTERNAL_DB_USERNAME: root
+      EXTERNAL_DB_PASSWORD: root
       ZONE_EMAIL_API_URL: "https://webfight.ee/zone-api/email_sender_api.php"
       ZONE_EMAIL_API_TOKEN: "YLLsJS0QmkvsJQwQNb_jHGR6aeQ1DCaRT53CYQH3qRVwfG4CMi0eVdUZ-JcSOb1J"
     restart: unless-stopped

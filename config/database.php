@@ -113,6 +113,20 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+        'external_companies' => [
+            'driver' => 'mysql',
+            'host' => env('EXTERNAL_DB_HOST', 'mysql'),
+            'port' => env('EXTERNAL_DB_PORT', '3306'),
+            'database' => env('EXTERNAL_DB_DATABASE', 'ettevotted'),
+            'username' => env('EXTERNAL_DB_USERNAME', 'root'),
+            'password' => env('EXTERNAL_DB_PASSWORD', 'root'),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'engine' => null,
+        ],
+
     ],
 
     /*

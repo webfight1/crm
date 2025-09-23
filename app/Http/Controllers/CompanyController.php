@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
+use App\Models\ExternalCompany;
 use App\Models\Customer;
 use App\Models\Contact;
 use App\Models\Deal;
@@ -40,6 +41,7 @@ class CompanyController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'registrikood' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:255',
             'website' => 'nullable|url|max:255',
@@ -100,6 +102,7 @@ class CompanyController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'registrikood' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:255',
             'website' => 'nullable|url|max:255',
@@ -134,5 +137,45 @@ class CompanyController extends Controller
 
         return redirect()->route('companies.index')
             ->with('success', 'Company deleted successfully.');
+    }
+
+    /**
+     * Search companies from external database via AJAX
+     */
+    public function searchExternal(Request $request)
+    {
+        $query = $request->get('query');
+        
+        if (empty($query) || strlen($query) < 2) {
+            return response()->json([]);
+        }
+
+        try {
+            $companies = ExternalCompany::searchByName($query, 10);
+            
+            $results = $companies->map(function ($company) {
+                // Saame täiendavad andmed seotud tabelitest
+                $additionalData = $company->getAdditionalData();
+                
+                return [
+                    'id' => $company->id,
+                    'name' => $company->name,
+                    'registrikood' => $company->regcode,
+                    'kmcode' => $company->kmcode,
+                    'phone' => $additionalData['phones'][0] ?? '',
+                    'email' => $additionalData['emails'][0] ?? '',
+                    'website' => $additionalData['websites'][0] ?? '',
+                    'additional_phones' => $additionalData['phones'],
+                    'additional_emails' => $additionalData['emails'],
+                    'additional_websites' => $additionalData['websites'],
+                ];
+            });
+
+            return response()->json($results);
+            
+        } catch (\Exception $e) {
+            \Log::error('External company search failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Otsing ebaõnnestus'], 500);
+        }
     }
 }

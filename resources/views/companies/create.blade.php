@@ -16,8 +16,18 @@
                             <!-- Company Name -->
                             <div class="md:col-span-2">
                                 <x-input-label for="name" :value="__('Company Name')" />
-                                <x-text-input id="name" class="block mt-1 w-full" type="text" name="name" :value="old('name')" required autofocus />
+                                <div class="relative">
+                                    <x-text-input id="name" class="block mt-1 w-full" type="text" name="name" :value="old('name')" required autofocus autocomplete="off" />
+                                    <div id="company-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg hidden max-h-60 overflow-y-auto"></div>
+                                </div>
                                 <x-input-error :messages="$errors->get('name')" class="mt-2" />
+                            </div>
+
+                            <!-- Registry Code -->
+                            <div>
+                                <x-input-label for="registrikood" :value="__('Registry Code')" />
+                                <x-text-input id="registrikood" class="block mt-1 w-full" type="text" name="registrikood" :value="old('registrikood')" />
+                                <x-input-error :messages="$errors->get('registrikood')" class="mt-2" />
                             </div>
 
                             <!-- Email -->
@@ -129,4 +139,139 @@
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const nameInput = document.getElementById('name');
+            const suggestionsDiv = document.getElementById('company-suggestions');
+            const registrikoodInput = document.getElementById('registrikood');
+            const emailInput = document.getElementById('email');
+            const phoneInput = document.getElementById('phone');
+            const websiteInput = document.getElementById('website');
+            
+            let searchTimeout;
+            let selectedCompanyData = null;
+
+            nameInput.addEventListener('input', function() {
+                const query = this.value.trim();
+                
+                // Puhastame eelmise otsingu timeout
+                clearTimeout(searchTimeout);
+                
+                if (query.length < 2) {
+                    suggestionsDiv.classList.add('hidden');
+                    return;
+                }
+
+                // Viivitame otsingu 300ms, et vältida liiga palju päringuid
+                searchTimeout = setTimeout(() => {
+                    searchCompanies(query);
+                }, 300);
+            });
+
+            // Peidame soovitused, kui klikitakse väljaspool
+            document.addEventListener('click', function(e) {
+                if (!nameInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+                    suggestionsDiv.classList.add('hidden');
+                }
+            });
+
+            function searchCompanies(query) {
+                fetch(`{{ route('companies.search.external') }}?query=${encodeURIComponent(query)}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Server response:', data);
+                    if (Array.isArray(data)) {
+                        displaySuggestions(data);
+                    } else {
+                        console.error('Server did not return an array:', data);
+                        suggestionsDiv.classList.add('hidden');
+                    }
+                })
+                .catch(error => {
+                    console.error('Otsingu viga:', error);
+                    suggestionsDiv.classList.add('hidden');
+                });
+            }
+
+            function displaySuggestions(companies) {
+                if (companies.length === 0) {
+                    suggestionsDiv.classList.add('hidden');
+                    return;
+                }
+
+                let html = '';
+                companies.forEach(company => {
+                    html += `
+                        <div class="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 company-suggestion" 
+                             data-company='${JSON.stringify(company)}'>
+                            <div class="font-medium text-gray-900">${escapeHtml(company.name)}</div>
+                            <div class="text-sm text-gray-600">
+                                ${company.registrikood ? `Reg: ${escapeHtml(company.registrikood)}` : ''}
+                                ${company.kmcode ? ` | KM: ${escapeHtml(company.kmcode)}` : ''}
+                                ${company.phone ? ` | Tel: ${escapeHtml(company.phone)}` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                suggestionsDiv.innerHTML = html;
+                suggestionsDiv.classList.remove('hidden');
+
+                // Lisame click event listener-id soovitustele
+                document.querySelectorAll('.company-suggestion').forEach(suggestion => {
+                    suggestion.addEventListener('click', function() {
+                        const companyData = JSON.parse(this.getAttribute('data-company'));
+                        selectCompany(companyData);
+                    });
+                });
+            }
+
+            function selectCompany(company) {
+                selectedCompanyData = company;
+                
+                // Täidame vormivälju
+                nameInput.value = company.name || '';
+                registrikoodInput.value = company.registrikood || '';
+                emailInput.value = company.email || '';
+                phoneInput.value = company.phone || '';
+                websiteInput.value = company.website || '';
+                
+                // Peidame soovitused
+                suggestionsDiv.classList.add('hidden');
+                
+                // Näitame kasutajale, et andmed on täidetud
+                showNotification('Ettevõtte andmed täidetud välisest andmebaasist!');
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            function showNotification(message) {
+                // Lihtne teade
+                const notification = document.createElement('div');
+                notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50';
+                notification.textContent = message;
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+            }
+        });
+    </script>
 </x-app-layout>

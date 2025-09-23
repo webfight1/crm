@@ -51,6 +51,7 @@ Route::middleware('auth')->group(function () {
     // CRM Routes
     Route::resource('customers', CustomerController::class);
     Route::resource('companies', CompanyController::class);
+    Route::get('/companies/search/external', [CompanyController::class, 'searchExternal'])->name('companies.search.external');
     Route::resource('contacts', ContactController::class);
     Route::resource('deals', DealController::class);
     Route::resource('tasks', TaskController::class);
