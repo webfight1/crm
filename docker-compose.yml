@@ -7,8 +7,6 @@ services:
       - .:/var/www/html
     depends_on:
       - mysql
-    ports:
-      - "9001:9000"  # CRM Xdebug port
     environment:
       DB_CONNECTION: mysql
       DB_HOST: mysql
@@ -47,11 +45,11 @@ services:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: crm
       MYSQL_USER: laravel
-      MYSQL_PASSWORD: secret
+      MYSQL_PASSWORD: Laravel123!  # Updated to match the password in the app service
     volumes:
-      - crm_dbdata:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
     ports:
-      - "3308:3306"  # Erinev port kui RMP (3307)
+      - "3308:3306"  # Map MySQL to host port 3308 to avoid conflict with host MySQL
     command: --default-authentication-plugin=mysql_native_password
     restart: unless-stopped
 
@@ -73,4 +71,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  crm_dbdata:
+  mysql_data:

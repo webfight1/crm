@@ -15,7 +15,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Company Name -->
                             <div class="md:col-span-2">
-                                <x-input-label for="name" :value="__('Company Name')" />
+                                <x-input- label for="name" :value="__('Company Name')" />
                                 <div class="relative">
                                     <x-text-input id="name" class="block mt-1 w-full" type="text" name="name" :value="old('name')" required autofocus autocomplete="off" />
                                     <div id="company-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg hidden max-h-60 overflow-y-auto"></div>

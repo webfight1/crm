@@ -19,8 +19,7 @@ return new class extends Migration
             $table->string('phone')->nullable()->after('emtak');
             $table->string('website')->nullable()->after('phone');
         });
-    }Error
-    Call to undefined method App\Http\Controllers\TaskController::authorize()
+    }
 
     /**
      * Reverse the migrations.
