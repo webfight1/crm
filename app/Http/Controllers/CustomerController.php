@@ -7,7 +7,6 @@ use App\Models\Company;
 use App\Models\Contact;
 use App\Models\Deal;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class CustomerController extends Controller
@@ -18,8 +17,7 @@ class CustomerController extends Controller
      */
     public function index()
     {
-        $customers = Customer::with(['company', 'user'])
-            ->where('user_id', Auth::id())
+        $customers = Customer::with(['company'])
             ->paginate(15);
 
         return view('customers.index', compact('customers'));
@@ -30,7 +28,7 @@ class CustomerController extends Controller
      */
     public function create()
     {
-        $companies = Company::where('user_id', Auth::id())->get();
+        $companies = Company::all();
         return view('customers.create', compact('companies'));
     }
 
@@ -55,8 +53,6 @@ class CustomerController extends Controller
             'company_id' => 'nullable|exists:companies,id',
         ]);
 
-        $validated['user_id'] = Auth::id();
-
         Customer::create($validated);
 
         return redirect()->route('customers.index')
@@ -68,10 +64,6 @@ class CustomerController extends Controller
      */
     public function show(Customer $customer)
     {
-        if ($customer->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
-        
         $customer->load(['company', 'contacts', 'deals', 'tasks']);
         
         return view('customers.show', compact('customer'));
@@ -82,11 +74,7 @@ class CustomerController extends Controller
      */
     public function edit(Customer $customer)
     {
-        if ($customer->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
-        
-        $companies = Company::where('user_id', Auth::id())->get();
+        $companies = Company::all();
         
         return view('customers.edit', compact('customer', 'companies'));
     }
@@ -96,10 +84,6 @@ class CustomerController extends Controller
      */
     public function update(Request $request, Customer $customer)
     {
-        if ($customer->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
-
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
@@ -127,10 +111,6 @@ class CustomerController extends Controller
      */
     public function destroy(Customer $customer)
     {
-        if ($customer->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
-        
         $customer->delete();
 
         return redirect()->route('customers.index')

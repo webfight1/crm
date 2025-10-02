@@ -1,4 +1,5 @@
 import './bootstrap';
+import './timer';
 
 import Alpine from 'alpinejs';
 

@@ -1,6 +1,17 @@
 <?php
 
+use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\CalendarController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Auth\EmailVerificationPromptController;
+use App\Http\Controllers\Auth\EmailVerificationNotificationController;
+use App\Http\Controllers\Auth\VerifyEmailController;
+use App\Http\Controllers\Auth\ConfirmablePasswordController;
+use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ContactController;
@@ -8,45 +19,97 @@ use App\Http\Controllers\DealController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\EmailCampaignController;
 use App\Http\Controllers\EmailLogController;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\TimeEntryController;
+use App\Http\Controllers\CommentController;
+use App\Http\Controllers\SettingController;
+use App\Http\Controllers\QuotationController;
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect()->route('login');
+});
+
+Route::middleware('guest')->group(function () {
+    Route::get('register', [RegisteredUserController::class, 'create'])
+        ->name('register');
+    Route::post('register', [RegisteredUserController::class, 'store']);
+    Route::get('login', [AuthenticatedSessionController::class, 'create'])
+        ->name('login');
+    Route::post('login', [AuthenticatedSessionController::class, 'store']);
+    Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
+        ->name('password.request');
+    Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
+        ->name('password.email');
+    Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
+        ->name('password.reset');
+    Route::post('reset-password', [NewPasswordController::class, 'store'])
+        ->name('password.store');
 });
 
 Route::get('/dashboard', function () {
-    $user = Auth::user();
-    
+    // Statistics
     $stats = [
-        'customers' => \App\Models\Customer::where('user_id', $user->id)->count(),
-        'companies' => \App\Models\Company::where('user_id', $user->id)->count(),
-        'deals' => \App\Models\Deal::where('user_id', $user->id)->count(),
-        'tasks' => \App\Models\Task::where('user_id', $user->id)->where('status', '!=', 'completed')->count(),
-        'total_deal_value' => \App\Models\Deal::where('user_id', $user->id)->where('stage', '!=', 'closed_lost')->sum('value'),
-        'won_deals' => \App\Models\Deal::where('user_id', $user->id)->where('stage', 'closed_won')->count(),
+        'customers' => \App\Models\Customer::count(),
+        'companies' => \App\Models\Company::count(),
+        'deals' => \App\Models\Deal::count(),
+        'tasks' => \App\Models\Task::count(),
+        'total_value' => \App\Models\Deal::sum('value'),
+        'won_deals' => \App\Models\Deal::where('stage', 'closed_won')->count(),
     ];
-    
-    $recent_customers = \App\Models\Customer::where('user_id', $user->id)
-        ->with('company')
-        ->latest()
+
+    // Recent customers
+    $recent_customers = \App\Models\Customer::orderBy('created_at', 'desc')
         ->take(5)
         ->get();
-        
-    $upcoming_tasks = \App\Models\Task::where('user_id', $user->id)
+
+    // Upcoming tasks
+    $upcoming_tasks = \App\Models\Task::where('due_date', '>=', now())
         ->where('status', '!=', 'completed')
         ->with(['customer', 'company', 'deal'])
         ->orderBy('due_date', 'asc')
         ->take(5)
         ->get();
+        
+    // Recent comments
+    $recent_comments = \App\Models\Comment::with(['user', 'task'])
+        ->where('user_id', '!=', auth()->id())
+        ->whereHas('task', function($query) {
+            $query->whereNull('deleted_at');
+        })
+        ->orderBy('created_at', 'desc')
+        ->take(30)
+        ->get();
     
-    return view('dashboard', compact('stats', 'recent_customers', 'upcoming_tasks'));
+    return view('dashboard', compact('stats', 'recent_customers', 'upcoming_tasks', 'recent_comments'));
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    // Auth routes
+    Route::post('/logout', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'destroy'])
+        ->name('logout');
+
+    // Email verification routes
+    Route::get('verify-email', EmailVerificationPromptController::class)
+        ->name('verification.notice');
+    Route::get('verify-email/{id}/{hash}', [VerifyEmailController::class, '__invoke'])
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
+    Route::post('email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
+        ->middleware('throttle:6,1')
+        ->name('verification.send');
+    Route::controller(CalendarController::class)->group(function () {
+        Route::get('/calendar', 'index')->name('calendar.index');
+        Route::get('/calendar/create', 'create')->name('calendar.create');
+        Route::post('/calendar', 'store')->name('calendar.store');
+        Route::get('/calendar/feed', 'feed')->name('calendar.feed');
+    });
+    
+    // Profile routes
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Password update
+    Route::put('/password', [PasswordController::class, 'update'])->name('password.update');
     
     // CRM Routes
     Route::resource('customers', CustomerController::class);
@@ -55,16 +118,34 @@ Route::middleware('auth')->group(function () {
     Route::resource('contacts', ContactController::class);
     Route::resource('deals', DealController::class);
     Route::resource('tasks', TaskController::class);
+    Route::resource('quotations', QuotationController::class);
+    Route::post('/quotations/{quotation}/send', [QuotationController::class, 'sendByEmail'])->name('quotations.send');
+    Route::get('/quotations/{quotation}/pdf', [QuotationController::class, 'downloadPdf'])->name('quotations.pdf');
     
-    // Email campaigns
+    // Email routes
     Route::resource('email-campaigns', EmailCampaignController::class);
-    Route::post('/email-campaigns/start-sending', [EmailCampaignController::class, 'startSending'])->name('email-campaigns.start-sending');
-    Route::get('/email-campaigns/progress', [EmailCampaignController::class, 'progress'])->name('email-campaigns.progress');
     Route::get('/email-campaigns/batch/{batch}', [EmailCampaignController::class, 'showBatch'])->name('email-campaigns.batch.show');
-    
-    // Email logs
-    Route::get('/email-logs', [EmailLogController::class, 'index'])->name('email-logs.index');
+    Route::post('/email-campaigns/start-sending', [EmailCampaignController::class, 'startSending'])->name('email-campaigns.start-sending');
+    Route::delete('/email-campaigns/batch/{batch}', [EmailCampaignController::class, 'destroyBatch'])->name('email-campaigns.batch.destroy');
+    Route::resource('email-logs', EmailLogController::class);
     Route::get('/email-logs/cooldown-status', [EmailLogController::class, 'cooldownStatus'])->name('email-logs.cooldown-status');
+    
+    // Settings
+    Route::get('/settings', [SettingController::class, 'edit'])->name('settings.edit');
+    Route::patch('/settings', [SettingController::class, 'update'])->name('settings.update');
+    
+    // Time entries
+    Route::post('/time-entries/start/{task}', [TimeEntryController::class, 'start'])->name('time-entries.start');
+    Route::post('/time-entries/stop/{timeEntry}', [TimeEntryController::class, 'stop'])->name('time-entries.stop');
+    Route::get('/time-entries/current', [TimeEntryController::class, 'current'])->name('time-entries.current');
+    Route::get('/time-entries/{timeEntry}/edit', [TimeEntryController::class, 'edit'])->name('time-entries.edit');
+    Route::put('/time-entries/{timeEntry}', [TimeEntryController::class, 'update'])->name('time-entries.update');
+    Route::delete('/time-entries/{timeEntry}', [TimeEntryController::class, 'destroy'])->name('time-entries.destroy');
+    
+    // Comments
+    Route::post('/tasks/{task}/comments', [CommentController::class, 'store'])->name('comments.store');
+    Route::get('/comments/{comment}/edit', [CommentController::class, 'edit'])->name('comments.edit');
+    Route::put('/comments/{comment}', [CommentController::class, 'update'])->name('comments.update');
+    Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
+    Route::post('/comments/{comment}/read', [CommentController::class, 'markAsRead'])->name('comments.read');
 });
-
-require __DIR__.'/auth.php';

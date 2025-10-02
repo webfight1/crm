@@ -35,32 +35,40 @@ class EmailLog extends Model
     /**
      * Check if email was sent to this address within cooldown period
      */
-    public static function isInCooldown(string $email, int $userId, int $cooldownDays = 14): bool
+    public static function isInCooldown(string $email, ?int $userId = null, int $cooldownDays = 14): bool
     {
         // Ensure cooldownDays is an integer
         $days = (int)$cooldownDays;
         $cooldownDate = Carbon::now()->subDays($days);
         
-        return self::where('email', $email)
-            ->where('user_id', $userId)
+        $query = self::where('email', $email)
             ->where('status', 'sent')
-            ->where('sent_at', '>=', $cooldownDate)
-            ->exists();
+            ->where('sent_at', '>=', $cooldownDate);
+            
+        if ($userId !== null) {
+            $query->where('user_id', $userId);
+        }
+        
+        return $query->exists();
     }
 
     /**
      * Get emails that are in cooldown period
      */
-    public static function getEmailsInCooldown(int $userId, int $cooldownDays = 14): array
+    public static function getEmailsInCooldown(?int $userId = null, int $cooldownDays = 14): array
     {
         // Ensure cooldownDays is an integer
         $days = (int)$cooldownDays;
         $cooldownDate = Carbon::now()->subDays($days);
         
-        return self::where('user_id', $userId)
-            ->where('status', 'sent')
-            ->where('sent_at', '>=', $cooldownDate)
-            ->pluck('email')
+        $query = self::where('status', 'sent')
+            ->where('sent_at', '>=', $cooldownDate);
+            
+        if ($userId !== null) {
+            $query->where('user_id', $userId);
+        }
+        
+        return $query->pluck('email')
             ->unique()
             ->toArray();
     }
@@ -69,9 +77,9 @@ class EmailLog extends Model
      * Log successful email send
      */
     public static function logSent(
-        int $userId,
         string $email,
         string $subject,
+        ?int $userId = null,
         ?int $campaignId = null,
         ?string $response = null
     ): self {

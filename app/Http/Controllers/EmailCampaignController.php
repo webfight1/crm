@@ -19,16 +19,14 @@ class EmailCampaignController extends Controller
     use AuthorizesRequests;
     public function index()
     {
-        $batches = EmailCampaignBatch::forUser(Auth::id())
-            ->orderBy('created_at', 'desc')
+        $batches = EmailCampaignBatch::orderBy('created_at', 'desc')
             ->paginate(20);
 
         $stats = [
-            'total_sent' => EmailCampaign::forUser(Auth::id())->successful()->count(),
-            'total_failed' => EmailCampaign::forUser(Auth::id())->failed()->count(),
-            'pending' => EmailCampaign::forUser(Auth::id())->where('status', 'pending')->count(),
-            'recent_batches' => EmailCampaignBatch::forUser(Auth::id())
-                ->whereDate('created_at', today())
+            'total_sent' => EmailCampaign::successful()->count(),
+            'total_failed' => EmailCampaign::failed()->count(),
+            'pending' => EmailCampaign::where('status', 'pending')->count(),
+            'recent_batches' => EmailCampaignBatch::whereDate('created_at', today())
                 ->count(),
         ];
 
@@ -37,8 +35,8 @@ class EmailCampaignController extends Controller
 
     public function create()
     {
-        $customers = Customer::where('user_id', Auth::id())->get();
-        $companies = Company::where('user_id', Auth::id())->get();
+        $customers = Customer::all();
+        $companies = Company::all();
         
         return view('email-campaigns.create', compact('customers', 'companies'));
     }
@@ -137,8 +135,8 @@ class EmailCampaignController extends Controller
         // Create campaign records for each email
         foreach ($csvData as $row) {
             $campaign = EmailCampaign::create([
+                    'batch_id' => $batch->id,
                 'user_id' => Auth::id(),
-                'batch_id' => $batch->id,
                 'subject' => $request->subject,
                 'subject_ru' => $request->subject_ru,
                 'message' => $request->message,
@@ -161,7 +159,6 @@ class EmailCampaignController extends Controller
 
         // Log successful creation
         Log::info('Email batch created', [
-            'user_id' => Auth::id(),
             'batch_id' => $batch->id,
             'count' => count($campaignIds),
             'filename' => $filename
@@ -174,29 +171,22 @@ class EmailCampaignController extends Controller
     public function show(EmailCampaign $emailCampaign)
     {
         // Simple check instead of authorize for now
-        if ($emailCampaign->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
 
         return view('email-campaigns.show', compact('emailCampaign'));
     }
 
     public function showBatch(EmailCampaignBatch $batch)
     {
-        if ($batch->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
-
-        $campaigns = $batch->campaigns()->paginate(50);
+        $campaigns = $batch->campaigns()
+            ->orderBy('created_at', 'desc')
+            ->paginate(50);
         
         return view('email-campaigns.batch-show', compact('batch', 'campaigns'));
     }
 
     public function startSending()
     {
-        $userId = Auth::id();
-        $pendingCampaigns = EmailCampaign::forUser($userId)
-            ->where('status', 'pending')
+        $pendingCampaigns = EmailCampaign::where('status', 'pending')
             ->pluck('id')
             ->toArray();
 
@@ -206,7 +196,7 @@ class EmailCampaignController extends Controller
         }
 
         // Update batch status to 'sending'
-        $batches = EmailCampaignBatch::forUser($userId)->where('status', 'pending')->get();
+        $batches = EmailCampaignBatch::where('status', 'pending')->get();
         foreach ($batches as $batch) {
             $batch->update([
                 'status' => 'sending',
@@ -224,12 +214,10 @@ class EmailCampaignController extends Controller
 
     public function progress()
     {
-        $userId = Auth::id();
-        
-        $total = EmailCampaign::forUser($userId)->count();
-        $sent = EmailCampaign::forUser($userId)->where('status', 'sent')->count();
-        $failed = EmailCampaign::forUser($userId)->where('status', 'failed')->count();
-        $pending = EmailCampaign::forUser($userId)->where('status', 'pending')->count();
+        $total = EmailCampaign::count();
+        $sent = EmailCampaign::where('status', 'sent')->count();
+        $failed = EmailCampaign::where('status', 'failed')->count();
+        $pending = EmailCampaign::where('status', 'pending')->count();
 
         $status = $pending > 0 ? 'running' : 'completed';
 
@@ -364,42 +352,86 @@ class EmailCampaignController extends Controller
         }
     }
 
+    public function destroyBatch(EmailCampaignBatch $batch)
+    {
+        // Delete all related campaigns first
+        $batch->campaigns()->delete();
+        
+        // Then delete the batch
+        $batch->delete();
+
+        return redirect()->route('email-campaigns.index')
+            ->with('success', 'Email kampaania edukalt kustutatud.');
+    }
+
     private function sendToZoneApi($apiUrl, $data)
     {
+        // Validate the URL first
+        if (empty($apiUrl)) {
+            throw new \Exception("API URL is not configured. Please check your .env file.");
+        }
+
+        // Ensure the URL has a valid scheme
+        if (!preg_match("~^(?:f|ht)tps?://~i", $apiUrl)) {
+            $apiUrl = "https://" . ltrim($apiUrl, '/');
+        }
+
+        // Validate URL format
+        if (!filter_var($apiUrl, FILTER_VALIDATE_URL)) {
+            throw new \Exception("Invalid API URL format: " . $apiUrl);
+        }
+
         $ch = curl_init();
         
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $apiUrl,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => json_encode($data),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json',
-                'User-Agent: Laravel CRM System'
-            ],
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_SSL_VERIFYPEER => true,
-        ]);
-        
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-        
-        if ($error) {
-            throw new \Exception("cURL error: $error");
+        try {
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $apiUrl,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode($data),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'User-Agent: Laravel CRM System',
+                    'Accept: application/json'
+                ],
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 5,
+            ]);
+            
+            $response = curl_exec($ch);
+            
+            if ($response === false) {
+                throw new \Exception("cURL error: " . curl_error($ch));
+            }
+            
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            
+            if ($httpCode !== 200) {
+                $errorInfo = "HTTP error: $httpCode";
+                if ($response) {
+                    $errorInfo .= " - " . substr(strip_tags($response), 0, 200);
+                }
+                throw new \Exception($errorInfo);
+            }
+            
+            $decoded = json_decode($response, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                \Log::error('Invalid JSON response from Zone API', [
+                    'response' => $response,
+                    'url' => $apiUrl
+                ]);
+                throw new \Exception("Invalid JSON response from Zone API. Response: " . substr($response, 0, 200));
+            }
+            
+            return $decoded;
+        } finally {
+            if (is_resource($ch)) {
+                curl_close($ch);
+            }
         }
-        
-        if ($httpCode !== 200) {
-            throw new \Exception("HTTP error: $httpCode");
-        }
-        
-        $decoded = json_decode($response, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new \Exception("Invalid JSON response from Zone API");
-        }
-        
-        return $decoded;
     }
 }

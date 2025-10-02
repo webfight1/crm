@@ -10,12 +10,11 @@ class EmailLogController extends Controller
 {
     public function index()
     {
-        $logs = EmailLog::where('user_id', Auth::id())
-            ->with('emailCampaign')
+        $logs = EmailLog::with('emailCampaign')
             ->orderBy('sent_at', 'desc')
             ->paginate(50);
 
-        $cooldownEmails = EmailLog::getEmailsInCooldown(Auth::id());
+        $cooldownEmails = EmailLog::getEmailsInCooldown();
         
         return view('email-logs.index', compact('logs', 'cooldownEmails'));
     }
@@ -28,8 +27,20 @@ class EmailLogController extends Controller
             return response()->json(['error' => 'Email is required'], 400);
         }
 
-        $isInCooldown = EmailLog::isInCooldown($email, Auth::id());
         $cooldownDays = env('EMAIL_COOLDOWN_DAYS', 14);
+        
+        // Check if any emails have been sent at all
+        if (EmailLog::count() === 0) {
+            return response()->json([
+                'email' => $email,
+                'in_cooldown' => false,
+                'cooldown_days' => $cooldownDays,
+                'message' => 'E-mail on saatmiseks valmis (pole ühtegi saatmist veel)',
+                'has_logs' => false
+            ]);
+        }
+
+        $isInCooldown = EmailLog::isInCooldown($email);
         
         return response()->json([
             'email' => $email,
@@ -37,7 +48,8 @@ class EmailLogController extends Controller
             'cooldown_days' => $cooldownDays,
             'message' => $isInCooldown 
                 ? "E-mail on cooldown perioodis ({$cooldownDays} päeva)"
-                : "E-mail on saatmiseks valmis"
+                : "E-mail on saatmiseks valmis",
+            'has_logs' => true
         ]);
     }
 }

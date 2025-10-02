@@ -28,7 +28,9 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // Always go to dashboard after login to avoid being redirected to
+        // previously attempted JSON endpoints (e.g., /time-entries/current)
+        return redirect()->route('dashboard');
     }
 
     /**

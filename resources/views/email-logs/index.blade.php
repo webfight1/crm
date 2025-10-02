@@ -82,16 +82,24 @@
                                                 </span>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {{ $log->sent_at->format('d.m.Y H:i') }}
+                                                @if($log->sent_at)
+                                                    {{ $log->sent_at->format('d.m.Y H:i') }}
+                                                @else
+                                                    –
+                                                @endif
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 @php
                                                     // Ensure EMAIL_COOLDOWN_DAYS is an integer
                                                     $cooldownDays = (int)env('EMAIL_COOLDOWN_DAYS', 14);
-                                                    $cooldownEnd = $log->sent_at->copy()->addDays($cooldownDays);
-                                                    $isInCooldown = $cooldownEnd->isFuture();
+                                                    $cooldownEnd = $log->sent_at ? $log->sent_at->copy()->addDays($cooldownDays) : null;
+                                                    $isInCooldown = $cooldownEnd ? $cooldownEnd->isFuture() : false;
                                                 @endphp
-                                                @if($isInCooldown)
+                                                @if(!$log->sent_at)
+                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                                        Pole saadetud
+                                                    </span>
+                                                @elseif($isInCooldown)
                                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
                                                         Kuni {{ $cooldownEnd->format('d.m.Y') }}
                                                     </span>

@@ -30,11 +30,16 @@
                             <!-- Type -->
                             <div>
                                 <x-input-label for="type" :value="__('Tüüp')" />
-                                <select id="type" name="type" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                <select id="type" name="type" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
                                     <option value="call" {{ old('type') == 'call' ? 'selected' : '' }}>Kõne</option>
                                     <option value="email" {{ old('type') == 'email' ? 'selected' : '' }}>E-mail</option>
                                     <option value="meeting" {{ old('type') == 'meeting' ? 'selected' : '' }}>Kohtumine</option>
                                     <option value="follow_up" {{ old('type') == 'follow_up' ? 'selected' : '' }}>Järelkontroll</option>
+                                    <option value="development" {{ old('type') == 'development' ? 'selected' : '' }}>Arendus</option>
+                                    <option value="bug_fix" {{ old('type') == 'bug_fix' ? 'selected' : '' }}>Parandus</option>
+                                    <option value="content_creation" {{ old('type') == 'content_creation' ? 'selected' : '' }}>Sisu lisamine</option>
+                                    <option value="proposal_creation" {{ old('type') == 'proposal_creation' ? 'selected' : '' }}>Pakkumise koostamine</option>
+                                    <option value="testing" {{ old('type') == 'testing' ? 'selected' : '' }}>Testimine</option>
                                     <option value="other" {{ old('type') == 'other' ? 'selected' : '' }}>Muu</option>
                                 </select>
                                 <x-input-error :messages="$errors->get('type')" class="mt-2" />
@@ -43,7 +48,7 @@
                             <!-- Priority -->
                             <div>
                                 <x-input-label for="priority" :value="__('Prioriteet')" />
-                                <select id="priority" name="priority" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                <select id="priority" name="priority" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
                                     <option value="low" {{ old('priority') == 'low' ? 'selected' : '' }}>Madal</option>
                                     <option value="medium" {{ old('priority') == 'medium' ? 'selected' : '' }}>Keskmine</option>
                                     <option value="high" {{ old('priority') == 'high' ? 'selected' : '' }}>Kõrge</option>
@@ -55,10 +60,12 @@
                             <!-- Status -->
                             <div>
                                 <x-input-label for="status" :value="__('Staatus')" />
-                                <select id="status" name="status" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                <select id="status" name="status" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
                                     <option value="pending" {{ old('status') == 'pending' ? 'selected' : '' }}>Ootel</option>
-                                    <option value="in_progress" {{ old('status') == 'in_progress' ? 'selected' : '' }}>Pooleli</option>
-                                    <option value="completed" {{ old('status') == 'completed' ? 'selected' : '' }}>Lõpetatud</option>
+                                    <option value="in_progress" {{ old('status') == 'in_progress' ? 'selected' : '' }}>Töös</option>
+                                    <option value="needs_testing" {{ old('status') == 'needs_testing' ? 'selected' : '' }}>Vajab testimist</option>
+                                    <option value="needs_clarification" {{ old('status') == 'needs_clarification' ? 'selected' : '' }}>Vajab täpsustust</option>
+                                    <option value="completed" {{ old('status') == 'completed' ? 'selected' : '' }}>Valmis</option>
                                     <option value="cancelled" {{ old('status') == 'cancelled' ? 'selected' : '' }}>Tühistatud</option>
                                 </select>
                                 <x-input-error :messages="$errors->get('status')" class="mt-2" />
@@ -78,7 +85,7 @@
                                     <option value="">Vali klient...</option>
                                     @foreach($customers as $customer)
                                         <option value="{{ $customer->id }}" {{ old('customer_id') == $customer->id ? 'selected' : '' }}>
-                                            {{ $customer->name }}
+                                            {{ $customer->full_name }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -87,8 +94,8 @@
 
                             <!-- Company -->
                             <div>
-                                <x-input-label for="company_id" :value="__('Ettevõte (valikuline)')" />
-                                <select id="company_id" name="company_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                <x-input-label for="company_id" :value="__('Ettevõte *')" />
+                                <select id="company_id" name="company_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
                                     <option value="">Vali ettevõte...</option>
                                     @foreach($companies as $company)
                                         <option value="{{ $company->id }}" {{ old('company_id') == $company->id ? 'selected' : '' }}>
@@ -97,6 +104,42 @@
                                     @endforeach
                                 </select>
                                 <x-input-error :messages="$errors->get('company_id')" class="mt-2" />
+                            </div>
+
+                            <!-- Assignee -->
+                            <div>
+                                <x-input-label for="assignee_id" :value="__('Vastutaja *')" />
+                                <select id="assignee_id" name="assignee_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+                                    <option value="">Vali vastutaja...</option>
+                                    @foreach($users as $user)
+                                        <option value="{{ $user->id }}" {{ old('assignee_id') == $user->id ? 'selected' : '' }}>
+                                            {{ $user->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('assignee_id')" class="mt-2" />
+                            </div>
+
+                            <!-- Deal -->
+                            <div>
+                                <x-input-label for="deal_id" :value="__('Tehing *')" />
+                                <select id="deal_id" name="deal_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+                                    <option value="">Vali tehing...</option>
+                                    @foreach($deals as $deal)
+                                        <option value="{{ $deal->id }}" {{ old('deal_id') == $deal->id ? 'selected' : '' }}>
+                                            {{ $deal->title }} (€{{ number_format($deal->value, 2) }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('deal_id')" class="mt-2" />
+                            </div>
+
+
+                            <!-- Price -->
+                            <div>
+                                <x-input-label for="price" :value="__('Hind (€)')" />
+                                <x-text-input id="price" name="price" type="number" step="0.01" min="0" class="mt-1 block w-full" :value="old('price')" required />
+                                <x-input-error :messages="$errors->get('price')" class="mt-2" />
                             </div>
 
                             <!-- Notes -->
@@ -111,6 +154,7 @@
                             <a href="{{ route('tasks.index') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
                                 Tühista
                             </a>
+                         
                             <x-primary-button>
                                 {{ __('Salvesta') }}
                             </x-primary-button>
@@ -120,4 +164,51 @@
             </div>
         </div>
     </div>
+    <!-- Rich Text Editor (TinyMCE) -->
+    <style>
+        /* Ensure TinyMCE area is always interactive */
+        .tox .tox-edit-area__overlay { display: none !important; }
+        .tox .tox-edit-area__iframe { pointer-events: auto !important; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script>
+        window.addEventListener('load', function() {
+            if (window.tinymce) {
+                tinymce.remove();
+            }
+            const commonOptions = {
+                plugins: 'lists link code fullscreen table',
+                toolbar: 'undo redo | blocks | bold italic underline strikethrough | forecolor backcolor | bullist numlist | link table | code | fullscreen',
+                menubar: false,
+                branding: false,
+                statusbar: true,
+                height: 320,
+                convert_urls: false,
+                skin: 'oxide',
+                content_css: 'default',
+                content_style: 'body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size: 14px; }',
+                readonly: false,
+                promotion: false,
+                license_key: 'gpl',
+            };
+
+            if (document.querySelector('textarea#description')) {
+                tinymce.init({
+                    selector: 'textarea#description',
+                    ...commonOptions,
+                    setup: (editor) => {
+                        editor.on('init', () => {
+                            try { editor.getBody().setAttribute('contenteditable', true); } catch (e) {}
+                        });
+                    }
+                });
+            }
+            if (document.querySelector('textarea#notes')) {
+                tinymce.init({
+                    selector: 'textarea#notes',
+                    ...commonOptions,
+                });
+            }
+        });
+    </script>
 </x-app-layout>

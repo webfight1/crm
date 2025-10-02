@@ -85,6 +85,10 @@ ssh ${REMOTE_USER}@${REMOTE_HOST} << ENDSSH
     rm -f /tmp/${IMAGE_NAME}-${VERSION}.tar
     docker system prune -f
     
+    # Run database migrations
+    echo "Running database migrations..."
+    docker exec ${CONTAINER_NAME} php artisan migrate --force || { echo "Failed to run migrations"; exit 1; }
+    
     echo -e "${GREEN}✅ Deployment of version ${VERSION} completed successfully!${NC}"
     
     # Show running container info

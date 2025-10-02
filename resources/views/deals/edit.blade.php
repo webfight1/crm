@@ -133,4 +133,51 @@
             </div>
         </div>
     </div>
+    <!-- Rich Text Editor (TinyMCE) -->
+    <style>
+        /* Ensure TinyMCE area is always interactive */
+        .tox .tox-edit-area__overlay { display: none !important; }
+        .tox .tox-edit-area__iframe { pointer-events: auto !important; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script>
+        window.addEventListener('load', function() {
+            if (window.tinymce) {
+                tinymce.remove();
+            }
+            const commonOptions = {
+                plugins: 'lists link code fullscreen table',
+                toolbar: 'undo redo | blocks | bold italic underline strikethrough | forecolor backcolor | bullist numlist | link table | code | fullscreen',
+                menubar: false,
+                branding: false,
+                statusbar: true,
+                height: 320,
+                convert_urls: false,
+                skin: 'oxide',
+                content_css: 'default',
+                content_style: 'body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size: 14px; }',
+                readonly: false,
+                promotion: false,
+                license_key: 'gpl',
+            };
+
+            if (document.querySelector('textarea#description')) {
+                tinymce.init({
+                    selector: 'textarea#description',
+                    ...commonOptions,
+                    setup: (editor) => {
+                        editor.on('init', () => {
+                            try { editor.getBody().setAttribute('contenteditable', true); } catch (e) {}
+                        });
+                    }
+                });
+            }
+            if (document.querySelector('textarea#notes')) {
+                tinymce.init({
+                    selector: 'textarea#notes',
+                    ...commonOptions,
+                });
+            }
+        });
+    </script>
 </x-app-layout>

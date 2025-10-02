@@ -2,10 +2,10 @@
     <x-slot name="header">
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Customers') }}
+                {{ __('Kliendid') }}
             </h2>
             <a href="{{ route('customers.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                Add Customer
+                Lisa klient
             </a>
         </div>
     </x-slot>
@@ -26,22 +26,22 @@
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Name
+                                            Nimi
                                         </th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Email
+                                            E-post
                                         </th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Phone
+                                            Telefon
                                         </th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Company
+                                            Ettevõte
                                         </th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Status
+                                            Staatus
                                         </th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Actions
+                                            Toimingud
                                         </th>
                                     </tr>
                                 </thead>
@@ -78,16 +78,18 @@
                                                     @if($customer->status === 'active') bg-green-100 text-green-800
                                                     @elseif($customer->status === 'inactive') bg-red-100 text-red-800
                                                     @else bg-yellow-100 text-yellow-800 @endif">
-                                                    {{ ucfirst($customer->status) }}
+                                                    @if($customer->status === 'active') Aktiivne
+                                                    @elseif($customer->status === 'inactive') Mitteaktiivne
+                                                    @else {{ ucfirst($customer->status) }} @endif
                                                 </span>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <a href="{{ route('customers.show', $customer) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">View</a>
-                                                <a href="{{ route('customers.edit', $customer) }}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
+                                                <a href="{{ route('customers.show', $customer) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">Vaata</a>
+                                                <a href="{{ route('customers.edit', $customer) }}" class="text-blue-600 hover:text-blue-900 mr-3">Muuda</a>
                                                 <form action="{{ route('customers.destroy', $customer) }}" method="POST" class="inline">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Are you sure?')">Delete</button>
+                                                    <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Kas oled kindel?')">Kustuta</button>
                                                 </form>
                                             </td>
                                         </tr>

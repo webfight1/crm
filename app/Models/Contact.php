@@ -19,14 +19,9 @@ class Contact extends Model
         'status',
         'company_id',
         'customer_id',
-        'user_id',
     ];
 
     // Relationships
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
 
     public function company(): BelongsTo
     {

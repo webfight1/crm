@@ -24,7 +24,6 @@ class Company extends Model
         'annual_revenue',
         'status',
         'notes',
-        'user_id',
     ];
 
     protected $casts = [
@@ -32,10 +31,6 @@ class Company extends Model
     ];
 
     // Relationships
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
 
     public function customers(): HasMany
     {

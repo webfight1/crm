@@ -96,9 +96,9 @@ class SendEmailCampaigns extends Command
                     
                     // Log successful email send for cooldown tracking
                     EmailLog::logSent(
-                        $campaign->user_id,
                         $campaign->recipient_email,
                         $subject,
+                        $campaign->user_id,
                         $campaign->id,
                         $response
                     );

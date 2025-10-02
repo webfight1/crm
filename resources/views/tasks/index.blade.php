@@ -24,6 +24,24 @@
                 </div>
             @endif
 
+            <!-- User Filter -->
+            <div class="mb-6">
+                <form method="GET" action="{{ route('tasks.index') }}" class="flex items-center space-x-4">
+                    <div class="flex-grow max-w-xs">
+                        <select name="user_id" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" onchange="this.form.submit()">
+                            <option value="all" {{ request('user_id') === 'all' ? 'selected' : '' }}>Kõik ülesanded</option>
+                            <option value="mine" {{ request('user_id') === 'mine' ? 'selected' : '' }}>Minu loodud</option>
+                            <option value="assigned" {{ request('user_id') === 'assigned' ? 'selected' : '' }}>Minule määratud</option>
+                            @foreach($users as $user)
+                                <option value="{{ $user->id }}" {{ request('user_id') == $user->id ? 'selected' : '' }}>
+                                    {{ $user->name }} loodud
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                </form>
+            </div>
+
             <!-- Statistics -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                 <div class="bg-white overflow-hidden shadow rounded-lg">
@@ -121,11 +139,13 @@
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ülesanne</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vastutaja</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tehing</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kulunud aeg</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hind</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prioriteet</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staatus</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tähtaeg</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loodud</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Toimingud</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
@@ -134,14 +154,48 @@
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <div>
                                                     <div class="text-sm font-medium text-gray-900">
-                                                        {{ $task->title }}
+                                                        <a href="{{ route('tasks.show', $task) }}" class="text-blue-600 hover:text-blue-900">
+                                                            {{ $task->title }}
+                                                        </a>
                                                     </div>
                                                     @if($task->description)
                                                         <div class="text-sm text-gray-500">
-                                                            {{ Str::limit($task->description, 60) }}
+                                                            {{ Str::limit(strip_tags($task->description), 60) }}
                                                         </div>
                                                     @endif
                                                 </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                @if($task->assignee)
+                                                    {{ $task->assignee->name }}
+                                                @else
+                                                    <span class="text-gray-400">Määramata</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                @if($task->deal)
+                                                    <a href="{{ route('deals.show', $task->deal) }}" class="text-blue-600 hover:text-blue-800">
+                                                        {{ Str::limit($task->deal->title, 30) }}
+                                                    </a>
+                                                @else
+                                                    <span class="text-gray-400">-</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                @if($task->time_spent > 0)
+                                                    <span title="Taimeri abil mõõdetud aeg">
+                                                        {{ number_format($task->time_spent, 2) }} h
+                                                    </span>
+                                                @else
+                                                    <span class="text-gray-400" title="Aega pole veel mõõdetud">0h</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                @if($task->price)
+                                                    €{{ number_format($task->price, 2) }}
+                                                @else
+                                                    <span class="text-gray-400">-</span>
+                                                @endif
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
@@ -165,31 +219,48 @@
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                 @if($task->due_date)
-                                                    <span class="@if($task->due_date->isPast() && $task->status !== 'completed') text-red-600 @endif">
-                                                        {{ $task->due_date->format('d.m.Y') }}
+                                                    <span class="@if($task->due_date->isPast() && $task->status !== 'completed') text-red-600 @endif" title="{{ $task->due_date->format('d.m.Y') }}">
+                                                        @if($task->due_date->isToday())
+                                                            Täna
+                                                        @elseif($task->due_date->isTomorrow())
+                                                            Homme
+                                                        @elseif($task->due_date->isAfter(now()) && $task->due_date->isBefore(now()->addDays(2)))
+                                                            Ülehomme
+                                                        @elseif($task->due_date->isAfter(now()) && $task->due_date->isBefore(now()->addDays(7)))
+                                                            {{ $task->due_date->locale('et')->dayName }}
+                                                        @else
+                                                            {{ $task->due_date->locale('et')->dayName }}, {{ $task->due_date->format('d.m.Y') }}
+                                                        @endif
+                                                    </span>
+                                                    <span class="text-sm ml-2 @if($task->due_date->isPast()) text-red-600 @else text-gray-500 @endif">
+                                                        @php
+                                                            $diff = now()->startOfDay()->diffInDays($task->due_date->startOfDay(), false);
+                                                        @endphp
+                                                        @if($diff < 0)
+                                                            -{{ abs($diff) }}p
+                                                        @else
+                                                            {{ $diff }}p
+                                                        @endif
                                                     </span>
                                                 @else
                                                     <span class="text-gray-400">-</span>
                                                 @endif
                                             </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {{ $task->created_at->format('d.m.Y') }}
-                                            </td>
+                                           
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                                                <a href="{{ route('tasks.show', $task) }}" class="text-indigo-600 hover:text-indigo-900">
-                                                    Vaata
-                                                </a>
-                                                <a href="{{ route('tasks.edit', $task) }}" class="text-green-600 hover:text-green-900">
-                                                    Muuda
-                                                </a>
-                                                <form method="POST" action="{{ route('tasks.destroy', $task) }}" class="inline">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="text-red-600 hover:text-red-900" 
-                                                        onclick="return confirm('Kas oled kindel, et tahad selle ülesande kustutada?')">
-                                                        Kustuta
-                                                    </button>
-                                                </form>
+                                                @if(Auth::id() === $task->user_id || Auth::id() === $task->assignee_id)
+                                                    <a href="{{ route('tasks.edit', $task) }}" class="text-green-600 hover:text-green-900">
+                                                        Muuda
+                                                    </a>
+                                                    <form method="POST" action="{{ route('tasks.destroy', $task) }}" class="inline">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="text-red-600 hover:text-red-900" 
+                                                            onclick="return confirm('Kas oled kindel, et tahad selle ülesande kustutada?')">
+                                                            Kustuta
+                                                        </button>
+                                                    </form>
+                                                @endif
                                             </td>
                                         </tr>
                                     @endforeach

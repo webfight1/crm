@@ -2,10 +2,10 @@
     <x-slot name="header">
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Companies') }}
+                {{ __('Ettevõtted') }}
             </h2>
             <a href="{{ route('companies.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                Add Company
+                Lisa ettevõte
             </a>
         </div>
     </x-slot>
@@ -26,22 +26,22 @@
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Company
+                                            Ettevõte
                                         </th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Contact Info
+                                            Kontaktandmed
                                         </th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Industry
+                                            Valdkond
                                         </th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Employees
+                                            Töötajad
                                         </th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Status
+                                            Staatus
                                         </th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Actions
+                                            Toimingud
                                         </th>
                                     </tr>
                                 </thead>
@@ -90,16 +90,22 @@
                                                     @if($company->status === 'active') bg-green-100 text-green-800
                                                     @elseif($company->status === 'inactive') bg-red-100 text-red-800
                                                     @else bg-yellow-100 text-yellow-800 @endif">
-                                                    {{ ucfirst($company->status) }}
+                                                    @if($company->status === 'active')
+                                                        Aktiivne
+                                                    @elseif($company->status === 'inactive')
+                                                        Mitteaktiivne
+                                                    @else
+                                                        {{ ucfirst($company->status) }}
+                                                    @endif
                                                 </span>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <a href="{{ route('companies.show', $company) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">View</a>
-                                                <a href="{{ route('companies.edit', $company) }}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
+                                                <a href="{{ route('companies.show', $company) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">Vaata</a>
+                                                <a href="{{ route('companies.edit', $company) }}" class="text-blue-600 hover:text-blue-900 mr-3">Muuda</a>
                                                 <form action="{{ route('companies.destroy', $company) }}" method="POST" class="inline">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Are you sure?')">Delete</button>
+                                                    <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Kas oled kindel?')">Kustuta</button>
                                                 </form>
                                             </td>
                                         </tr>
@@ -116,14 +122,14 @@
                             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
-                            <h3 class="mt-2 text-sm font-medium text-gray-900">No companies</h3>
-                            <p class="mt-1 text-sm text-gray-500">Get started by creating your first company.</p>
+                            <h3 class="mt-2 text-sm font-medium text-gray-900">Ettevõtteid pole</h3>
+                            <p class="mt-1 text-sm text-gray-500">Alusta oma esimese ettevõtte lisamisega.</p>
                             <div class="mt-6">
                                 <a href="{{ route('companies.create') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
                                     <svg class="-ml-1 mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
                                     </svg>
-                                    Add Company
+                                    Lisa ettevõte
                                 </a>
                             </div>
                         </div>

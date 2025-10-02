@@ -146,9 +146,16 @@
                                                 {{ $batch->created_at->format('d.m.Y H:i') }}
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <a href="{{ route('email-campaigns.batch.show', $batch) }}" class="text-indigo-600 hover:text-indigo-900">
-                                                    Vaata
-                                                </a>
+                                                <div class="flex space-x-3">
+                                                    <a href="{{ route('email-campaigns.batch.show', $batch) }}" class="text-indigo-600 hover:text-indigo-900">
+                                                        Vaata
+                                                    </a>
+                                                    <form method="POST" action="{{ route('email-campaigns.batch.destroy', $batch) }}" class="inline" onsubmit="return confirm('Kas oled kindel, et soovid selle kampaania kustutada?');">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="text-red-600 hover:text-red-900">Kustuta</button>
+                                                    </form>
+                                                </div>
                                             </td>
                                         </tr>
                                     @endforeach

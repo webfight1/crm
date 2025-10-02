@@ -8,7 +8,6 @@ use App\Models\Customer;
 use App\Models\Contact;
 use App\Models\Deal;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class CompanyController extends Controller
@@ -19,9 +18,7 @@ class CompanyController extends Controller
      */
     public function index()
     {
-        $companies = Company::with(['user'])
-            ->where('user_id', Auth::id())
-            ->paginate(15);
+        $companies = Company::paginate(15);
 
         return view('companies.index', compact('companies'));
     }
@@ -57,8 +54,6 @@ class CompanyController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $validated['user_id'] = Auth::id();
-
         Company::create($validated);
 
         return redirect()->route('companies.index')
@@ -70,10 +65,6 @@ class CompanyController extends Controller
      */
     public function show(Company $company)
     {
-        if ($company->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
-        
         $company->load(['customers', 'contacts', 'deals', 'tasks']);
         
         return view('companies.show', compact('company'));
@@ -84,10 +75,6 @@ class CompanyController extends Controller
      */
     public function edit(Company $company)
     {
-        if ($company->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
-        
         return view('companies.edit', compact('company'));
     }
 
@@ -96,9 +83,6 @@ class CompanyController extends Controller
      */
     public function update(Request $request, Company $company)
     {
-        if ($company->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -129,10 +113,6 @@ class CompanyController extends Controller
      */
     public function destroy(Company $company)
     {
-        if ($company->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
-        
         $company->delete();
 
         return redirect()->route('companies.index')

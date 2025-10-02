@@ -14,11 +14,18 @@
                         @method('PUT')
 
                         <div class="grid grid-cols-1 gap-6">
-                            <!-- Name -->
+                            <!-- First Name -->
                             <div>
-                                <x-input-label for="name" :value="__('Nimi')" />
-                                <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" :value="old('name', $contact->name)" required />
-                                <x-input-error :messages="$errors->get('name')" class="mt-2" />
+                                <x-input-label for="first_name" :value="__('Eesnimi')" />
+                                <x-text-input id="first_name" name="first_name" type="text" class="mt-1 block w-full" :value="old('first_name', $contact->first_name)" required />
+                                <x-input-error :messages="$errors->get('first_name')" class="mt-2" />
+                            </div>
+
+                            <!-- Last Name -->
+                            <div>
+                                <x-input-label for="last_name" :value="__('Perekonnanimi')" />
+                                <x-text-input id="last_name" name="last_name" type="text" class="mt-1 block w-full" :value="old('last_name', $contact->last_name)" required />
+                                <x-input-error :messages="$errors->get('last_name')" class="mt-2" />
                             </div>
 
                             <!-- Email -->
@@ -54,6 +61,16 @@
                                     @endforeach
                                 </select>
                                 <x-input-error :messages="$errors->get('company_id')" class="mt-2" />
+                            </div>
+
+                            <!-- Status -->
+                            <div>
+                                <x-input-label for="status" :value="__('Staatus')" />
+                                <select id="status" name="status" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    <option value="active" {{ old('status', $contact->status) === 'active' ? 'selected' : '' }}>{{ __('Aktiivne') }}</option>
+                                    <option value="inactive" {{ old('status', $contact->status) === 'inactive' ? 'selected' : '' }}>{{ __('Mitteaktiivne') }}</option>
+                                </select>
+                                <x-input-error :messages="$errors->get('status')" class="mt-2" />
                             </div>
 
                             <!-- Notes -->

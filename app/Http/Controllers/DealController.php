@@ -18,8 +18,7 @@ class DealController extends Controller
      */
     public function index()
     {
-        $deals = Deal::with(['customer', 'company', 'contact', 'user'])
-            ->where('user_id', Auth::id())
+        $deals = Deal::with(['customer', 'company', 'contact'])
             ->paginate(15);
 
         return view('deals.index', compact('deals'));
@@ -30,9 +29,9 @@ class DealController extends Controller
      */
     public function create()
     {
-        $customers = Customer::where('user_id', Auth::id())->get();
-        $companies = Company::where('user_id', Auth::id())->get();
-        $contacts = Contact::where('user_id', Auth::id())->get();
+        $customers = Customer::all();
+        $companies = Company::all();
+        $contacts = Contact::all();
         
         return view('deals.create', compact('customers', 'companies', 'contacts'));
     }
@@ -69,11 +68,18 @@ class DealController extends Controller
      */
     public function show(Deal $deal)
     {
-        if ($deal->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
-        
-        $deal->load(['customer', 'company', 'contact', 'tasks']);
+        // Get a fresh instance of the deal with all relationships
+        $deal = Deal::with([
+            'customer', 
+            'company', 
+            'contact', 
+            'tasks' => function($query) {
+                $query->whereNull('deleted_at');
+            },
+            'tasks.timeEntries'
+        ])
+        ->where('id', $deal->id)
+        ->first();
         
         return view('deals.show', compact('deal'));
     }
@@ -83,13 +89,9 @@ class DealController extends Controller
      */
     public function edit(Deal $deal)
     {
-        if ($deal->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
-        
-        $customers = Customer::where('user_id', Auth::id())->get();
-        $companies = Company::where('user_id', Auth::id())->get();
-        $contacts = Contact::where('user_id', Auth::id())->get();
+        $customers = Customer::all();
+        $companies = Company::all();
+        $contacts = Contact::all();
         
         return view('deals.edit', compact('deal', 'customers', 'companies', 'contacts'));
     }
@@ -128,10 +130,6 @@ class DealController extends Controller
      */
     public function destroy(Deal $deal)
     {
-        if ($deal->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
-        
         $deal->delete();
 
         return redirect()->route('deals.index')
