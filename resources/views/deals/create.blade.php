@@ -58,10 +58,10 @@
                             <!-- Klient -->
                             <div>
                                 <x-input-label for="customer_id" :value="__('Klient')" />
-                                <select id="customer_id" name="customer_id" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                <select id="customer_id" name="customer_id" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" onchange="fetchCustomerDetails(this.value)">
                                     <option value="">Vali klient (valikuline)</option>
                                     @foreach($customers as $customer)
-                                        <option value="{{ $customer->id }}" {{ old('customer_id') == $customer->id ? 'selected' : '' }}>
+                                        <option value="{{ $customer->id }}" {{ old('customer_id') == $customer->id ? 'selected' : '' }} data-company-id="{{ $customer->company_id }}">
                                             {{ $customer->full_name }}
                                         </option>
                                     @endforeach
@@ -89,7 +89,7 @@
                                 <select id="contact_id" name="contact_id" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
                                     <option value="">Vali kontakt (valikuline)</option>
                                     @foreach($contacts as $contact)
-                                        <option value="{{ $contact->id }}" {{ old('contact_id') == $contact->id ? 'selected' : '' }}>
+                                        <option value="{{ $contact->id }}" {{ old('contact_id') == $contact->id ? 'selected' : '' }} data-company-id="{{ $contact->company_id }}">
                                             {{ $contact->full_name }}
                                         </option>
                                     @endforeach
@@ -124,6 +124,140 @@
             </div>
         </div>
     </div>
+
+    @push('scripts')
+    <script>
+        function getElementSafely(id) {
+            const element = document.getElementById(id);
+            if (!element) {
+                console.warn(`Element with ID '${id}' not found`);
+            }
+            return element;
+        }
+
+        function setValueIfExists(elementId, value) {
+            const element = getElementSafely(elementId);
+            if (element && value !== undefined && value !== null) {
+                element.value = value;
+            }
+        }
+
+        function fetchCustomerDetails(customerId) {
+            if (!customerId) {
+                // Clear the fields if no customer is selected
+                clearCustomerFields();
+                return;
+            }
+
+            // Show loading state
+            const customerSelect = document.getElementById('customer_id');
+            if (!customerSelect) {
+                console.error('Customer select element not found');
+                return;
+            }
+
+            const originalValue = customerSelect.innerHTML;
+            customerSelect.disabled = true;
+            customerSelect.innerHTML = '<option value="">Laen kliendi andmeid...</option>';
+
+            fetch(`/customers/${customerId}/details`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Viga andmete laadimisel');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Fill the form fields with customer data
+                    if (data.customer) {
+                        setValueIfExists('email', data.customer.email);
+                        setValueIfExists('phone', data.customer.phone);
+                        setValueIfExists('address', data.customer.address);
+                        setValueIfExists('city', data.customer.city);
+                        setValueIfExists('state', data.customer.state);
+                        setValueIfExists('postal_code', data.customer.postal_code);
+                        setValueIfExists('country', data.customer.country);
+                    }
+
+                    // If customer has a company, update the company select
+                    if (data.company) {
+                        const companySelect = getElementSafely('company_id');
+                        if (companySelect) {
+                            companySelect.value = data.company.id || '';
+                        }
+                        
+                        // Update contacts dropdown if contacts exist
+                        if (data.contacts && data.contacts.length > 0) {
+                            updateContactsDropdown(data.contacts);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Viga kliendi andmete laadimisel:', error);
+                    alert('Viga kliendi andmete laadimisel: ' + error.message);
+                })
+                .finally(() => {
+                    // Reset the customer select
+                    if (customerSelect) {
+                        customerSelect.disabled = false;
+                        customerSelect.innerHTML = originalValue;
+                        // Re-select the previously selected customer
+                        customerSelect.value = customerId;
+                    }
+                });
+        }
+
+        function updateContactsDropdown(contacts) {
+            const contactSelect = getElementSafely('contact_id');
+            if (!contactSelect) return;
+            
+            const originalValue = contactSelect.innerHTML;
+            
+            // Clear existing options except the first one
+            contactSelect.innerHTML = originalValue.split('<option value="">')[0] + 
+                                    '<option value="">Vali kontakt (valikuline)</option>';
+            
+            // Add new contact options if contacts exist
+            if (contacts && Array.isArray(contacts)) {
+                contacts.forEach(contact => {
+                    if (contact && contact.id) {
+                        const option = document.createElement('option');
+                        option.value = contact.id;
+                        option.textContent = contact.name || `Kontakt #${contact.id}`;
+                        option.setAttribute('data-company-id', contact.company_id || '');
+                        contactSelect.appendChild(option);
+                    }
+                });
+            }
+        }
+
+        function clearCustomerFields() {
+            // Clear all customer-related fields
+            const fieldsToClear = [
+                'email', 'phone', 'address', 'city', 
+                'state', 'postal_code', 'country', 'company_id'
+            ];
+            
+            fieldsToClear.forEach(fieldId => {
+                setValueIfExists(fieldId, '');
+            });
+            
+            // Reset contacts dropdown
+            const contactSelect = getElementSafely('contact_id');
+            if (contactSelect) {
+                contactSelect.innerHTML = '<option value="">Vali kontakt (valikuline)</option>';
+            }
+        }
+
+        // Initialize the form with customer data if a customer is already selected on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const customerId = document.getElementById('customer_id').value;
+            if (customerId) {
+                fetchCustomerDetails(customerId);
+            }
+        });
+    </script>
+    @endpush
 
     <!-- Rich Text Editor (TinyMCE) -->
     <style>

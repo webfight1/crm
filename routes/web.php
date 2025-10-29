@@ -28,6 +28,9 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+// Public iCalendar feed (for subscriptions)
+Route::get('/calendar.ics', [CalendarController::class, 'feed'])->name('calendar.ics');
+
 Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
@@ -45,42 +48,9 @@ Route::middleware('guest')->group(function () {
         ->name('password.store');
 });
 
-Route::get('/dashboard', function () {
-    // Statistics
-    $stats = [
-        'customers' => \App\Models\Customer::count(),
-        'companies' => \App\Models\Company::count(),
-        'deals' => \App\Models\Deal::count(),
-        'tasks' => \App\Models\Task::count(),
-        'total_value' => \App\Models\Deal::sum('value'),
-        'won_deals' => \App\Models\Deal::where('stage', 'closed_won')->count(),
-    ];
-
-    // Recent customers
-    $recent_customers = \App\Models\Customer::orderBy('created_at', 'desc')
-        ->take(5)
-        ->get();
-
-    // Upcoming tasks
-    $upcoming_tasks = \App\Models\Task::where('due_date', '>=', now())
-        ->where('status', '!=', 'completed')
-        ->with(['customer', 'company', 'deal'])
-        ->orderBy('due_date', 'asc')
-        ->take(5)
-        ->get();
-        
-    // Recent comments
-    $recent_comments = \App\Models\Comment::with(['user', 'task'])
-        ->where('user_id', '!=', auth()->id())
-        ->whereHas('task', function($query) {
-            $query->whereNull('deleted_at');
-        })
-        ->orderBy('created_at', 'desc')
-        ->take(30)
-        ->get();
-    
-    return view('dashboard', compact('stats', 'recent_customers', 'upcoming_tasks', 'recent_comments'));
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     // Auth routes
@@ -108,21 +78,27 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // Password update
     Route::put('/password', [PasswordController::class, 'update'])->name('password.update');
     
     // CRM Routes
     Route::resource('customers', CustomerController::class);
+    Route::get('/customers/{customer}/details', [CustomerController::class, 'getDetails'])->name('customers.details');
     Route::resource('companies', CompanyController::class);
+    
+    // Get company details
+
+    // Contacts routes
     Route::get('/companies/search/external', [CompanyController::class, 'searchExternal'])->name('companies.search.external');
     Route::resource('contacts', ContactController::class);
     Route::resource('deals', DealController::class);
+    Route::get('/deals/{deal}/details', [DealController::class, 'getDetails'])->name('deals.details');
     Route::resource('tasks', TaskController::class);
     Route::resource('quotations', QuotationController::class);
     Route::post('/quotations/{quotation}/send', [QuotationController::class, 'sendByEmail'])->name('quotations.send');
     Route::get('/quotations/{quotation}/pdf', [QuotationController::class, 'downloadPdf'])->name('quotations.pdf');
     
     // Email routes
+
     Route::resource('email-campaigns', EmailCampaignController::class);
     Route::get('/email-campaigns/batch/{batch}', [EmailCampaignController::class, 'showBatch'])->name('email-campaigns.batch.show');
     Route::post('/email-campaigns/start-sending', [EmailCampaignController::class, 'startSending'])->name('email-campaigns.start-sending');

@@ -15,7 +15,7 @@
                 <option value="">{{ __('Vali deal') }}</option>
                 @foreach($deals as $deal)
                     <option value="{{ $deal->id }}" {{ (old('deal_id', $quotation?->deal_id) == $deal->id) ? 'selected' : '' }}>
-                        {{ $deal->title }} ({{ $deal->customer->full_name }})
+                        {{ $deal->title }} @if($deal->customer) ({{ $deal->customer->full_name }}) @endif
                     </option>
                 @endforeach
             </select>

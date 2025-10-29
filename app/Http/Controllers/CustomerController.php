@@ -116,4 +116,52 @@ class CustomerController extends Controller
         return redirect()->route('customers.index')
             ->with('success', 'Customer deleted successfully.');
     }
+
+    /**
+     * Get customer and company details by customer ID
+     */
+    public function getDetails(Customer $customer)
+    {
+        $data = [
+            'customer' => [
+                'email' => $customer->email ?? '',
+                'phone' => $customer->phone ?? '',
+                'address' => $customer->address ?? '',
+                'city' => $customer->city ?? '',
+                'state' => $customer->state ?? '',
+                'postal_code' => $customer->postal_code ?? '',
+                'country' => $customer->country ?? ''
+            ],
+            'company' => null,
+            'contacts' => []
+        ];
+
+        // Get company details if customer is associated with a company
+        if ($customer->company) {
+            $data['company'] = [
+                'id' => $customer->company->id,
+                'name' => $customer->company->name,
+                'email' => $customer->company->email ?? '',
+                'phone' => $customer->company->phone ?? '',
+                'address' => $customer->company->address ?? '',
+                'city' => $customer->company->city ?? '',
+                'state' => $customer->company->state ?? '',
+                'postal_code' => $customer->company->postal_code ?? '',
+                'country' => $customer->company->country ?? ''
+            ];
+
+            // Get contacts associated with the company
+            $data['contacts'] = $customer->company->contacts->map(function($contact) {
+                return [
+                    'id' => $contact->id,
+                    'name' => $contact->full_name,
+                    'email' => $contact->email ?? '',
+                    'phone' => $contact->phone ?? '',
+                    'position' => $contact->position ?? ''
+                ];
+            });
+        }
+
+        return response()->json($data);
+    }
 }

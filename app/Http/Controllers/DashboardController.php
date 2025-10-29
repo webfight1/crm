@@ -34,9 +34,10 @@ class DashboardController extends Controller
                 'companies' => Company::count(),
                 'deals' => Deal::count(),
                 'tasks' => Task::count(),
-                'total_deal_value' => Deal::sum('value'),
+                'total_deal_value' => Deal::where('stage', 'closed_won')->sum('value'),
                 'won_deals' => Deal::where('stage', 'closed_won')->count(),
             ],
+            
             'recent_customers' => Customer::latest()->take(5)->get(),
             'upcoming_tasks' => Task::with(['user', 'assignee'])
                 ->where('due_date', '>=', now())

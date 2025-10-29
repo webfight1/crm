@@ -94,7 +94,7 @@
                             </div>
                             <div class="ml-4">
                                 <p class="text-sm font-medium text-gray-500">Tehingute väärtus kokku</p>
-                                <p class="text-2xl font-semibold text-gray-900">€{{ number_format($stats['total_value'], 2) }}</p>
+                                <p class="text-2xl font-semibold text-gray-900">€{{ number_format($stats['total_deal_value'], 2) }}</p>
                             </div>
                         </div>
                     </div>

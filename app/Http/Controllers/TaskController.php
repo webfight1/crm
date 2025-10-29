@@ -20,7 +20,8 @@ class TaskController extends Controller
     public function index(Request $request)
     {
 
-        $query = Task::with(['customer', 'company', 'contact', 'deal', 'user', 'assignee']);
+        $query = Task::with(['customer', 'company', 'contact', 'deal', 'user', 'assignee'])
+            ->withSum('timeEntries', 'duration');
 
         // Kasutaja filter
         if ($request->has('user_id') && $request->user_id !== 'all') {
@@ -33,9 +34,7 @@ class TaskController extends Controller
             }
         }
 
-        $tasks = $query->orderBy('due_date', 'asc')
-                ->paginate(15)
-                ->withQueryString();
+        $tasks = $query->orderBy('due_date', 'asc')->get();
 
         // Hangi kõik kasutajad filtri jaoks
         $users = User::orderBy('name')->get();
@@ -52,9 +51,12 @@ class TaskController extends Controller
         $companies = Company::all();
         $contacts = Contact::all();
         $deals = Deal::all();
-        $users = User::all();
         
-        return view('tasks.create', compact('customers', 'companies', 'contacts', 'deals', 'users'));
+        // Get the first admin user to set as default assignee
+        $users = User::all();
+        $defaultAssignee = User::where('is_admin', true)->first();
+        
+        return view('tasks.create', compact('customers', 'companies', 'contacts', 'deals', 'users', 'defaultAssignee'));
     }
 
     /**

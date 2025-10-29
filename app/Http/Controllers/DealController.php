@@ -130,9 +130,53 @@ class DealController extends Controller
      */
     public function destroy(Deal $deal)
     {
+        $this->authorize('delete', $deal);
+        
         $deal->delete();
 
         return redirect()->route('deals.index')
             ->with('success', 'Deal deleted successfully.');
+    }
+
+    /**
+     * Get deal details for task creation
+     */
+    public function getDetails(Deal $deal)
+    {
+        $deal->load(['customer', 'company', 'contact']);
+        
+        $data = [
+            'customer_id' => $deal->customer_id,
+            'company_id' => $deal->company_id,
+            'contact_id' => $deal->contact_id,
+            'customer' => $deal->customer ? [
+                'name' => $deal->customer->full_name,
+                'email' => $deal->customer->email,
+                'phone' => $deal->customer->phone,
+                'address' => $deal->customer->address,
+                'city' => $deal->customer->city,
+                'state' => $deal->customer->state,
+                'postal_code' => $deal->customer->postal_code,
+                'country' => $deal->customer->country,
+            ] : null,
+            'company' => $deal->company ? [
+                'name' => $deal->company->name,
+                'email' => $deal->company->email,
+                'phone' => $deal->company->phone,
+                'address' => $deal->company->address,
+                'city' => $deal->company->city,
+                'state' => $deal->company->state,
+                'postal_code' => $deal->company->postal_code,
+                'country' => $deal->company->country,
+            ] : null,
+            'contact' => $deal->contact ? [
+                'name' => $deal->contact->full_name,
+                'email' => $deal->contact->email,
+                'phone' => $deal->contact->phone,
+                'position' => $deal->contact->position,
+            ] : null,
+        ];
+
+        return response()->json($data);
     }
 }

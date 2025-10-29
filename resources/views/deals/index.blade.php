@@ -21,8 +21,26 @@
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
                     @if($deals->count() > 0)
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 space-y-4 md:space-y-0">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-800">Tehingute loetelu</h3>
+                                <p class="text-sm text-gray-500">Kasuta filtrit, et näha ainult kindlas staadiumis tehinguid.</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <label for="deal-stage-filter" class="text-sm font-medium text-gray-700">Staatus:</label>
+                                <select id="deal-stage-filter" class="border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                    <option value="">Kõik</option>
+                                    <option value="lead">Potentsiaalne</option>
+                                    <option value="qualified">Kvalifitseeritud</option>
+                                    <option value="proposal">Pakkumine</option>
+                                    <option value="negotiation">Läbirääkimised</option>
+                                    <option value="closed_won">Võidetud</option>
+                                    <option value="closed_lost">Kaotatud</option>
+                                </select>
+                            </div>
+                        </div>
                         <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
+                            <table id="deals-table" class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -153,4 +171,47 @@
             </div>
         </div>
     </div>
+
+    @push('styles')
+        <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+    @endpush
+
+    @push('scripts')
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+        <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const tableElement = document.getElementById('deals-table');
+                if (!tableElement || typeof window.jQuery === 'undefined') {
+                    return;
+                }
+
+                const $ = window.jQuery;
+                const dealsTable = $(tableElement).DataTable({
+                    language: {
+                        url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/et.json'
+                    },
+                    pageLength: 15,
+                    order: [[0, 'asc']],
+                    responsive: true
+                });
+
+                const stageLabelMap = {
+                    'lead': 'Potentsiaalne',
+                    'qualified': 'Kvalifitseeritud',
+                    'proposal': 'Pakkumine',
+                    'negotiation': 'Läbirääkimised',
+                    'closed_won': 'Võidetud',
+                    'closed_lost': 'Kaotatud'
+                };
+
+                const stageFilter = document.getElementById('deal-stage-filter');
+                stageFilter?.addEventListener('change', function (event) {
+                    const value = event.target.value;
+                    const term = value ? stageLabelMap[value] || '' : '';
+                    dealsTable.column(3).search(term, false, false).draw();
+                });
+            });
+        </script>
+    @endpush
 </x-app-layout>

@@ -16,7 +16,7 @@
                 <div class="p-6 text-gray-900">
                     @if($quotations->count() > 0)
                         <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
+                            <table id="quotations-table" class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -85,9 +85,7 @@
                                 </tbody>
                             </table>
                         </div>
-                        <div class="mt-4">
-                            {{ $quotations->links() }}
-                        </div>
+                        <div class="mt-4"></div>
                     @else
                         <p class="text-gray-500">{{ __('Pakkumisi pole veel lisatud.') }}</p>
                     @endif
@@ -95,4 +93,30 @@
             </div>
         </div>
     </div>
+
+    @push('styles')
+        <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+    @endpush
+
+    @push('scripts')
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+        <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const table = document.getElementById('quotations-table');
+                if (!table || typeof window.jQuery === 'undefined') {
+                    return;
+                }
+                const $ = window.jQuery;
+                $(table).DataTable({
+                    language: {
+                        url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/et.json'
+                    },
+                    pageLength: 15,
+                    order: [[0, 'desc']],
+                    responsive: true
+                });
+            });
+        </script>
+    @endpush
 </x-app-layout>

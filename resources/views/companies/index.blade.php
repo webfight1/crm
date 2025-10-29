@@ -22,7 +22,7 @@
                 <div class="p-6 text-gray-900">
                     @if($companies->count() > 0)
                         <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
+                            <table id="companies-table" class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -114,9 +114,7 @@
                             </table>
                         </div>
 
-                        <div class="mt-6">
-                            {{ $companies->links() }}
-                        </div>
+                        <div class="mt-6"></div>
                     @else
                         <div class="text-center py-8">
                             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -138,4 +136,29 @@
             </div>
         </div>
     </div>
+    @push('styles')
+        <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+    @endpush
+
+    @push('scripts')
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+        <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const table = document.getElementById('companies-table');
+                if (!table || typeof window.jQuery === 'undefined') {
+                    return;
+                }
+                const $ = window.jQuery;
+                $(table).DataTable({
+                    language: {
+                        url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/et.json'
+                    },
+                    pageLength: 15,
+                    order: [[0, 'asc']],
+                    responsive: true
+                });
+            });
+        </script>
+    @endpush
 </x-app-layout>

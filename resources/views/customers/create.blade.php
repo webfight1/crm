@@ -44,7 +44,7 @@
                             <!-- Company -->
                             <div>
                                 <x-input-label for="company_id" :value="__('Company')" />
-                                <select id="company_id" name="company_id" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                <select id="company_id" name="company_id" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" onchange="fetchCompanyDetails(this.value)">
                                     <option value="">Select a company (optional)</option>
                                     @foreach($companies as $company)
                                         <option value="{{ $company->id }}" {{ old('company_id') == $company->id ? 'selected' : '' }}>
@@ -129,4 +129,72 @@
             </div>
         </div>
     </div>
+
+    @push('scripts')
+    <script>
+        function fetchCompanyDetails(companyId) {
+            if (!companyId) {
+                // Clear the fields if no company is selected
+                clearCompanyFields();
+                return;
+            }
+
+            // Show loading state
+            const companySelect = document.getElementById('company_id');
+            const originalValue = companySelect.innerHTML;
+            companySelect.disabled = true;
+            companySelect.innerHTML = '<option value="">Loading company details...</option>';
+
+            fetch(`/companies/${companyId}/details`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Fill the form fields with company data
+                    if (data.email) document.getElementById('email').value = data.email;
+                    if (data.phone) document.getElementById('phone').value = data.phone;
+                    if (data.website) document.getElementById('website').value = data.website;
+                    if (data.address) document.getElementById('address').value = data.address;
+                    if (data.city) document.getElementById('city').value = data.city;
+                    if (data.state) document.getElementById('state').value = data.state;
+                    if (data.postal_code) document.getElementById('postal_code').value = data.postal_code;
+                    if (data.country) document.getElementById('country').value = data.country;
+                })
+                .catch(error => {
+                    console.error('Error fetching company details:', error);
+                    // Optionally show an error message to the user
+                })
+                .finally(() => {
+                    // Reset the company select
+                    companySelect.disabled = false;
+                    companySelect.innerHTML = originalValue;
+                    // Re-select the previously selected company
+                    companySelect.value = companyId;
+                });
+        }
+
+        function clearCompanyFields() {
+            // Clear all company-related fields
+            document.getElementById('email').value = '';
+            document.getElementById('phone').value = '';
+            document.getElementById('website').value = '';
+            document.getElementById('address').value = '';
+            document.getElementById('city').value = '';
+            document.getElementById('state').value = '';
+            document.getElementById('postal_code').value = '';
+            document.getElementById('country').value = '';
+        }
+
+        // Initialize the form with company data if a company is already selected on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const companyId = document.getElementById('company_id').value;
+            if (companyId) {
+                fetchCompanyDetails(companyId);
+            }
+        });
+    </script>
+    @endpush
 </x-app-layout>

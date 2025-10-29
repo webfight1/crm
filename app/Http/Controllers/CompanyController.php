@@ -158,4 +158,21 @@ class CompanyController extends Controller
             return response()->json(['error' => 'Otsing ebaõnnestus'], 500);
         }
     }
+
+    /**
+     * Get company details by ID
+     */
+    public function getDetails(Company $company)
+    {
+        return response()->json([
+            'phone' => $company->phone ?? '',
+            'email' => $company->email ?? '',
+            'website' => $company->website ?? '',
+            'address' => $company->address ?? '',
+            'city' => $company->city ?? '',
+            'state' => $company->state ?? '',
+            'postal_code' => $company->postal_code ?? '',
+            'country' => $company->country ?? ''
+        ]);
+    }
 }

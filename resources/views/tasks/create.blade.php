@@ -20,6 +20,20 @@
                                 <x-input-error :messages="$errors->get('title')" class="mt-2" />
                             </div>
 
+                            <!-- Deal -->
+                            <div>
+                                <x-input-label for="deal_id" :value="__('Tehing *')" />
+                                <select id="deal_id" name="deal_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+                                    <option value="">Vali tehing...</option>
+                                    @foreach($deals as $deal)
+                                        <option value="{{ $deal->id }}" {{ old('deal_id') == $deal->id ? 'selected' : '' }}>
+                                            {{ $deal->title }} (€{{ number_format($deal->value, 2) }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('deal_id')" class="mt-2" />
+                            </div>
+
                             <!-- Description -->
                             <div>
                                 <x-input-label for="description" :value="__('Kirjeldus')" />
@@ -120,19 +134,6 @@
                                 <x-input-error :messages="$errors->get('assignee_id')" class="mt-2" />
                             </div>
 
-                            <!-- Deal -->
-                            <div>
-                                <x-input-label for="deal_id" :value="__('Tehing *')" />
-                                <select id="deal_id" name="deal_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
-                                    <option value="">Vali tehing...</option>
-                                    @foreach($deals as $deal)
-                                        <option value="{{ $deal->id }}" {{ old('deal_id') == $deal->id ? 'selected' : '' }}>
-                                            {{ $deal->title }} (€{{ number_format($deal->value, 2) }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                                <x-input-error :messages="$errors->get('deal_id')" class="mt-2" />
-                            </div>
 
 
                             <!-- Price -->
@@ -164,6 +165,98 @@
             </div>
         </div>
     </div>
+
+    @push('scripts')
+    <script>
+        function getElementSafely(id) {
+            const element = document.getElementById(id);
+            if (!element) {
+                console.warn(`Element with ID '${id}' not found`);
+            }
+            return element;
+        }
+
+        function setValueIfExists(elementId, value) {
+            const element = getElementSafely(elementId);
+            if (element && value !== undefined && value !== null) {
+                element.value = value;
+            }
+        }
+
+        function fetchDealDetails(dealId) {
+            if (!dealId) {
+                return;
+            }
+
+            // Show loading state
+            const dealSelect = getElementSafely('deal_id');
+            if (!dealSelect) return;
+
+            const originalValue = dealSelect.innerHTML;
+            dealSelect.disabled = true;
+            dealSelect.innerHTML = '<option value="">Laen tehingu andmeid...</option>';
+
+            fetch(`/deals/${dealId}/details`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Viga andmete laadimisel');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Deal data:', data);
+                    
+                    // Set customer if exists
+                    if (data.customer_id) {
+                        setValueIfExists('customer_id', data.customer_id);
+                    }
+                    
+                    // Set company if exists
+                    if (data.company_id) {
+                        setValueIfExists('company_id', data.company_id);
+                    }
+                    
+                    // Set contact if exists
+                    if (data.contact_id) {
+                        setValueIfExists('contact_id', data.contact_id);
+                    }
+                    
+                    // Set default assignee (first admin)
+                    @if(isset($defaultAssignee))
+                        setValueIfExists('assignee_id', '{{ $defaultAssignee->id }}');
+                    @endif
+                })
+                .catch(error => {
+                    console.error('Viga tehingu andmete laadimisel:', error);
+                })
+                .finally(() => {
+                    // Reset the deal select
+                    if (dealSelect) {
+                        dealSelect.disabled = false;
+                        dealSelect.innerHTML = originalValue;
+                        dealSelect.value = dealId;
+                    }
+                });
+        }
+
+        // Initialize the form with deal data if a deal is already selected on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const dealId = getElementSafely('deal_id')?.value;
+            if (dealId) {
+                fetchDealDetails(dealId);
+            }
+            
+            // Add event listener for deal select change
+            const dealSelect = getElementSafely('deal_id');
+            if (dealSelect) {
+                dealSelect.addEventListener('change', function() {
+                    fetchDealDetails(this.value);
+                });
+            }
+        });
+    </script>
+    @endpush
+
     <!-- Rich Text Editor (TinyMCE) -->
     <style>
         /* Ensure TinyMCE area is always interactive */
