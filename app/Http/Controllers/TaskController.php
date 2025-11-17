@@ -23,6 +23,11 @@ class TaskController extends Controller
         $query = Task::with(['customer', 'company', 'contact', 'deal', 'user', 'assignee'])
             ->withSum('timeEntries', 'duration');
 
+        // Favorite filter
+        if ($request->has('favorite') && $request->favorite == 1) {
+            $query->where('is_favorite', true);
+        }
+
         // Kasutaja filter
         if ($request->has('user_id') && $request->user_id !== 'all') {
             if ($request->user_id === 'mine') {
@@ -181,5 +186,19 @@ class TaskController extends Controller
 
         return redirect()->route('tasks.index')
             ->with('success', 'Task deleted successfully.');
+    }
+
+    /**
+     * Toggle favorite status for a task.
+     */
+    public function toggleFavorite(Task $task)
+    {
+        $task->is_favorite = !$task->is_favorite;
+        $task->save();
+
+        return response()->json([
+            'success' => true,
+            'is_favorite' => $task->is_favorite
+        ]);
     }
 }

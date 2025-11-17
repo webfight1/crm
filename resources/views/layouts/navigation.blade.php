@@ -38,9 +38,14 @@
                         {{ __('Kontaktid') }}
                     </x-nav-link>
 
-                    <x-nav-link :href="route('tasks.index')" :active="request()->routeIs('tasks.*')">
-                        {{ __('Ülesanded') }}
-                    </x-nav-link>
+                    <x-nav-dropdown :active="request()->routeIs('tasks.*')" :label="__('Ülesanded')">
+                        <x-nav-dropdown-link :href="route('tasks.index')" :active="request()->routeIs('tasks.index') && !request()->has('favorite')">
+                            {{ __('Kõik ülesanded') }}
+                        </x-nav-dropdown-link>
+                        <x-nav-dropdown-link :href="route('tasks.index', ['favorite' => 1])" :active="request()->has('favorite')">
+                            {{ __('Tärniga ülesanded') }}
+                        </x-nav-dropdown-link>
+                    </x-nav-dropdown>
 
                     <x-nav-link :href="route('calendar.index')" :active="request()->routeIs('calendar.*')">
                         {{ __('Kalender') }}
@@ -173,9 +178,16 @@
                 {{ __('Kontaktid') }}
             </x-responsive-nav-link>
 
-            <x-responsive-nav-link :href="route('tasks.index')" :active="request()->routeIs('tasks.*')">
-                {{ __('Ülesanded') }}
-            </x-responsive-nav-link>
+            <!-- Ülesanded -->
+            <div class="pl-3">
+                <div class="font-medium text-base text-gray-800 mb-1">{{ __('Ülesanded') }}</div>
+                <x-responsive-nav-link :href="route('tasks.index')" :active="request()->routeIs('tasks.index') && !request()->has('favorite')">
+                    {{ __('Kõik ülesanded') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('tasks.index', ['favorite' => 1])" :active="request()->has('favorite')">
+                    {{ __('Tärniga ülesanded') }}
+                </x-responsive-nav-link>
+            </div>
 
             <!-- E-post -->
             <div class="pl-3">

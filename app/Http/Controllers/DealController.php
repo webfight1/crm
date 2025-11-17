@@ -6,6 +6,7 @@ use App\Models\Deal;
 use App\Models\Customer;
 use App\Models\Company;
 use App\Models\Contact;
+use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -57,7 +58,24 @@ class DealController extends Controller
 
         $validated['user_id'] = Auth::id();
 
-        Deal::create($validated);
+        $deal = Deal::create($validated);
+
+        // Automatically create a task for the new deal
+        Task::create([
+            'title' => $validated['title'],
+            'description' => $validated['description'],
+            'type' => 'follow_up',
+            'priority' => 'medium',
+            'status' => 'pending',
+            'due_date' => $validated['expected_close_date'] ?? null,
+            'notes' => $validated['notes'],
+            'customer_id' => $validated['customer_id'] ?? null,
+            'company_id' => $validated['company_id'] ?? null,
+            'contact_id' => $validated['contact_id'] ?? null,
+            'deal_id' => $deal->id,
+            'user_id' => Auth::id(),
+            'assignee_id' => Auth::id(),
+        ]);
 
         return redirect()->route('deals.index')
             ->with('success', 'Deal created successfully.');

@@ -28,12 +28,14 @@ class Task extends Model
         'user_id',
         'assignee_id',
         'price',
+        'is_favorite',
     ];
 
     protected $casts = [
         'due_date' => 'datetime',
         'completed_at' => 'datetime',
         'price' => 'decimal:2',
+        'is_favorite' => 'boolean',
     ];
 
     // Relationships

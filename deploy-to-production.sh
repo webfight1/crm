@@ -69,7 +69,7 @@ ssh ${REMOTE_USER}@${REMOTE_HOST} << ENDSSH
     docker run -d \
         --name ${CONTAINER_NAME} \
         --network crm_network \
-        -p 80:80 \
+        -p 8082:80 \
         -v ${REMOTE_DIR}/.env:/var/www/html/.env \
         -v ${REMOTE_DIR}/storage:/var/www/html/storage \
         -v ${REMOTE_DIR}/bootstrap/cache:/var/www/html/bootstrap/cache \

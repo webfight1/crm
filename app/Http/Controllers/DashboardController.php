@@ -7,7 +7,9 @@ use App\Models\Company;
 use App\Models\Deal;
 use App\Models\Task;
 use App\Models\Comment;
+use App\Models\TimeEntry;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -28,6 +30,23 @@ class DashboardController extends Controller
             ->take(30)
             ->get();
 
+        // Work hours (duration is decimal in hours, all users)
+        $today = Carbon::today();
+        $weekStart = Carbon::now()->startOfWeek();
+        $monthStart = Carbon::now()->startOfMonth();
+
+        $hoursToday = TimeEntry::whereDate('start_time', $today)
+            ->whereNotNull('end_time')
+            ->sum('duration');
+
+        $hoursThisWeek = TimeEntry::where('start_time', '>=', $weekStart)
+            ->whereNotNull('end_time')
+            ->sum('duration');
+
+        $hoursThisMonth = TimeEntry::where('start_time', '>=', $monthStart)
+            ->whereNotNull('end_time')
+            ->sum('duration');
+
         return view('dashboard', [
             'stats' => [
                 'customers' => Customer::count(),
@@ -36,6 +55,9 @@ class DashboardController extends Controller
                 'tasks' => Task::count(),
                 'total_deal_value' => Deal::where('stage', 'closed_won')->sum('value'),
                 'won_deals' => Deal::where('stage', 'closed_won')->count(),
+                'hours_today' => $hoursToday,
+                'hours_this_week' => $hoursThisWeek,
+                'hours_this_month' => $hoursThisMonth,
             ],
             
             'recent_customers' => Customer::latest()->take(5)->get(),

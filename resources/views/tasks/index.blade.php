@@ -2,7 +2,11 @@
     <x-slot name="header">
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Ülesanded') }}
+                @if(request()->has('favorite'))
+                    {{ __('Tärniga ülesanded') }}
+                @else
+                    {{ __('Ülesanded') }}
+                @endif
             </h2>
             <a href="{{ route('tasks.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                 Uus Ülesanne
@@ -153,6 +157,7 @@
                             <table id="tasks-table" class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
+                                        <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8"></th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ülesanne</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vastutaja</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tehing</th>
@@ -167,6 +172,13 @@
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     @foreach($tasks as $task)
                                         <tr>
+                                            <td class="px-2 py-4 whitespace-nowrap text-center">
+                                                <button onclick="toggleFavorite({{ $task->id }})" class="favorite-btn focus:outline-none hover:scale-110 transition-transform" data-task-id="{{ $task->id }}" data-is-favorite="{{ $task->is_favorite ? 'true' : 'false' }}">
+                                                    <svg class="w-5 h-5 transition-all" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="#facc15" stroke-width="2" fill="{{ $task->is_favorite ? '#facc15' : 'none' }}">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                                    </svg>
+                                                </button>
+                                            </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <div>
                                                     <div class="text-sm font-medium text-gray-900">
@@ -335,7 +347,10 @@
                         url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/et.json'
                     },
                     pageLength: 500,
-                    order: [[0, 'asc']],
+                    order: [[8, 'asc']], // Sort by due date (tähtaeg) column
+                    columnDefs: [
+                        { orderable: false, targets: 0 } // Disable sorting on star column
+                    ],
                     responsive: true
                 });
 
@@ -349,10 +364,36 @@
                 statusFilter?.addEventListener('change', function (event) {
                     const value = event.target.value;
                     const term = value ? (statusLabelMap[value] || '') : '';
-                    // Status column is the 7th column (0-based index 6)
-                    tasksTable.column(6).search(term, false, false).draw();
+                    // Status column is the 8th column (0-based index 7) - updated because of star column
+                    tasksTable.column(7).search(term, false, false).draw();
                 });
             });
+
+            // Toggle favorite function
+            function toggleFavorite(taskId) {
+                const button = document.querySelector(`button[data-task-id="${taskId}"]`);
+                const svg = button.querySelector('svg');
+                
+                fetch(`/tasks/${taskId}/toggle-favorite`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update the fill attribute directly
+                        svg.setAttribute('fill', data.is_favorite ? '#facc15' : 'none');
+                        // Update data attribute
+                        button.setAttribute('data-is-favorite', data.is_favorite ? 'true' : 'false');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error toggling favorite:', error);
+                });
+            }
         </script>
     @endpush
 </x-app-layout>
