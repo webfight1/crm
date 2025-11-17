@@ -90,6 +90,7 @@ Route::middleware('auth')->group(function () {
     // Contacts routes
     Route::get('/companies/search/external', [CompanyController::class, 'searchExternal'])->name('companies.search.external');
     Route::resource('contacts', ContactController::class);
+    Route::get('/deals/report', [DealController::class, 'report'])->name('deals.report');
     Route::resource('deals', DealController::class);
     Route::get('/deals/{deal}/details', [DealController::class, 'getDetails'])->name('deals.details');
     Route::resource('tasks', TaskController::class);

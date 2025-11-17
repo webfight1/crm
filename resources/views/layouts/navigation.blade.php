@@ -25,9 +25,12 @@
                         </x-nav-dropdown-link>
                     </x-nav-dropdown>
 
-                    <x-nav-dropdown :active="request()->routeIs(['deals.*', 'quotations.*'])" :label="__('Tehingud')">
-                        <x-nav-dropdown-link :href="route('deals.index')" :active="request()->routeIs('deals.*')">
+                    <x-nav-dropdown :active="request()->routeIs(['deals.*', 'quotations.*']) || request()->routeIs('deals.report')" :label="__('Tehingud')">
+                        <x-nav-dropdown-link :href="route('deals.index')" :active="request()->routeIs('deals.*') && !request()->routeIs('deals.report')">
                             {{ __('Tehingud') }}
+                        </x-nav-dropdown-link>
+                        <x-nav-dropdown-link :href="route('deals.report')" :active="request()->routeIs('deals.report')">
+                            {{ __('Töötundide raport') }}
                         </x-nav-dropdown-link>
                         <x-nav-dropdown-link :href="route('quotations.index')" :active="request()->routeIs('quotations.*')">
                             {{ __('Pakkumised') }}
@@ -166,8 +169,11 @@
             <!-- Tehingud -->
             <div class="pl-3">
                 <div class="font-medium text-base text-gray-800 mb-1">{{ __('Tehingud') }}</div>
-                <x-responsive-nav-link :href="route('deals.index')" :active="request()->routeIs('deals.*')">
+                <x-responsive-nav-link :href="route('deals.index')" :active="request()->routeIs('deals.*') && !request()->routeIs('deals.report')">
                     {{ __('Tehingud') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('deals.report')" :active="request()->routeIs('deals.report')">
+                    {{ __('Töötundide raport') }}
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('quotations.index')" :active="request()->routeIs('quotations.*')">
                     {{ __('Pakkumised') }}

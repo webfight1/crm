@@ -7,8 +7,10 @@ use App\Models\Customer;
 use App\Models\Company;
 use App\Models\Contact;
 use App\Models\Task;
+use App\Models\TimeEntry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class DealController extends Controller
@@ -196,5 +198,57 @@ class DealController extends Controller
         ];
 
         return response()->json($data);
+    }
+
+    /**
+     * Show work hours report for deals with optional date filter.
+     */
+    public function report(Request $request)
+    {
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $query = TimeEntry::query()
+            ->with(['task.deal', 'task.deal.customer', 'task.deal.company'])
+            ->whereHas('task.deal');
+
+        if ($startDate) {
+            $query->whereDate('start_time', '>=', Carbon::parse($startDate));
+        }
+
+        if ($endDate) {
+            $query->whereDate('start_time', '<=', Carbon::parse($endDate));
+        }
+
+        $entries = $query->get();
+
+        // Group by deal
+        $dealsReport = $entries->groupBy(fn ($entry) => optional($entry->task->deal)->id)
+            ->filter()
+            ->map(function ($group) {
+                $deal = $group->first()->task->deal;
+                $totalHours = $group->sum('duration');
+
+                // Sum cost based on task price if present
+                $totalCost = $group->sum(function ($entry) {
+                    $task = $entry->task;
+                    $price = $task->price ?? 0;
+                    return $entry->duration * $price;
+                });
+
+                return [
+                    'deal' => $deal,
+                    'total_hours' => $totalHours,
+                    'total_cost' => $totalCost,
+                ];
+            })->sortByDesc('total_hours');
+
+        return view('deals.report', [
+            'dealsReport' => $dealsReport,
+            'filters' => [
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+            ],
+        ]);
     }
 }
