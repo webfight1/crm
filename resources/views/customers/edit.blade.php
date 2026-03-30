@@ -67,6 +67,80 @@
                                 <x-input-error :messages="$errors->get('status')" class="mt-2" />
                             </div>
 
+                            <!-- Kliendi kategooria -->
+                            <div>
+                                <x-input-label for="client_attribute" :value="__('Kliendi kategooria')" />
+                                <select id="client_attribute" name="client_attribute" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+                                    @foreach($clientAttributes as $attribute)
+                                        <option value="{{ $attribute->name }}" {{ old('client_attribute', $customer->client_attribute) == $attribute->name ? 'selected' : '' }}>
+                                            {{ $attribute->label }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('client_attribute')" class="mt-2" />
+                            </div>
+
+                            <!-- Maksekäitumine -->
+                            <div>
+                                <x-input-label for="payment_behavior" :value="__('Maksekäitumine')" />
+                                <select id="payment_behavior" name="payment_behavior" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+                                    <option value="fast" {{ old('payment_behavior', $customer->payment_behavior) == 'fast' ? 'selected' : '' }}>⚡ Maksab kohe</option>
+                                    <option value="normal" {{ old('payment_behavior', $customer->payment_behavior) == 'normal' ? 'selected' : '' }}>Okei</option>
+                                    <option value="slow" {{ old('payment_behavior', $customer->payment_behavior) == 'slow' ? 'selected' : '' }}>🐌 Venitab</option>
+                                    <option value="risky" {{ old('payment_behavior', $customer->payment_behavior) == 'risky' ? 'selected' : '' }}>🚫 Võib mitte maksta</option>
+                                </select>
+                                <x-input-error :messages="$errors->get('payment_behavior')" class="mt-2" />
+                            </div>
+
+                            <!-- Selgus -->
+                            <div>
+                                <x-input-label for="clarity_level" :value="__('Selgus')" />
+                                <select id="clarity_level" name="clarity_level" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    <option value="">Vali...</option>
+                                    <option value="clear" {{ old('clarity_level', $customer->clarity_level) == 'clear' ? 'selected' : '' }}>Konkreetne, teab mida tahab</option>
+                                    <option value="medium" {{ old('clarity_level', $customer->clarity_level) == 'medium' ? 'selected' : '' }}>Keskmine</option>
+                                    <option value="vague" {{ old('clarity_level', $customer->clarity_level) == 'vague' ? 'selected' : '' }}>😄 "Tee ilusamaks"</option>
+                                </select>
+                                <x-input-error :messages="$errors->get('clarity_level')" class="mt-2" />
+                            </div>
+
+                            <!-- Koostöö lihtsus -->
+                            <div>
+                                <x-input-label for="cooperation_level" :value="__('Koostöö lihtsus')" />
+                                <select id="cooperation_level" name="cooperation_level" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    <option value="">Vali...</option>
+                                    <option value="easy" {{ old('cooperation_level', $customer->cooperation_level) == 'easy' ? 'selected' : '' }}>Lihtne klient</option>
+                                    <option value="normal" {{ old('cooperation_level', $customer->cooperation_level) == 'normal' ? 'selected' : '' }}>Tavaline</option>
+                                    <option value="difficult" {{ old('cooperation_level', $customer->cooperation_level) == 'difficult' ? 'selected' : '' }}>Palju muudatusi / suhtlust</option>
+                                </select>
+                                <x-input-error :messages="$errors->get('cooperation_level')" class="mt-2" />
+                            </div>
+
+                            <!-- Väärtus -->
+                            <div>
+                                <x-input-label for="value_level" :value="__('Väärtus')" />
+                                <select id="value_level" name="value_level" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    <option value="">Vali...</option>
+                                    <option value="high" {{ old('value_level', $customer->value_level) == 'high' ? 'selected' : '' }}>💰 Toob palju raha</option>
+                                    <option value="medium" {{ old('value_level', $customer->value_level) == 'medium' ? 'selected' : '' }}>Keskmine</option>
+                                    <option value="low" {{ old('value_level', $customer->value_level) == 'low' ? 'selected' : '' }}>Madal</option>
+                                </select>
+                                <x-input-error :messages="$errors->get('value_level')" class="mt-2" />
+                            </div>
+
+                            <!-- Tulu mudel -->
+                            <div>
+                                <x-input-label for="revenue_type" :value="__('Tulu mudel')" />
+                                <select id="revenue_type" name="revenue_type" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    <option value="">Vali...</option>
+                                    <option value="hourly_partner" {{ old('revenue_type', $customer->revenue_type) == 'hourly_partner' ? 'selected' : '' }}>🔥 Tunnitasu partner (parim)</option>
+                                    <option value="project" {{ old('revenue_type', $customer->revenue_type) == 'project' ? 'selected' : '' }}>Projektipõhine</option>
+                                    <option value="retainer" {{ old('revenue_type', $customer->revenue_type) == 'retainer' ? 'selected' : '' }}>Püsiklient</option>
+                                    <option value="one_time" {{ old('revenue_type', $customer->revenue_type) == 'one_time' ? 'selected' : '' }}>Ühekordselt</option>
+                                </select>
+                                <x-input-error :messages="$errors->get('revenue_type')" class="mt-2" />
+                            </div>
+
                             <!-- Sünnikuupäev -->
                             <div>
                                 <x-input-label for="date_of_birth" :value="__('Sünnikuupäev')" />

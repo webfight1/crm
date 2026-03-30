@@ -16,12 +16,15 @@
                         {{ __('Töölaud') }}
                     </x-nav-link>
 
-                    <x-nav-dropdown :active="request()->routeIs(['companies.*', 'customers.*'])" :label="__('Ettevõtted')">
+                    <x-nav-dropdown :active="request()->routeIs(['companies.*', 'customers.*', 'client-attributes.*'])" :label="__('Ettevõtted')">
                         <x-nav-dropdown-link :href="route('companies.index')" :active="request()->routeIs('companies.*')">
                             {{ __('Ettevõtted') }}
                         </x-nav-dropdown-link>
                         <x-nav-dropdown-link :href="route('customers.index')" :active="request()->routeIs('customers.*')">
                             {{ __('Kliendid') }}
+                        </x-nav-dropdown-link>
+                        <x-nav-dropdown-link :href="route('client-attributes.index')" :active="request()->routeIs('client-attributes.*')">
+                            {{ __('Kliendi kategooriad') }}
                         </x-nav-dropdown-link>
                     </x-nav-dropdown>
 
@@ -163,6 +166,9 @@
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('customers.index')" :active="request()->routeIs('customers.*')">
                     {{ __('Kliendid') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('client-attributes.index')" :active="request()->routeIs('client-attributes.*')">
+                    {{ __('Kliendi kategooriad') }}
                 </x-responsive-nav-link>
             </div>
 

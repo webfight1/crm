@@ -166,6 +166,7 @@
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prioriteet</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staatus</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tähtaeg</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Viimati lisatud</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Toimingud</th>
                                     </tr>
                                 </thead>
@@ -285,7 +286,9 @@
                                                     <span class="text-gray-400">-</span>
                                                 @endif
                                             </td>
-                                           
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {{ $task->created_at->format('d.m.Y H:i') }}
+                                            </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                                 @if(Auth::id() === $task->user_id || Auth::id() === $task->assignee_id)
                                                     <a href="{{ route('tasks.edit', $task) }}" class="text-green-600 hover:text-green-900">
@@ -347,7 +350,8 @@
                         url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/et.json'
                     },
                     pageLength: 500,
-                    order: [[8, 'asc']], // Sort by due date (tähtaeg) column
+                    order: [], // No default sorting - let Laravel handle it
+                    deferRender: false, // Render all data immediately to maintain order
                     columnDefs: [
                         { orderable: false, targets: 0 } // Disable sorting on star column
                     ],

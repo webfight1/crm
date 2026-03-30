@@ -35,8 +35,12 @@
                                     <option value="qualified" {{ old('stage') == 'qualified' ? 'selected' : '' }}>Kvalifitseeritud</option>
                                     <option value="proposal" {{ old('stage') == 'proposal' ? 'selected' : '' }}>Pakkumine</option>
                                     <option value="negotiation" {{ old('stage') == 'negotiation' ? 'selected' : '' }}>Läbirääkimised</option>
+                                    <option value="töös" {{ old('stage') == 'töös' ? 'selected' : '' }}>Töös</option>
+                                    <option value="valmis" {{ old('stage') == 'valmis' ? 'selected' : '' }}>Valmis</option>
+                                    <option value="arveldatud" {{ old('stage') == 'arveldatud' ? 'selected' : '' }}>Arveldatud</option>
                                     <option value="closed_won" {{ old('stage') == 'closed_won' ? 'selected' : '' }}>Võidetud</option>
                                     <option value="closed_lost" {{ old('stage') == 'closed_lost' ? 'selected' : '' }}>Kaotatud</option>
+                                    <option value="tühistatud" {{ old('stage') == 'tühistatud' ? 'selected' : '' }}>Tühistatud</option>
                                 </select>
                                 <x-input-error :messages="$errors->get('stage')" class="mt-2" />
                             </div>
@@ -94,6 +98,75 @@
                                         </option>
                                     @endforeach
                                 </select>
+                            </div>
+
+                            <!-- Clarity Level -->
+                            <div>
+                                <x-input-label for="clarity_level" :value="__('Selgus')" />
+                                <select id="clarity_level" name="clarity_level" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    <option value="">Vali...</option>
+                                    <option value="clear" {{ old('clarity_level') == 'clear' ? 'selected' : '' }}>Selge</option>
+                                    <option value="medium" {{ old('clarity_level') == 'medium' ? 'selected' : '' }}>Keskmine</option>
+                                    <option value="vague" {{ old('clarity_level') == 'vague' ? 'selected' : '' }}>Ebaselge</option>
+                                </select>
+                                <x-input-error :messages="$errors->get('clarity_level')" class="mt-2" />
+                            </div>
+
+                            <!-- Revenue Model -->
+                            <div>
+                                <x-input-label for="revenue_model" :value="__('Tulu mudel')" />
+                                <select id="revenue_model" name="revenue_model" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    <option value="">Vali...</option>
+                                    <option value="hourly_partner" {{ old('revenue_model') == 'hourly_partner' ? 'selected' : '' }}>🔥 Tunnitasu partner</option>
+                                    <option value="fixed_project" {{ old('revenue_model') == 'fixed_project' ? 'selected' : '' }}>Fikseeritud projekt</option>
+                                    <option value="retainer" {{ old('revenue_model') == 'retainer' ? 'selected' : '' }}>Püsiklient</option>
+                                    <option value="uncertain" {{ old('revenue_model') == 'uncertain' ? 'selected' : '' }}>Ebakindel</option>
+                                </select>
+                                <x-input-error :messages="$errors->get('revenue_model')" class="mt-2" />
+                            </div>
+
+                            <!-- Estimated Hours -->
+                            <div>
+                                <x-input-label for="estimated_hours" :value="__('Hinnanguline aeg (tunnid)')" />
+                                <x-text-input id="estimated_hours" class="block mt-1 w-full" type="number" name="estimated_hours" :value="old('estimated_hours')" min="0" />
+                                <x-input-error :messages="$errors->get('estimated_hours')" class="mt-2" />
+                            </div>
+
+                            <!-- Work Type -->
+                            <div>
+                                <x-input-label for="work_type" :value="__('Töö tüüp')" />
+                                <select id="work_type" name="work_type" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    <option value="">Vali...</option>
+                                    <option value="technical" {{ old('work_type') == 'technical' ? 'selected' : '' }}>Tehniline</option>
+                                    <option value="design" {{ old('work_type') == 'design' ? 'selected' : '' }}>Disain</option>
+                                    <option value="copywriting" {{ old('work_type') == 'copywriting' ? 'selected' : '' }}>Tekstid</option>
+                                    <option value="ecommerce" {{ old('work_type') == 'ecommerce' ? 'selected' : '' }}>E-kaubandus</option>
+                                    <option value="website" {{ old('work_type') == 'website' ? 'selected' : '' }}>Veebileht</option>
+                                </select>
+                                <x-input-error :messages="$errors->get('work_type')" class="mt-2" />
+                            </div>
+
+                            <!-- Risk Level -->
+                            <div>
+                                <x-input-label for="risk_level" :value="__('Riski tase')" />
+                                <select id="risk_level" name="risk_level" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    <option value="">Vali...</option>
+                                    <option value="low" {{ old('risk_level') == 'low' ? 'selected' : '' }}>Madal</option>
+                                    <option value="medium" {{ old('risk_level') == 'medium' ? 'selected' : '' }}>Keskmine</option>
+                                    <option value="high" {{ old('risk_level') == 'high' ? 'selected' : '' }}>Kõrge</option>
+                                </select>
+                                <x-input-error :messages="$errors->get('risk_level')" class="mt-2" />
+                            </div>
+
+                            <!-- Is Fast Cash -->
+                            <div>
+                                <div class="flex items-center mt-6">
+                                    <input id="is_fast_cash" type="checkbox" name="is_fast_cash" value="1" {{ old('is_fast_cash') ? 'checked' : '' }} class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                    <label for="is_fast_cash" class="ml-2 block text-sm text-gray-900">
+                                        ⚡ Kiire raha
+                                    </label>
+                                </div>
+                                <x-input-error :messages="$errors->get('is_fast_cash')" class="mt-2" />
                             </div>
                         </div>
 

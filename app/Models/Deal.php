@@ -17,6 +17,12 @@ class Deal extends Model
         'expected_close_date',
         'actual_close_date',
         'notes',
+        'clarity_level',
+        'revenue_model',
+        'estimated_hours',
+        'work_type',
+        'risk_level',
+        'is_fast_cash',
         'customer_id',
         'company_id',
         'contact_id',
@@ -27,6 +33,8 @@ class Deal extends Model
         'value' => 'decimal:2',
         'expected_close_date' => 'date',
         'actual_close_date' => 'date',
+        'is_fast_cash' => 'boolean',
+        'estimated_hours' => 'integer',
     ];
 
     // Relationships

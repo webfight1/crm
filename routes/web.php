@@ -23,6 +23,7 @@ use App\Http\Controllers\TimeEntryController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\QuotationController;
+use App\Http\Controllers\ClientAttributeController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -111,6 +112,9 @@ Route::middleware('auth')->group(function () {
     // Settings
     Route::get('/settings', [SettingController::class, 'edit'])->name('settings.edit');
     Route::patch('/settings', [SettingController::class, 'update'])->name('settings.update');
+    
+    // Client Attributes
+    Route::resource('client-attributes', ClientAttributeController::class);
     
     // Time entries
     Route::post('/time-entries/start/{task}', [TimeEntryController::class, 'start'])->name('time-entries.start');

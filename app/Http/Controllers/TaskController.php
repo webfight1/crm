@@ -39,7 +39,7 @@ class TaskController extends Controller
             }
         }
 
-        $tasks = $query->orderBy('due_date', 'asc')->get();
+        $tasks = $query->orderBy('created_at', 'desc')->get();
 
         // Hangi kõik kasutajad filtri jaoks
         $users = User::orderBy('name')->get();
@@ -77,6 +77,17 @@ class TaskController extends Controller
             'status' => 'required|in:pending,in_progress,needs_testing,needs_clarification,completed,cancelled',
             'due_date' => 'nullable|date|after:now',
             'notes' => 'nullable|string',
+            'work_type' => 'nullable|in:technical,design,copywriting,marketing,ecommerce,website,project,maintenance,other',
+            'clarity_level' => 'nullable|in:clear,medium,vague',
+            'revenue_model' => 'nullable|in:hourly_partner,fixed_project,retainer,internal,uncertain',
+            'cashflow_speed' => 'nullable|in:fast,medium,slow',
+            'risk_level' => 'nullable|in:low,medium,high',
+            'estimated_hours' => 'nullable|integer|min:0',
+            'value_score' => 'nullable|integer|min:1|max:10',
+            'cashflow_score' => 'nullable|integer|min:1|max:10',
+            'is_quick_win' => 'boolean',
+            'is_blocking' => 'boolean',
+            'recommended_next_step' => 'nullable|string|max:255',
             'customer_id' => 'nullable|exists:customers,id',
             'company_id' => 'nullable|exists:companies,id',
             'contact_id' => 'nullable|exists:contacts,id',
@@ -151,6 +162,17 @@ class TaskController extends Controller
             'status' => 'required|in:pending,in_progress,needs_testing,needs_clarification,completed,cancelled',
             'due_date' => 'nullable|date|after:now',
             'notes' => 'nullable|string',
+            'work_type' => 'nullable|in:technical,design,copywriting,marketing,ecommerce,website,project,maintenance,other',
+            'clarity_level' => 'nullable|in:clear,medium,vague',
+            'revenue_model' => 'nullable|in:hourly_partner,fixed_project,retainer,internal,uncertain',
+            'cashflow_speed' => 'nullable|in:fast,medium,slow',
+            'risk_level' => 'nullable|in:low,medium,high',
+            'estimated_hours' => 'nullable|integer|min:0',
+            'value_score' => 'nullable|integer|min:1|max:10',
+            'cashflow_score' => 'nullable|integer|min:1|max:10',
+            'is_quick_win' => 'boolean',
+            'is_blocking' => 'boolean',
+            'recommended_next_step' => 'nullable|string|max:255',
             'customer_id' => 'nullable|exists:customers,id',
             'company_id' => 'nullable|exists:companies,id',
             'contact_id' => 'nullable|exists:contacts,id',

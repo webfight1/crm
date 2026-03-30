@@ -80,6 +80,132 @@
                                 </div>
 
                                 <div>
+                                    <dt class="text-sm font-medium text-gray-500">Kliendi kategooria</dt>
+                                    <dd class="mt-1">
+                                        @if($customer->clientAttributeRelation)
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" style="background-color: {{ $customer->clientAttributeRelation->color }}20; color: {{ $customer->clientAttributeRelation->color }};">
+                                                {{ $customer->clientAttributeRelation->label }}
+                                            </span>
+                                        @else
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                                {{ $customer->client_attribute }}
+                                            </span>
+                                        @endif
+                                    </dd>
+                                </div>
+
+                                <div>
+                                    <dt class="text-sm font-medium text-gray-500">Maksekäitumine</dt>
+                                    <dd class="mt-1">
+                                        @if($customer->payment_behavior === 'fast')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                ⚡ Maksab kohe
+                                            </span>
+                                        @elseif($customer->payment_behavior === 'normal')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                Okei
+                                            </span>
+                                        @elseif($customer->payment_behavior === 'slow')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                🐌 Venitab
+                                            </span>
+                                        @elseif($customer->payment_behavior === 'risky')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                🚫 Võib mitte maksta
+                                            </span>
+                                        @endif
+                                    </dd>
+                                </div>
+
+                                @if($customer->clarity_level)
+                                <div>
+                                    <dt class="text-sm font-medium text-gray-500">Selgus</dt>
+                                    <dd class="mt-1">
+                                        @if($customer->clarity_level === 'clear')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                Konkreetne
+                                            </span>
+                                        @elseif($customer->clarity_level === 'medium')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                Keskmine
+                                            </span>
+                                        @elseif($customer->clarity_level === 'vague')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                😄 "Tee ilusamaks"
+                                            </span>
+                                        @endif
+                                    </dd>
+                                </div>
+                                @endif
+
+                                @if($customer->cooperation_level)
+                                <div>
+                                    <dt class="text-sm font-medium text-gray-500">Koostöö lihtsus</dt>
+                                    <dd class="mt-1">
+                                        @if($customer->cooperation_level === 'easy')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                Lihtne klient
+                                            </span>
+                                        @elseif($customer->cooperation_level === 'normal')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                Tavaline
+                                            </span>
+                                        @elseif($customer->cooperation_level === 'difficult')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                Keeruline
+                                            </span>
+                                        @endif
+                                    </dd>
+                                </div>
+                                @endif
+
+                                @if($customer->value_level)
+                                <div>
+                                    <dt class="text-sm font-medium text-gray-500">Väärtus</dt>
+                                    <dd class="mt-1">
+                                        @if($customer->value_level === 'high')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                💰 Kõrge
+                                            </span>
+                                        @elseif($customer->value_level === 'medium')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                Keskmine
+                                            </span>
+                                        @elseif($customer->value_level === 'low')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                                Madal
+                                            </span>
+                                        @endif
+                                    </dd>
+                                </div>
+                                @endif
+
+                                @if($customer->revenue_type)
+                                <div>
+                                    <dt class="text-sm font-medium text-gray-500">Tulu mudel</dt>
+                                    <dd class="mt-1">
+                                        @if($customer->revenue_type === 'hourly_partner')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                🔥 Tunnitasu partner
+                                            </span>
+                                        @elseif($customer->revenue_type === 'retainer')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                Püsiklient
+                                            </span>
+                                        @elseif($customer->revenue_type === 'project')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                                                Projektipõhine
+                                            </span>
+                                        @elseif($customer->revenue_type === 'one_time')
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                                Ühekordselt
+                                            </span>
+                                        @endif
+                                    </dd>
+                                </div>
+                                @endif
+
+                                <div>
                                     <dt class="text-sm font-medium text-gray-500">Sünnikuupäev</dt>
                                     <dd class="mt-1 text-sm text-gray-900">
                                         {{ $customer->date_of_birth ? $customer->date_of_birth->format('d.m.Y') : 'N/A' }}

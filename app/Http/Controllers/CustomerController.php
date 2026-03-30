@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Company;
 use App\Models\Contact;
 use App\Models\Deal;
+use App\Models\ClientAttribute;
 use Illuminate\Http\Request;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
@@ -29,7 +30,8 @@ class CustomerController extends Controller
     public function create()
     {
         $companies = Company::all();
-        return view('customers.create', compact('companies'));
+        $clientAttributes = ClientAttribute::where('is_active', true)->orderBy('order')->get();
+        return view('customers.create', compact('companies', 'clientAttributes'));
     }
 
     /**
@@ -49,6 +51,12 @@ class CustomerController extends Controller
             'country' => 'nullable|string|max:255',
             'date_of_birth' => 'nullable|date',
             'status' => 'required|in:active,inactive,prospect',
+            'client_attribute' => 'required|exists:client_attributes,name',
+            'payment_behavior' => 'required|in:fast,normal,slow,risky',
+            'clarity_level' => 'nullable|in:clear,medium,vague',
+            'cooperation_level' => 'nullable|in:easy,normal,difficult',
+            'value_level' => 'nullable|in:high,medium,low',
+            'revenue_type' => 'nullable|in:hourly_partner,project,retainer,one_time',
             'notes' => 'nullable|string',
             'company_id' => 'nullable|exists:companies,id',
         ]);
@@ -75,8 +83,9 @@ class CustomerController extends Controller
     public function edit(Customer $customer)
     {
         $companies = Company::all();
+        $clientAttributes = ClientAttribute::where('is_active', true)->orderBy('order')->get();
         
-        return view('customers.edit', compact('customer', 'companies'));
+        return view('customers.edit', compact('customer', 'companies', 'clientAttributes'));
     }
 
     /**
@@ -96,6 +105,12 @@ class CustomerController extends Controller
             'country' => 'nullable|string|max:255',
             'date_of_birth' => 'nullable|date',
             'status' => 'required|in:active,inactive,prospect',
+            'client_attribute' => 'required|exists:client_attributes,name',
+            'payment_behavior' => 'required|in:fast,normal,slow,risky',
+            'clarity_level' => 'nullable|in:clear,medium,vague',
+            'cooperation_level' => 'nullable|in:easy,normal,difficult',
+            'value_level' => 'nullable|in:high,medium,low',
+            'revenue_type' => 'nullable|in:hourly_partner,project,retainer,one_time',
             'notes' => 'nullable|string',
             'company_id' => 'nullable|exists:companies,id',
         ]);

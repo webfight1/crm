@@ -112,6 +112,120 @@
                         </div>
                         @endif
 
+                        @if($deal->clarity_level)
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Selgus</dt>
+                            <dd class="mt-1">
+                                @if($deal->clarity_level === 'clear')
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        Selge
+                                    </span>
+                                @elseif($deal->clarity_level === 'medium')
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                        Keskmine
+                                    </span>
+                                @elseif($deal->clarity_level === 'vague')
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                        Ebaselge
+                                    </span>
+                                @endif
+                            </dd>
+                        </div>
+                        @endif
+
+                        @if($deal->revenue_model)
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Tulu mudel</dt>
+                            <dd class="mt-1">
+                                @if($deal->revenue_model === 'hourly_partner')
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                        🔥 Tunnitasu partner
+                                    </span>
+                                @elseif($deal->revenue_model === 'retainer')
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                        Püsiklient
+                                    </span>
+                                @elseif($deal->revenue_model === 'fixed_project')
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                                        Fikseeritud projekt
+                                    </span>
+                                @elseif($deal->revenue_model === 'uncertain')
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                        Ebakindel
+                                    </span>
+                                @endif
+                            </dd>
+                        </div>
+                        @endif
+
+                        @if($deal->estimated_hours)
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Hinnanguline aeg</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ $deal->estimated_hours }} tundi</dd>
+                        </div>
+                        @endif
+
+                        @if($deal->work_type)
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Töö tüüp</dt>
+                            <dd class="mt-1">
+                                @if($deal->work_type === 'technical')
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
+                                        Tehniline
+                                    </span>
+                                @elseif($deal->work_type === 'design')
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-pink-100 text-pink-800">
+                                        Disain
+                                    </span>
+                                @elseif($deal->work_type === 'copywriting')
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-teal-100 text-teal-800">
+                                        Tekstid
+                                    </span>
+                                @elseif($deal->work_type === 'ecommerce')
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                                        E-kaubandus
+                                    </span>
+                                @elseif($deal->work_type === 'website')
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-cyan-100 text-cyan-800">
+                                        Veebileht
+                                    </span>
+                                @endif
+                            </dd>
+                        </div>
+                        @endif
+
+                        @if($deal->risk_level)
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Riski tase</dt>
+                            <dd class="mt-1">
+                                @if($deal->risk_level === 'low')
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        Madal
+                                    </span>
+                                @elseif($deal->risk_level === 'medium')
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                        Keskmine
+                                    </span>
+                                @elseif($deal->risk_level === 'high')
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                        Kõrge
+                                    </span>
+                                @endif
+                            </dd>
+                        </div>
+                        @endif
+
+                        @if($deal->is_fast_cash)
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Kiire raha</dt>
+                            <dd class="mt-1">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    ⚡ Jah
+                                </span>
+                            </dd>
+                        </div>
+                        @endif
+
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Loodud</dt>
                             <dd class="mt-1 text-sm text-gray-900">{{ $deal->created_at->format('d.m.Y H:i') }}</dd>

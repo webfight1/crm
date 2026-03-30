@@ -20,6 +20,12 @@ class Customer extends Model
         'country',
         'date_of_birth',
         'status',
+        'client_attribute',
+        'payment_behavior',
+        'clarity_level',
+        'cooperation_level',
+        'value_level',
+        'revenue_type',
         'notes',
         'company_id',
     ];
@@ -48,6 +54,11 @@ class Customer extends Model
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);
+    }
+
+    public function clientAttributeRelation(): BelongsTo
+    {
+        return $this->belongsTo(ClientAttribute::class, 'client_attribute', 'name');
     }
 
     // Accessors
