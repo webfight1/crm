@@ -21,7 +21,8 @@ class TaskController extends Controller
     {
 
         $query = Task::with(['customer', 'company', 'contact', 'deal', 'user', 'assignee'])
-            ->withSum('timeEntries', 'duration');
+            ->withSum('timeEntries', 'duration')
+            ->where('status', '!=', 'completed');
 
         // Favorite filter
         if ($request->has('favorite') && $request->favorite == 1) {
@@ -45,6 +46,34 @@ class TaskController extends Controller
         $users = User::orderBy('name')->get();
 
         return view('tasks.index', compact('tasks', 'users'));
+    }
+
+    /**
+     * Display closed (completed) tasks.
+     */
+    public function closed(Request $request)
+    {
+        $query = Task::with(['customer', 'company', 'contact', 'deal', 'user', 'assignee'])
+            ->withSum('timeEntries', 'duration')
+            ->where('status', 'completed');
+
+        // Kasutaja filter
+        if ($request->has('user_id') && $request->user_id !== 'all') {
+            if ($request->user_id === 'mine') {
+                $query->where('user_id', Auth::id());
+            } elseif ($request->user_id === 'assigned') {
+                $query->where('assignee_id', Auth::id());
+            } else {
+                $query->where('user_id', $request->user_id);
+            }
+        }
+
+        $tasks = $query->orderBy('completed_at', 'desc')->get();
+
+        // Hangi kõik kasutajad filtri jaoks
+        $users = User::orderBy('name')->get();
+
+        return view('tasks.closed', compact('tasks', 'users'));
     }
 
     /**

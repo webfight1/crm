@@ -2,15 +2,11 @@
     <x-slot name="header">
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                @if(request()->has('favorite'))
-                    {{ __('Tärniga ülesanded') }}
-                @else
-                    {{ __('Ülesanded') }}
-                @endif
+                {{ __('Lõpetatud Ülesanded') }}
             </h2>
             <div class="flex space-x-2">
-                <a href="{{ route('tasks.closed') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                    Lõpetatud
+                <a href="{{ route('tasks.index') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                    Aktiivsed Ülesanded
                 </a>
                 <a href="{{ route('tasks.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                     Uus Ülesanne
@@ -35,7 +31,7 @@
 
             <!-- User Filter -->
             <div class="mb-6">
-                <form method="GET" action="{{ route('tasks.index') }}" class="flex items-center space-x-4">
+                <form method="GET" action="{{ route('tasks.closed') }}" class="flex items-center space-x-4">
                     <div class="flex-grow max-w-xs">
                         <select name="user_id" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" onchange="this.form.submit()">
                             <option value="all" {{ request('user_id') === 'all' ? 'selected' : '' }}>Kõik ülesanded</option>

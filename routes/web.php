@@ -94,6 +94,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/deals/report', [DealController::class, 'report'])->name('deals.report');
     Route::resource('deals', DealController::class);
     Route::get('/deals/{deal}/details', [DealController::class, 'getDetails'])->name('deals.details');
+    Route::get('/tasks/closed', [TaskController::class, 'closed'])->name('tasks.closed');
     Route::resource('tasks', TaskController::class);
     Route::post('/tasks/{task}/toggle-favorite', [TaskController::class, 'toggleFavorite'])->name('tasks.toggle-favorite');
     Route::resource('quotations', QuotationController::class);
