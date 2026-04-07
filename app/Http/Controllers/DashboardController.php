@@ -52,7 +52,7 @@ class DashboardController extends Controller
                 'customers' => Customer::count(),
                 'companies' => Company::count(),
                 'deals' => Deal::count(),
-                'tasks' => Task::count(),
+                'tasks' => Task::where('status', '!=', 'completed')->count(),
                 'total_deal_value' => Deal::where('stage', 'closed_won')->sum('value'),
                 'won_deals' => Deal::where('stage', 'closed_won')->count(),
                 'hours_today' => $hoursToday,
