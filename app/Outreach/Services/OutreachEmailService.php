@@ -38,10 +38,11 @@ class OutreachEmailService
     private const CAPACITY_RETRY_OFFSET_MINUTES = 2;
 
     public function __construct(
-        private readonly OutreachMailer       $mailer,
-        private readonly InboxRotationService $rotation,
-        private readonly OutreachAuditService $audit,
-        private readonly LoggerInterface      $logger,
+        private readonly OutreachMailer           $mailer,
+        private readonly InboxRotationService     $rotation,
+        private readonly OutreachAuditService     $audit,
+        private readonly AiPersonalizationService $ai,
+        private readonly LoggerInterface          $logger,
     ) {}
 
     /**
@@ -104,6 +105,17 @@ class OutreachEmailService
             ]);
 
             return false;
+        }
+
+        // ── AI PERSONALISATION ───────────────────────────────────────────────
+        // Rules:
+        //   1. Only when campaign.use_ai_line = true
+        //   2. Only when lead.ai_line is empty (generate once, reuse forever)
+        //   3. generateLine() always saves the result (including fallback)
+        //      so the API is never called again for this lead+campaign.
+        if ($campaign->use_ai_line && empty($lead->ai_line)) {
+            $this->ai->generateLine($lead);
+            $lead->refresh(); // pick up the persisted ai_line for template rendering
         }
 
         // ── IDEMPOTENCY GUARD ────────────────────────────────────────────────

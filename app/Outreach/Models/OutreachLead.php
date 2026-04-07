@@ -25,6 +25,8 @@ class OutreachLead extends Model
         'email',
         'company',
         'website',
+        'industry',
+        'ai_line',
         'status',
         'current_step',
         'enrolled_at',

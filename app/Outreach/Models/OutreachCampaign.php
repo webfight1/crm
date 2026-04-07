@@ -14,13 +14,15 @@ class OutreachCampaign extends Model
         'description',
         'daily_limit',
         'reply_stop_enabled',
+        'use_ai_line',
         'is_active',
     ];
 
     protected $casts = [
-        'daily_limit'         => 'integer',
-        'reply_stop_enabled'  => 'boolean',
-        'is_active'           => 'boolean',
+        'daily_limit'        => 'integer',
+        'reply_stop_enabled' => 'boolean',
+        'use_ai_line'        => 'boolean',
+        'is_active'          => 'boolean',
     ];
 
     // ─── Relationships ──────────────────────────────────────────────────────

@@ -39,7 +39,15 @@ class OutreachCampaignStep extends Model
 
     /**
      * Replace template variables with lead data.
-     * Supported: {{first_name}}, {{last_name}}, {{full_name}}, {{company}}, {{website}}, {{email}}
+     *
+     * Supported placeholders:
+     *   {{first_name}}, {{last_name}}, {{full_name}},
+     *   {{company}}, {{website}}, {{industry}}, {{email}},
+     *   {{ai_line}}
+     *
+     * {{ai_line}} is populated by OutreachEmailService before rendering:
+     *   - campaign.use_ai_line = true  → lead.ai_line (generated once, saved)
+     *   - campaign.use_ai_line = false → empty string
      */
     public function renderSubject(OutreachLead $lead): string
     {
@@ -59,9 +67,16 @@ class OutreachCampaignStep extends Model
             '{{full_name}}'  => trim("{$lead->first_name} " . ($lead->last_name ?? '')),
             '{{company}}'    => $lead->company ?? '',
             '{{website}}'    => $lead->website ?? '',
+            '{{industry}}'   => $lead->industry ?? '',
             '{{email}}'      => $lead->email,
+            // ai_line is written to lead.ai_line by OutreachEmailService
+            // before render is called, so reading it here is always safe.
+            '{{ai_line}}'    => $lead->ai_line ?? '',
         ];
 
-        return str_replace(array_keys($variables), array_values($variables), $template);
+        // strtr() is used instead of str_replace() because it performs all
+        // substitutions in a single pass with no risk of one replacement
+        // containing a placeholder that gets substituted again.
+        return strtr($template, $variables);
     }
 }

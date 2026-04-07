@@ -47,8 +47,11 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
         Route::delete('/{campaign}/leads/{lead}',              [OutreachController::class, 'leadsDestroy'])->name('leads.destroy');
     });
 
-    // ── Logs (standalone for convenience) ──────────────────────────────────
+    // ── Logs ────────────────────────────────────────────────────────────────
     Route::get('/logs/{campaign}', [OutreachController::class, 'logsIndex'])->name('logs.index');
+
+    // ── CSV Import ───────────────────────────────────────────────────────────
+    Route::post('/leads/import', [OutreachController::class, 'importCsv'])->name('leads.import');
 
     // ── Manual Triggers ─────────────────────────────────────────────────────
     Route::post('/trigger/process',     [OutreachController::class, 'triggerProcess'])->name('trigger.process');

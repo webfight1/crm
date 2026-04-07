@@ -51,10 +51,17 @@
                                 <textarea id="description" name="description" rows="2"
                                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">{{ old('description', $campaign->description) }}</textarea>
                             </div>
-                            <div class="flex gap-6">
+                            <div class="flex flex-col gap-3">
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" name="reply_stop_enabled" value="1" @checked(old('reply_stop_enabled', $campaign->reply_stop_enabled)) class="rounded border-gray-300 text-indigo-600">
                                     <span class="text-sm text-gray-700">Peata vastuse korral</span>
+                                </label>
+                                <label class="flex items-start gap-2 cursor-pointer">
+                                    <input type="checkbox" name="use_ai_line" value="1" @checked(old('use_ai_line', $campaign->use_ai_line)) class="rounded border-gray-300 text-indigo-600 mt-0.5">
+                                    <span class="text-sm text-gray-700">
+                                        AI isikupärastamine
+                                        <span class="block text-xs text-gray-400">Kasuta <code class="bg-gray-100 px-1 rounded">&#123;&#123;ai_line&#125;&#125;</code> meilimallides.</span>
+                                    </span>
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $campaign->is_active)) class="rounded border-gray-300 text-indigo-600">
@@ -169,6 +176,26 @@
                                 <x-text-input name="website" type="url" class="mt-1 block w-full" placeholder="https://" />
                             </div>
                             <x-primary-button class="w-full justify-center">Lisa lead</x-primary-button>
+                        </form>
+                    </div>
+
+                    {{-- CSV import --}}
+                    <div class="bg-white shadow-sm rounded-lg p-6">
+                        <h3 class="font-medium text-gray-900 mb-1">Impordi CSV</h3>
+                        <p class="text-xs text-gray-500 mb-4">Veerud: <code class="bg-gray-100 px-1 rounded">email, first_name, last_name, company, website, industry</code></p>
+
+                        @if($errors->has('csv_file'))
+                            <div class="mb-3 text-sm text-red-600">{{ $errors->first('csv_file') }}</div>
+                        @endif
+
+                        <form method="POST" action="{{ route('outreach.leads.import') }}" enctype="multipart/form-data" class="space-y-3">
+                            @csrf
+                            <input type="hidden" name="campaign_id" value="{{ $campaign->id }}">
+                            <div>
+                                <input type="file" name="csv_file" accept=".csv,text/csv"
+                                    class="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+                            </div>
+                            <x-primary-button>Impordi</x-primary-button>
                         </form>
                     </div>
 
