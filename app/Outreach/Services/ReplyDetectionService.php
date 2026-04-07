@@ -205,17 +205,17 @@ class ReplyDetectionService
             return 0;
         }
 
-        // Fetch only UNSEEN message sequence numbers to avoid re-scanning
-        // already-read messages on every cron run. If no unseen messages,
-        // bail early.
-        $unseenNums = @imap_search($imap, 'UNSEEN');
-        if (! $unseenNums) {
+        // Search for messages from the last 7 days (both UNSEEN and SEEN)
+        // This allows reply detection to work even if user reads emails before cron runs
+        $sevenDaysAgo = date('d-M-Y', strtotime('-7 days'));
+        $messageNums = @imap_search($imap, "SINCE \"$sevenDaysAgo\"");
+        if (! $messageNums) {
             return 0;
         }
 
         $detected = 0;
 
-        foreach ($unseenNums as $msgNum) {
+        foreach ($messageNums as $msgNum) {
             // imap_fetchheader returns raw RFC 2822 header block only — no body
             $rawHeaders = @imap_fetchheader($imap, $msgNum);
             if (! $rawHeaders) {
