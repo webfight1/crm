@@ -114,7 +114,7 @@ class OutreachEmailService
         //   3. generateLine() always saves the result (including fallback)
         //      so the API is never called again for this lead+campaign.
         if ($campaign->use_ai_line && empty($lead->ai_line)) {
-            $this->ai->generateLine($lead);
+            $this->ai->generateLine($lead, $campaign);
             $lead->refresh(); // pick up the persisted ai_line for template rendering
         }
 

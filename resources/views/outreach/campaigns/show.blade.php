@@ -68,6 +68,21 @@
                                     <span class="text-sm text-gray-700">Aktiivne</span>
                                 </label>
                             </div>
+                            <div>
+                                <x-input-label for="ai_prompt" value="AI prompt (valikuline)" />
+                                <textarea id="ai_prompt" name="ai_prompt" rows="5"
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm"
+                                    placeholder="Jäta tühjaks vaikimisi promti kasutamiseks...">{{ old('ai_prompt', $campaign->ai_prompt) }}</textarea>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Muutujad promptis:
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;company&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;website&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;industry&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;first_name&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;last_name&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;email&#125;&#125;</code>
+                                </p>
+                            </div>
                             <x-primary-button>Salvesta</x-primary-button>
                         </form>
                     </div>

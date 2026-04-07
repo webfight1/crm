@@ -12,6 +12,7 @@ class OutreachCampaign extends Model
     protected $fillable = [
         'name',
         'description',
+        'ai_prompt',
         'daily_limit',
         'reply_stop_enabled',
         'use_ai_line',
