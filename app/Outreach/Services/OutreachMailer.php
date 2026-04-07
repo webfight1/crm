@@ -41,8 +41,9 @@ class OutreachMailer
             ->from(new Address($account->email, $account->name))
             ->to(new Address($toEmail, $toName))
             ->subject($subject)
-            ->html($htmlBody)
-            ->messageId($messageId);
+            ->html($htmlBody);
+        
+        $email->getHeaders()->addIdHeader('Message-ID', $messageId);
 
         $transport      = $this->buildTransport($account);
         $symfonyMailer  = new SymfonyMailer($transport);

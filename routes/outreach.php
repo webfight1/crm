@@ -45,10 +45,10 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
         Route::post('/{campaign}/leads',                       [OutreachController::class, 'leadsStore'])->name('leads.store');
         Route::patch('/{campaign}/leads/{lead}',               [OutreachController::class, 'leadsUpdate'])->name('leads.update');
         Route::delete('/{campaign}/leads/{lead}',              [OutreachController::class, 'leadsDestroy'])->name('leads.destroy');
-
-        // Send logs
-        Route::get('/{campaign}/logs',                         [OutreachController::class, 'logsIndex'])->name('logs.index');
     });
+
+    // ── Logs (standalone for convenience) ──────────────────────────────────
+    Route::get('/logs/{campaign}', [OutreachController::class, 'logsIndex'])->name('logs.index');
 
     // ── Manual Triggers ─────────────────────────────────────────────────────
     Route::post('/trigger/process',     [OutreachController::class, 'triggerProcess'])->name('trigger.process');
