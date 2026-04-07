@@ -9,11 +9,30 @@
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-4">
 
             @if(session('success'))
-                <div class="mb-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded">{{ session('success') }}</div>
+                <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded">{{ session('success') }}</div>
             @endif
+
+            {{-- CSV import bar --}}
+            <div class="bg-white shadow-sm rounded-lg p-4">
+                <form method="POST" action="{{ route('outreach.leads.import') }}" enctype="multipart/form-data"
+                      class="flex flex-wrap items-end gap-4">
+                    @csrf
+                    <input type="hidden" name="campaign_id" value="{{ $campaign->id }}">
+                    <div>
+                        <p class="text-sm font-medium text-gray-700 mb-1">CSV import</p>
+                        <p class="text-xs text-gray-400 mb-2">Veerud: email, first_name, last_name, company, website, industry</p>
+                        <input type="file" name="csv_file" accept=".csv,text/csv"
+                            class="block text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+                        @error('csv_file')
+                            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+                    <x-primary-button>Impordi</x-primary-button>
+                </form>
+            </div>
 
             <div class="bg-white shadow-sm rounded-lg overflow-hidden">
                 <table class="min-w-full divide-y divide-gray-200">

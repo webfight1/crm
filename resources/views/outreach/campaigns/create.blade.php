@@ -27,10 +27,17 @@
                         <p class="text-xs text-gray-500 mt-1">Lisapiirang üle kõigi postkastide kokku.</p>
                     </div>
 
-                    <div class="flex gap-6">
+                    <div class="flex flex-col gap-3">
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" name="reply_stop_enabled" value="1" @checked(old('reply_stop_enabled', true)) class="rounded border-gray-300 text-indigo-600">
                             <span class="text-sm text-gray-700">Peata saatmine vastuse korral</span>
+                        </label>
+                        <label class="flex items-start gap-2 cursor-pointer">
+                            <input type="checkbox" name="use_ai_line" value="1" @checked(old('use_ai_line', false)) class="rounded border-gray-300 text-indigo-600 mt-0.5">
+                            <span class="text-sm text-gray-700">
+                                Kasuta AI isikupärastamist
+                                <span class="block text-xs text-gray-400 font-normal">Genereerib iga leadi jaoks ühe lause kasutades OpenAI-t. Kasuta <code class="bg-gray-100 px-1 rounded">&#123;&#123;ai_line&#125;&#125;</code> meilimallides.</span>
+                            </span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" name="is_active" value="1" @checked(old('is_active', true)) class="rounded border-gray-300 text-indigo-600">

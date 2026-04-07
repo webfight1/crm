@@ -50,6 +50,9 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
         Route::get('/{campaign}/logs',                         [OutreachController::class, 'logsIndex'])->name('logs.index');
     });
 
+    // ── CSV Import ───────────────────────────────────────────────────────────
+    Route::post('/leads/import', [OutreachController::class, 'importCsv'])->name('leads.import');
+
     // ── Manual Triggers ─────────────────────────────────────────────────────
     Route::post('/trigger/process',     [OutreachController::class, 'triggerProcess'])->name('trigger.process');
     Route::post('/trigger/reply-check', [OutreachController::class, 'triggerReplyCheck'])->name('trigger.reply-check');

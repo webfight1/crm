@@ -10,6 +10,7 @@ use App\Outreach\Models\OutreachCampaignStep;
 use App\Outreach\Models\OutreachEmailAccount;
 use App\Outreach\Models\OutreachLead;
 use App\Outreach\Models\OutreachSendLog;
+use App\Outreach\Services\OutreachCsvImportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -138,11 +139,12 @@ class OutreachController extends Controller
     public function campaignsStore(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'name'                => 'required|string|max:200',
-            'description'         => 'nullable|string',
-            'daily_limit'         => 'nullable|integer|min:1',
-            'reply_stop_enabled'  => 'boolean',
-            'is_active'           => 'boolean',
+            'name'               => 'required|string|max:200',
+            'description'        => 'nullable|string',
+            'daily_limit'        => 'nullable|integer|min:1',
+            'reply_stop_enabled' => 'boolean',
+            'use_ai_line'        => 'boolean',
+            'is_active'          => 'boolean',
         ]);
 
         $campaign = OutreachCampaign::create($data);
@@ -170,6 +172,7 @@ class OutreachController extends Controller
             'description'        => 'nullable|string',
             'daily_limit'        => 'nullable|integer|min:1',
             'reply_stop_enabled' => 'boolean',
+            'use_ai_line'        => 'boolean',
             'is_active'          => 'boolean',
         ]);
 
@@ -295,6 +298,42 @@ class OutreachController extends Controller
     {
         CheckOutreachRepliesJob::dispatch()->onQueue('outreach');
         return back()->with('success', 'Reply check job dispatched.');
+    }
+
+    // ─── CSV Import ───────────────────────────────────────────────────────────
+
+    /**
+     * Handle CSV lead import.
+     *
+     * Accepts a .csv file and a campaign_id, stores the upload to a temp path,
+     * delegates parsing to OutreachCsvImportService, then redirects with a
+     * count of newly inserted leads.
+     */
+    public function importCsv(Request $request, OutreachCsvImportService $importer): RedirectResponse
+    {
+        $request->validate([
+            'campaign_id' => ['required', 'integer', 'exists:outreach_campaigns,id'],
+            'csv_file'    => ['required', 'file', 'mimes:csv,txt', 'max:5120'], // 5 MB
+        ]);
+
+        $campaign = OutreachCampaign::findOrFail($request->integer('campaign_id'));
+
+        $path = $request->file('csv_file')->store('outreach/imports', 'local');
+
+        try {
+            $count = $importer->import(storage_path("app/{$path}"), $campaign->id);
+        } catch (\InvalidArgumentException $e) {
+            return back()
+                ->withInput()
+                ->withErrors(['csv_file' => $e->getMessage()]);
+        } finally {
+            // Always clean up the temp file
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($path);
+        }
+
+        return redirect()
+            ->route('outreach.campaigns.leads.index', $campaign)
+            ->with('success', "Imporditi {$count} leadi.");
     }
 
     // ─── Send Logs ────────────────────────────────────────────────────────────
