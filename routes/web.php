@@ -131,4 +131,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/comments/{comment}', [CommentController::class, 'update'])->name('comments.update');
     Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
     Route::post('/comments/{comment}/read', [CommentController::class, 'markAsRead'])->name('comments.read');
+
+    // ── Outreach Engine ──────────────────────────────────────────────────────
+    require __DIR__ . '/outreach.php';
 });
