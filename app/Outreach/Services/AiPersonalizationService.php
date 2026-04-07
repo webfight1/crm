@@ -2,6 +2,7 @@
 
 namespace App\Outreach\Services;
 
+use App\Outreach\Models\OutreachCampaign;
 use App\Outreach\Models\OutreachLead;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -11,6 +12,17 @@ use Illuminate\Support\Facades\Log;
  *
  * Generates a one-sentence personalisation line for a cold email lead
  * using the OpenAI Chat Completions API.
+ *
+ * ── Prompt resolution (priority order) ──────────────────────────────────────
+ * 1. campaign.ai_prompt is set  → use it (after resolving {{placeholders}})
+ * 2. campaign.ai_prompt is null → use the built-in default prompt
+ *
+ * Supported placeholders inside ai_prompt:
+ *   {{company}}, {{website}}, {{industry}},
+ *   {{first_name}}, {{last_name}}, {{email}}
+ *
+ * strtr() is used for placeholder replacement — a single pass with no risk
+ * of a substituted value containing another placeholder.
  *
  * ── Responsibility boundary ──────────────────────────────────────────────────
  * This service only generates and persists the line. The decision of WHETHER
@@ -52,24 +64,26 @@ class AiPersonalizationService
      *
      * @return string  The line that was saved (for logging convenience).
      */
-    public function generateLine(OutreachLead $lead): string
+    public function generateLine(OutreachLead $lead, OutreachCampaign $campaign): string
     {
         $apiKey = config('services.openai.key');
 
         if (empty($apiKey)) {
             Log::warning('[Outreach] OpenAI API key not configured, using fallback line', [
-                'lead_id' => $lead->id,
+                'lead_id'     => $lead->id,
+                'campaign_id' => $campaign->id,
             ]);
 
             return $this->saveLine($lead, $this->randomFallback());
         }
 
         try {
-            $line = $this->callOpenAi($apiKey, $lead);
+            $line = $this->callOpenAi($apiKey, $lead, $campaign);
         } catch (\Throwable $e) {
             Log::warning('[Outreach] OpenAI request failed, using fallback line', [
-                'lead_id' => $lead->id,
-                'error'   => $e->getMessage(),
+                'lead_id'     => $lead->id,
+                'campaign_id' => $campaign->id,
+                'error'       => $e->getMessage(),
             ]);
 
             // Save the fallback — this prevents re-calling the (broken) API on
@@ -88,16 +102,16 @@ class AiPersonalizationService
         return $line;
     }
 
-    private function callOpenAi(string $apiKey, OutreachLead $lead): string
+    private function callOpenAi(string $apiKey, OutreachLead $lead, OutreachCampaign $campaign): string
     {
         $response = Http::withToken($apiKey)
             ->timeout(self::TIMEOUT)
             ->post(self::API_URL, [
                 'model'       => self::MODEL,
-                'max_tokens'  => 60,
+                'max_tokens'  => 80,
                 'temperature' => 0.7,
                 'messages'    => [
-                    ['role' => 'user', 'content' => $this->buildPrompt($lead)],
+                    ['role' => 'user', 'content' => $this->buildPrompt($lead, $campaign)],
                 ],
             ]);
 
@@ -116,7 +130,74 @@ class AiPersonalizationService
         return trim(trim($content), '"\'');
     }
 
-    private function buildPrompt(OutreachLead $lead): string
+    /**
+     * Build the final prompt string to send to OpenAI.
+     *
+     * If the campaign has a custom ai_prompt, it is used after resolving any
+     * {{placeholder}} tokens with the lead's data. The output-format instruction
+     * (plain text, no markdown) is always appended so the response is safe to
+     * drop directly into an email body.
+     *
+     * If ai_prompt is null or empty, the built-in default prompt is used.
+     *
+     * ── Placeholder reference ────────────────────────────────────────────────
+     *   {{company}}    → lead.company
+     *   {{website}}    → lead.website
+     *   {{industry}}   → lead.industry
+     *   {{first_name}} → lead.first_name
+     *   {{last_name}}  → lead.last_name
+     *   {{email}}      → lead.email
+     */
+    private function buildPrompt(OutreachLead $lead, OutreachCampaign $campaign): string
+    {
+        if (! empty($campaign->ai_prompt)) {
+            // Resolve lead-data placeholders inside the operator-supplied prompt.
+            // strtr() performs all substitutions in a single pass — no risk of
+            // a substituted value containing a placeholder that gets re-evaluated.
+            $resolvedPrompt = strtr($campaign->ai_prompt, [
+                '{{company}}'    => $lead->company    ?? '',
+                '{{website}}'    => $lead->website    ?? '',
+                '{{industry}}'   => $lead->industry   ?? '',
+                '{{first_name}}' => $lead->first_name ?? '',
+                '{{last_name}}'  => $lead->last_name  ?? '',
+                '{{email}}'      => $lead->email,
+            ]);
+
+            // Append universal output-format constraints so the result is always
+            // safe to embed directly in an email body. These constraints are
+            // appended rather than embedded in the operator prompt so that
+            // operators cannot accidentally omit them.
+            return $resolvedPrompt . "\n\n" . $this->outputConstraints();
+        }
+
+        return $this->defaultPrompt($lead);
+    }
+
+    /**
+     * Output-format constraints appended to every operator-supplied prompt.
+     *
+     * Rules are written as explicit instructions rather than examples so that
+     * the model treats them as hard constraints, not soft guidelines.
+     */
+    private function outputConstraints(): string
+    {
+        return <<<CONSTRAINTS
+Output requirements (strictly enforced):
+- Write 1 to 2 sentences only.
+- Plain text only. No markdown, no bullet points, no headers.
+- Do not wrap the output in quotes.
+- Do not include a greeting or sign-off.
+- Output only the personalisation sentence(s), nothing else.
+CONSTRAINTS;
+    }
+
+    /**
+     * Default prompt used when campaign.ai_prompt is null/empty.
+     *
+     * Kept for full backward compatibility with campaigns created before the
+     * ai_prompt field was introduced.
+     */
+    private function defaultPrompt(OutreachLead $lead): string
     {
         return <<<PROMPT
 Write ONE short sentence for a cold email.
@@ -133,8 +214,10 @@ Rules:
 - No buzzwords
 - No emojis
 - No exclamation marks
+- Plain text only, no markdown
+- Do not wrap the output in quotes
+- Output only the sentence
 
-Output only the sentence.
 PROMPT;
     }
 
