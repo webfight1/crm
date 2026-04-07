@@ -141,6 +141,7 @@ class OutreachController extends Controller
         $data = $request->validate([
             'name'               => 'required|string|max:200',
             'description'        => 'nullable|string',
+            'ai_prompt'          => 'nullable|string',
             'daily_limit'        => 'nullable|integer|min:1',
             'reply_stop_enabled' => 'boolean',
             'use_ai_line'        => 'boolean',
@@ -170,6 +171,7 @@ class OutreachController extends Controller
         $data = $request->validate([
             'name'               => 'required|string|max:200',
             'description'        => 'nullable|string',
+            'ai_prompt'          => 'nullable|string',
             'daily_limit'        => 'nullable|integer|min:1',
             'reply_stop_enabled' => 'boolean',
             'use_ai_line'        => 'boolean',
