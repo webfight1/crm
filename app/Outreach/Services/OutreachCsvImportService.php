@@ -14,39 +14,56 @@ use Illuminate\Support\Facades\DB;
  * ── Supported columns ───────────────────────────────────────────────────────
  *   Required : email
  *   Optional : first_name, last_name, company, website, industry
+ *   Special  : custom_line — if present and non-empty, its value is stored as
+ *              ai_line verbatim, bypassing the OpenAI generation entirely.
+ *              Useful when you already have personalisation copy in the CSV.
  *
- * Missing optional columns are silently skipped — the import still runs.
  * Column order does not matter; matching is done by header name.
+ * Missing optional columns are silently skipped.
+ *
+ * ── BOM handling ────────────────────────────────────────────────────────────
+ * UTF-8 files exported from Excel/Sheets often begin with a byte-order mark
+ * (0xEF 0xBB 0xBF). fgetcsv() treats the BOM as part of the first field
+ * value, which causes the "email" header to not be found. We strip it.
  *
  * ── Duplicate handling ──────────────────────────────────────────────────────
- * A duplicate is defined as the same (email, campaign_id) pair. Duplicates
- * are skipped — safe to re-import the same file multiple times.
+ * Duplicates are defined as the same (campaign_id, email) pair.
+ * The database has a UNIQUE index on this pair. We use insertOrIgnore()
+ * in batches, which silently skips conflicting rows at the DB level.
+ * This is race-condition safe — no gap between check and insert.
+ *
+ * ── Batch insert ────────────────────────────────────────────────────────────
+ * Rows are collected and inserted in chunks of BATCH_SIZE (250).
+ * This avoids per-row Eloquent overhead on large files.
  *
  * ── Initial lead state ──────────────────────────────────────────────────────
  *   status       = active
  *   current_step = 0
  *   replied      = false
  *   enrolled_at  = now()
- *   next_send_at = now()     (ready for first send on next scheduler run)
- *   ai_line      = null      (generated on first send if campaign.use_ai_line)
+ *   next_send_at = now()
+ *   ai_line      = null (or custom_line value if provided)
  */
 class OutreachCsvImportService
 {
+    private const BATCH_SIZE = 250;
+
+    /** UTF-8 byte-order mark */
+    private const BOM = "\xEF\xBB\xBF";
+
     /**
      * Import leads from a CSV file into the given campaign.
      *
-     * @param  string $filePath   Absolute path to the CSV file on disk.
-     * @param  int    $campaignId Target campaign ID.
-     * @return int    Number of leads actually inserted.
+     * @param  string $filePath   Absolute path to the CSV file.
+     * @param  int    $campaignId Target campaign.
+     * @return int    Number of rows handed to insertOrIgnore() (includes skipped dupes).
+     *                Actual DB inserts may be lower if duplicates were silently skipped.
      *
-     * @throws \InvalidArgumentException if the campaign does not exist or
-     *                                   the file cannot be opened.
+     * @throws \InvalidArgumentException  if campaign not found or file unreadable.
      */
     public function import(string $filePath, int $campaignId): int
     {
-        $campaign = OutreachCampaign::find($campaignId);
-
-        if (! $campaign) {
+        if (! OutreachCampaign::where('id', $campaignId)->exists()) {
             throw new \InvalidArgumentException("Campaign #{$campaignId} not found.");
         }
 
@@ -57,7 +74,7 @@ class OutreachCsvImportService
         }
 
         try {
-            return $this->processFile($handle, $campaign);
+            return $this->processFile($handle, $campaignId);
         } finally {
             fclose($handle);
         }
@@ -66,22 +83,25 @@ class OutreachCsvImportService
     // ─── Internal ────────────────────────────────────────────────────────────
 
     /** @param resource $handle */
-    private function processFile($handle, OutreachCampaign $campaign): int
+    private function processFile($handle, int $campaignId): int
     {
-        // Read header row
-        $headers = fgetcsv($handle);
+        $rawHeaders = fgetcsv($handle);
 
-        if ($headers === false || empty($headers)) {
+        if ($rawHeaders === false || empty($rawHeaders)) {
             return 0;
         }
 
-        // Normalise headers: trim whitespace and lowercase
-        $headers = array_map(fn($h) => strtolower(trim($h)), $headers);
+        // Strip UTF-8 BOM from the first field (common in Excel-exported CSVs)
+        if (str_starts_with($rawHeaders[0], self::BOM)) {
+            $rawHeaders[0] = substr($rawHeaders[0], strlen(self::BOM));
+        }
 
-        // Build column index map: column_name => array_index
-        $allowed = ['email', 'first_name', 'last_name', 'company', 'website', 'industry'];
-        $colMap   = [];
-        foreach ($allowed as $col) {
+        // Normalise: lowercase + trim
+        $headers = array_map(fn($h) => strtolower(trim($h)), $rawHeaders);
+
+        // Map column names to their array index
+        $colMap = [];
+        foreach (['email', 'first_name', 'last_name', 'company', 'website', 'industry', 'custom_line'] as $col) {
             $idx = array_search($col, $headers, true);
             if ($idx !== false) {
                 $colMap[$col] = $idx;
@@ -89,72 +109,69 @@ class OutreachCsvImportService
         }
 
         if (! isset($colMap['email'])) {
-            throw new \InvalidArgumentException('CSV must contain an "email" column.');
+            throw new \InvalidArgumentException(
+                'CSV must contain an "email" column. Headers found: ' . implode(', ', $headers)
+            );
         }
 
-        // Load existing emails for this campaign to skip duplicates efficiently
-        $existing = DB::table('outreach_leads')
-            ->where('campaign_id', $campaign->id)
-            ->pluck('email')
-            ->map(fn($e) => strtolower(trim($e)))
-            ->flip()  // use as a hash set for O(1) lookup
-            ->all();
-
         $now      = now();
-        $inserted = 0;
+        $batch    = [];
+        $queued   = 0;
 
         while (($row = fgetcsv($handle)) !== false) {
-            // Skip empty rows
-            if (empty(array_filter($row))) {
+            // Skip completely empty rows
+            if (empty(array_filter($row, fn($v) => trim($v) !== ''))) {
                 continue;
             }
 
             $email = strtolower(trim($row[$colMap['email']] ?? ''));
 
-            // Validate email
             if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 continue;
             }
 
-            // Skip duplicates
-            if (isset($existing[$email])) {
-                continue;
-            }
-
-            $lead = [
-                'campaign_id'  => $campaign->id,
+            $batch[] = [
+                'campaign_id'  => $campaignId,
                 'email'        => $email,
                 'first_name'   => $this->col($row, $colMap, 'first_name') ?: 'Friend',
                 'last_name'    => $this->col($row, $colMap, 'last_name'),
                 'company'      => $this->col($row, $colMap, 'company'),
                 'website'      => $this->col($row, $colMap, 'website'),
                 'industry'     => $this->col($row, $colMap, 'industry'),
-                'ai_line'      => null,
+                // custom_line in the CSV pre-fills ai_line, skipping OpenAI generation
+                'ai_line'      => $this->col($row, $colMap, 'custom_line'),
                 'status'       => OutreachLead::STATUS_ACTIVE,
                 'current_step' => 0,
-                'replied'      => false,
+                'replied'      => 0,   // raw int for DB::table insert
                 'enrolled_at'  => $now,
                 'next_send_at' => $now,
                 'created_at'   => $now,
                 'updated_at'   => $now,
             ];
 
-            OutreachLead::create($lead);
+            $queued++;
 
-            // Add to in-memory set so repeated emails within the same file are
-            // also deduplicated without requiring a DB round-trip per row.
-            $existing[$email] = true;
-
-            $inserted++;
+            if (count($batch) >= self::BATCH_SIZE) {
+                $this->flush($batch);
+                $batch = [];
+            }
         }
 
-        return $inserted;
+        if (! empty($batch)) {
+            $this->flush($batch);
+        }
+
+        return $queued;
     }
 
-    /**
-     * Extract and trim a column value from a CSV row.
-     * Returns null if the column is absent or the value is empty.
-     */
+    /** @param array<int, array<string, mixed>> $rows */
+    private function flush(array $rows): void
+    {
+        // insertOrIgnore silently skips rows that violate the
+        // UNIQUE(campaign_id, email) index — no exception thrown.
+        DB::table('outreach_leads')->insertOrIgnore($rows);
+    }
+
     private function col(array $row, array $colMap, string $name): ?string
     {
         if (! isset($colMap[$name])) {

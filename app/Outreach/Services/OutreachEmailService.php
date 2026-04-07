@@ -108,14 +108,14 @@ class OutreachEmailService
         }
 
         // ── AI PERSONALISATION ───────────────────────────────────────────────
-        // Populate lead.ai_line before rendering so {{ai_line}} is resolved.
-        // Only called when the campaign has use_ai_line = true AND the lead
-        // does not already have a saved line. The service persists the result
-        // on the lead, so the API is only called once per lead per campaign.
-        if ($campaign->use_ai_line) {
+        // Rules:
+        //   1. Only when campaign.use_ai_line = true
+        //   2. Only when lead.ai_line is empty (generate once, reuse forever)
+        //   3. generateLine() always saves the result (including fallback)
+        //      so the API is never called again for this lead+campaign.
+        if ($campaign->use_ai_line && empty($lead->ai_line)) {
             $this->ai->generateLine($lead);
-            // Refresh to pick up the newly saved ai_line (if it changed)
-            $lead->refresh();
+            $lead->refresh(); // pick up the persisted ai_line for template rendering
         }
 
         // ── IDEMPOTENCY GUARD ────────────────────────────────────────────────

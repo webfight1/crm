@@ -74,6 +74,9 @@ class OutreachCampaignStep extends Model
             '{{ai_line}}'    => $lead->ai_line ?? '',
         ];
 
-        return str_replace(array_keys($variables), array_values($variables), $template);
+        // strtr() is used instead of str_replace() because it performs all
+        // substitutions in a single pass with no risk of one replacement
+        // containing a placeholder that gets substituted again.
+        return strtr($template, $variables);
     }
 }

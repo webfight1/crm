@@ -12,19 +12,20 @@ use Illuminate\Support\Facades\Log;
  * Generates a one-sentence personalisation line for a cold email lead
  * using the OpenAI Chat Completions API.
  *
- * ── Caching strategy ────────────────────────────────────────────────────────
- * The generated line is stored on the lead (outreach_leads.ai_line) after the
- * first call. OutreachEmailService checks for an existing value before calling
- * this service, so each lead is only billed once per campaign.
+ * ── Responsibility boundary ──────────────────────────────────────────────────
+ * This service only generates and persists the line. The decision of WHETHER
+ * to call it (campaign.use_ai_line check, empty-guard) lives in the caller
+ * (OutreachEmailService). generateLine() assumes the caller already determined
+ * that a new line is needed.
  *
- * ── Failsafe ────────────────────────────────────────────────────────────────
- * If the OpenAI request fails for any reason (network error, quota exceeded,
- * bad response) a random fallback line is returned. The fallback is NOT saved
- * to the lead so the next send attempt will try the API again.
+ * ── Persistence ─────────────────────────────────────────────────────────────
+ * The result — including any fallback line — is ALWAYS saved to lead.ai_line.
+ * This guarantees the API is called at most once per lead regardless of whether
+ * the first attempt succeeded or fell back. The caller should $lead->refresh()
+ * after calling generateLine() to see the persisted value.
  *
  * ── Isolation ───────────────────────────────────────────────────────────────
- * This service is entirely within App\Outreach and has no dependency on the
- * existing legacy mail or CRM infrastructure.
+ * Entirely within App\Outreach. No dependency on legacy mail infrastructure.
  */
 class AiPersonalizationService
 {
@@ -41,25 +42,26 @@ class AiPersonalizationService
     ];
 
     /**
-     * Generate (or reuse) a personalisation line for the given lead.
+     * Generate a personalisation line and save it to lead.ai_line.
      *
-     * Saves the result to lead.ai_line on success so future sends reuse it.
-     * Returns a fallback line on API failure without saving.
+     * On API success  → saves the generated sentence.
+     * On any failure  → saves a random fallback sentence.
+     *
+     * Either way lead.ai_line is populated after this call, so subsequent
+     * steps will not reach this service again (caller guards on empty check).
+     *
+     * @return string  The line that was saved (for logging convenience).
      */
     public function generateLine(OutreachLead $lead): string
     {
-        // Already generated — reuse without hitting the API again
-        if (! empty($lead->ai_line)) {
-            return $lead->ai_line;
-        }
-
         $apiKey = config('services.openai.key');
 
         if (empty($apiKey)) {
-            Log::warning('[Outreach] OpenAI API key not configured. Using fallback AI line.', [
+            Log::warning('[Outreach] OpenAI API key not configured, using fallback line', [
                 'lead_id' => $lead->id,
             ]);
-            return $this->fallback();
+
+            return $this->saveLine($lead, $this->randomFallback());
         }
 
         try {
@@ -69,21 +71,25 @@ class AiPersonalizationService
                 'lead_id' => $lead->id,
                 'error'   => $e->getMessage(),
             ]);
-            return $this->fallback();
+
+            // Save the fallback — this prevents re-calling the (broken) API on
+            // every subsequent step send for the same lead.
+            return $this->saveLine($lead, $this->randomFallback());
         }
 
-        // Persist so subsequent steps reuse this line at zero API cost
-        $lead->update(['ai_line' => $line]);
-
-        return $line;
+        return $this->saveLine($lead, $line);
     }
 
     // ─── Internal ────────────────────────────────────────────────────────────
 
+    private function saveLine(OutreachLead $lead, string $line): string
+    {
+        $lead->update(['ai_line' => $line]);
+        return $line;
+    }
+
     private function callOpenAi(string $apiKey, OutreachLead $lead): string
     {
-        $prompt = $this->buildPrompt($lead);
-
         $response = Http::withToken($apiKey)
             ->timeout(self::TIMEOUT)
             ->post(self::API_URL, [
@@ -91,7 +97,7 @@ class AiPersonalizationService
                 'max_tokens'  => 60,
                 'temperature' => 0.7,
                 'messages'    => [
-                    ['role' => 'user', 'content' => $prompt],
+                    ['role' => 'user', 'content' => $this->buildPrompt($lead)],
                 ],
             ]);
 
@@ -107,7 +113,6 @@ class AiPersonalizationService
             throw new \RuntimeException('OpenAI response contained no content.');
         }
 
-        // Strip surrounding quotes / whitespace that models sometimes add
         return trim(trim($content), '"\'');
     }
 
@@ -133,7 +138,7 @@ Output only the sentence.
 PROMPT;
     }
 
-    private function fallback(): string
+    private function randomFallback(): string
     {
         return self::FALLBACK_LINES[array_rand(self::FALLBACK_LINES)];
     }
