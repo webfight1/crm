@@ -47,6 +47,7 @@ class DashboardController extends Controller
             ->whereNotNull('end_time')
             ->sum('duration');
 
+            
         return view('dashboard', [
             'stats' => [
                 'customers' => Customer::count(),
