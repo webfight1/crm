@@ -22,7 +22,7 @@ class DealController extends Controller
     public function index()
     {
         $deals = Deal::with(['customer', 'company', 'contact'])
-            ->paginate(15);
+            ->get();
 
         return view('deals.index', compact('deals'));
     }

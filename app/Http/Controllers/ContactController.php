@@ -18,7 +18,7 @@ class ContactController extends Controller
     public function index()
     {
         $contacts = Contact::with(['customer', 'company'])
-            ->paginate(15);
+            ->get();
 
         return view('contacts.index', compact('contacts'));
     }

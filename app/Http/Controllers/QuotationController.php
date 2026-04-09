@@ -17,7 +17,7 @@ class QuotationController extends Controller
     {
         $quotations = Quotation::with(['deal', 'deal.customer'])
             ->orderBy('created_at', 'desc')
-            ->paginate(15);
+            ->get();
 
         return view('quotations.index', compact('quotations'));
     }
