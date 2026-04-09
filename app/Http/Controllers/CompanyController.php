@@ -155,7 +155,8 @@ class CompanyController extends Controller
             
         } catch (\Exception $e) {
             \Log::error('External company search failed: ' . $e->getMessage());
-            return response()->json(['error' => 'Otsing ebaõnnestus'], 500);
+            // Return empty array instead of error if external database is not available
+            return response()->json([]);
         }
     }
 
