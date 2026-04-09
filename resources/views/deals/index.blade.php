@@ -146,10 +146,6 @@
                                 </tbody>
                             </table>
                         </div>
-
-                        <div class="mt-6">
-                            {{ $deals->links() }}
-                        </div>
                     @else
                         <div class="text-center py-8">
                             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
