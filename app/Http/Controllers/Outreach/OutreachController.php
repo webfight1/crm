@@ -13,6 +13,7 @@ use App\Outreach\Models\OutreachSendLog;
 use App\Outreach\Services\OutreachCsvImportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 /**
@@ -323,14 +324,16 @@ class OutreachController extends Controller
         $path = $request->file('csv_file')->store('outreach/imports', 'local');
 
         try {
-            $count = $importer->import(storage_path("app/{$path}"), $campaign->id);
+            // Use the disk path helper so the configured root (storage/app/private
+            // in Laravel 11+) is honoured instead of guessing storage/app/*.
+            $count = $importer->import(Storage::disk('local')->path($path), $campaign->id);
         } catch (\InvalidArgumentException $e) {
             return back()
                 ->withInput()
                 ->withErrors(['csv_file' => $e->getMessage()]);
         } finally {
             // Always clean up the temp file
-            \Illuminate\Support\Facades\Storage::disk('local')->delete($path);
+            Storage::disk('local')->delete($path);
         }
 
         return redirect()
