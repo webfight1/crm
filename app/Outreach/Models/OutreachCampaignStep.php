@@ -43,7 +43,7 @@ class OutreachCampaignStep extends Model
      * Supported placeholders:
      *   {{first_name}}, {{last_name}}, {{full_name}},
      *   {{company}}, {{website}}, {{industry}}, {{email}},
-     *   {{ai_line}}, {{lcp}}, {{performance_score}}
+     *   {{ai_line}}, {{lcp}} / {{lcp_mobile}}, {{performance_score}}
      *
      * {{ai_line}} is populated by OutreachEmailService before rendering:
      *   - campaign.use_ai_line = true  → lead.ai_line (generated once, saved)
@@ -70,6 +70,7 @@ class OutreachCampaignStep extends Model
             '{{industry}}'          => $lead->industry ?? '',
             '{{email}}'             => $lead->email,
             '{{lcp}}'               => $lead->lcp_mobile ?? '',
+            '{{lcp_mobile}}'        => $lead->lcp_mobile ?? '',
             '{{performance_score}}' => $lead->performance_score !== null
                                         ? (string) $lead->performance_score
                                         : '',

@@ -39,6 +39,7 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
         Route::post('/{campaign}/steps',                       [OutreachController::class, 'stepsStore'])->name('steps.store');
         Route::patch('/{campaign}/steps/{step}',               [OutreachController::class, 'stepsUpdate'])->name('steps.update');
         Route::delete('/{campaign}/steps/{step}',              [OutreachController::class, 'stepsDestroy'])->name('steps.destroy');
+        Route::post('/{campaign}/steps/{step}/test-send',      [OutreachController::class, 'stepsTestSend'])->name('steps.test-send');
 
         // Leads (nested under campaign)
         Route::get('/{campaign}/leads',                        [OutreachController::class, 'leadsIndex'])->name('leads.index');

@@ -227,6 +227,64 @@ class OutreachController extends Controller
         return back()->with('success', 'Step removed.');
     }
 
+    /**
+     * Send a test email for a given step to the supplied address.
+     * Uses an in-memory lead populated with sample data so templates render
+     * identically to production. Sends via the first active email account.
+     */
+    public function stepsTestSend(
+        Request $request,
+        OutreachCampaign $campaign,
+        OutreachCampaignStep $step,
+        \App\Outreach\Services\OutreachMailer $mailer,
+    ): RedirectResponse {
+        $data = $request->validate([
+            'test_email' => ['required', 'email'],
+        ]);
+
+        $account = OutreachEmailAccount::where('is_active', true)->first();
+
+        if (! $account) {
+            return back()->with('error', 'Aktiivset e-posti kontot ei leitud. Lisa/aktiveeri konto.');
+        }
+
+        // Populate an unsaved lead with sample data for realistic rendering.
+        $sampleLead = new OutreachLead([
+            'first_name'        => 'Mari',
+            'last_name'         => 'Maasikas',
+            'email'             => $data['test_email'],
+            'company'           => 'Näidis OÜ',
+            'website'           => 'https://naide.ee',
+            'industry'          => 'E-kaubandus',
+            'lcp_mobile'        => '2.8s',
+            'performance_score' => 45,
+            'ai_line'           => 'Märkasin, et teie avaleht laeb mobiilis aeglaselt.',
+        ]);
+
+        $subject = '[TEST] ' . $step->renderSubject($sampleLead);
+        $body    = $step->renderBody($sampleLead);
+
+        try {
+            $mailer->send(
+                $account,
+                $data['test_email'],
+                'Test Recipient',
+                $subject,
+                $body,
+            );
+        } catch (\Throwable $e) {
+            \Log::error('[Outreach] Test send failed', [
+                'step_id' => $step->id,
+                'to'      => $data['test_email'],
+                'error'   => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Testkirja saatmine ebaõnnestus: ' . $e->getMessage());
+        }
+
+        return back()->with('success', "Testkiri saadetud: {$data['test_email']}");
+    }
+
     // ─── Leads ───────────────────────────────────────────────────────────────
 
     public function leadsIndex(OutreachCampaign $campaign): View

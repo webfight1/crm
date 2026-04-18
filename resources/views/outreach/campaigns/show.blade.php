@@ -25,6 +25,9 @@
             @if(session('success'))
                 <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded">{{ session('success') }}</div>
             @endif
+            @if(session('error'))
+                <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">{{ session('error') }}</div>
+            @endif
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -112,14 +115,21 @@
                                 <div class="mb-3">
                                     <div class="flex items-center justify-between">
                                         <x-input-label value="Sisu (HTML)" />
-                                        <button type="button"
-                                            class="text-xs text-indigo-600 hover:text-indigo-800 underline preview-btn">
-                                            Eelvaade
-                                        </button>
+                                        <div class="flex items-center gap-3">
+                                            <button type="button"
+                                                class="text-xs text-indigo-600 hover:text-indigo-800 underline preview-btn">
+                                                Eelvaade
+                                            </button>
+                                            <button type="button"
+                                                class="text-xs text-green-600 hover:text-green-800 underline test-send-btn"
+                                                data-test-send-url="{{ route('outreach.campaigns.steps.test-send', [$campaign, $step]) }}">
+                                                Saada test
+                                            </button>
+                                        </div>
                                     </div>
                                     <textarea name="body_template" rows="4"
                                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm font-mono text-sm focus:ring-indigo-500 focus:border-indigo-500">{{ $step->body_template }}</textarea>
-                                    <p class="text-xs text-gray-400 mt-1">Muutujad: &#123;&#123;first_name&#125;&#125; &#123;&#123;last_name&#125;&#125; &#123;&#123;company&#125;&#125; &#123;&#123;website&#125;&#125; &#123;&#123;lcp&#125;&#125; &#123;&#123;performance_score&#125;&#125; &#123;&#123;ai_line&#125;&#125;</p>
+                                    <p class="text-xs text-gray-400 mt-1">Muutujad: &#123;&#123;first_name&#125;&#125; &#123;&#123;last_name&#125;&#125; &#123;&#123;company&#125;&#125; &#123;&#123;website&#125;&#125; &#123;&#123;lcp_mobile&#125;&#125; &#123;&#123;performance_score&#125;&#125; &#123;&#123;ai_line&#125;&#125;</p>
                                 </div>
                                 <div class="flex items-center gap-3">
                                     <x-primary-button>Salvesta samm</x-primary-button>
@@ -301,6 +311,7 @@
                 industry: 'E-kaubandus',
                 email: 'mari@naide.ee',
                 lcp: '2.8s',
+                lcp_mobile: '2.8s',
                 performance_score: '45',
                 ai_line: 'Märkasin, et teie avaleht laeb mobiilis aeglaselt.',
             };
@@ -352,6 +363,32 @@
             modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+            });
+
+            // Test-send: prompt for email, then POST via a dynamically built form
+            // (simpler than fetch + needs to preserve Laravel session flash for redirect banners).
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            document.querySelectorAll('.test-send-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const url = btn.dataset.testSendUrl;
+                    if (!url) return;
+
+                    const defaultEmail = localStorage.getItem('outreach_test_email') || 'veiko@webfight.ee';
+                    const email = window.prompt('Saada testkiri sellele aadressile:', defaultEmail);
+                    if (!email) return;
+
+                    localStorage.setItem('outreach_test_email', email);
+
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = url;
+                    form.style.display = 'none';
+                    form.innerHTML =
+                        '<input name="_token" value="' + csrf + '">' +
+                        '<input name="test_email" value="' + email.replace(/"/g, '&quot;') + '">';
+                    document.body.appendChild(form);
+                    form.submit();
+                });
             });
         })();
     </script>
