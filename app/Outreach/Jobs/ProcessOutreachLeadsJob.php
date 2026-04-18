@@ -30,8 +30,25 @@ class ProcessOutreachLeadsJob implements ShouldQueue
     // Max time a lead can be in "processing" before its lock is considered stale
     const STALE_LOCK_MINUTES = 10;
 
+    // Per-send random delay bounds (seconds). 3–10 min keeps each outgoing
+    // message spaced naturally instead of arriving in visible bursts.
+    const MIN_SEND_DELAY_SECONDS = 180;
+    const MAX_SEND_DELAY_SECONDS = 600;
+
+    // Working-hours window — cold-outreach best practice is to send only during
+    // business hours in the recipient's region. Outside this window the cron
+    // keeps running but no new jobs are dispatched; leads simply wait.
+    const WORK_HOUR_START = 9;   // inclusive (09:00)
+    const WORK_HOUR_END   = 17;  // exclusive (last dispatch minute is 16:59)
+    // Days-of-week allowed (ISO: 1=Mon … 7=Sun)
+    const WORK_DAYS = [1, 2, 3, 4, 5];
+
     public function handle(): void
     {
+        if (! $this->isWithinWorkingHours()) {
+            return;
+        }
+
         $leads = $this->fetchReadyLeads();
 
         if ($leads->isEmpty()) {
@@ -41,13 +58,23 @@ class ProcessOutreachLeadsJob implements ShouldQueue
         Log::info('[Outreach] ProcessOutreachLeadsJob dispatching', ['count' => $leads->count()]);
 
         foreach ($leads as $lead) {
-            // Random delay: 60–180 seconds (human-like spacing)
-            $delaySeconds = random_int(60, 180);
+            $delaySeconds = random_int(self::MIN_SEND_DELAY_SECONDS, self::MAX_SEND_DELAY_SECONDS);
 
             SendOutreachEmailJob::dispatch($lead->id)
                 ->onQueue('outreach')
                 ->delay(now()->addSeconds($delaySeconds));
         }
+    }
+
+    /**
+     * Whether "right now" (app timezone) is inside the outbound sending window.
+     */
+    private function isWithinWorkingHours(): bool
+    {
+        $now = now();
+        return in_array($now->dayOfWeekIso, self::WORK_DAYS, true)
+            && $now->hour >= self::WORK_HOUR_START
+            && $now->hour <  self::WORK_HOUR_END;
     }
 
     private function fetchReadyLeads()

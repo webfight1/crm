@@ -33,6 +33,12 @@ use Psr\Log\LoggerInterface;
  */
 class InboxRotationService
 {
+    // Minimum seconds an inbox must "rest" between two sends.
+    // Combined with the 3–10 min per-send delay in ProcessOutreachLeadsJob this
+    // keeps spacing between outgoing messages well above 1 minute per inbox,
+    // which mirrors human sending cadence and avoids burst-pattern spam flags.
+    const INBOX_COOLDOWN_SECONDS = 120;
+
     public function __construct(private readonly LoggerInterface $logger) {}
 
     /**
@@ -73,9 +79,15 @@ class InboxRotationService
             // new sends until an operator investigates.
             // lockForUpdate() here establishes our position in the queue of workers
             // competing for this row — whichever worker gets here first wins.
+            $cooldownCutoff = now()->subSeconds(self::INBOX_COOLDOWN_SECONDS);
+
             $candidate = OutreachEmailAccount::where('is_active', true)
                 ->where('consecutive_failures', '<', \App\Outreach\Models\OutreachEmailAccount::FAILURE_THRESHOLD)
                 ->whereColumn('sent_today', '<', 'daily_limit')
+                ->where(function ($q) use ($cooldownCutoff) {
+                    $q->whereNull('last_sent_at')
+                      ->orWhere('last_sent_at', '<=', $cooldownCutoff);
+                })
                 ->orderByRaw('COALESCE(last_sent_at, "1970-01-01") ASC')
                 ->lockForUpdate()
                 ->first();
@@ -132,6 +144,16 @@ class InboxRotationService
             ->first();
 
         if (! $account || $account->sent_today >= $account->daily_limit) {
+            return null;
+        }
+
+        // Cooldown guard: prevent the sticky-assignment path from bypassing
+        // the per-inbox rate limit. If the inbox sent a message within the
+        // cooldown window, the caller must pick a different inbox (LRU path)
+        // or defer this lead briefly.
+        if ($account->last_sent_at
+            && $account->last_sent_at->gt(now()->subSeconds(self::INBOX_COOLDOWN_SECONDS))
+        ) {
             return null;
         }
 
