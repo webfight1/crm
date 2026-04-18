@@ -110,10 +110,16 @@
                                     </div>
                                 </div>
                                 <div class="mb-3">
-                                    <x-input-label value="Sisu (HTML)" />
+                                    <div class="flex items-center justify-between">
+                                        <x-input-label value="Sisu (HTML)" />
+                                        <button type="button"
+                                            class="text-xs text-indigo-600 hover:text-indigo-800 underline preview-btn">
+                                            Eelvaade
+                                        </button>
+                                    </div>
                                     <textarea name="body_template" rows="4"
                                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm font-mono text-sm focus:ring-indigo-500 focus:border-indigo-500">{{ $step->body_template }}</textarea>
-                                    <p class="text-xs text-gray-400 mt-1">Muutujad: &#123;&#123;first_name&#125;&#125; &#123;&#123;last_name&#125;&#125; &#123;&#123;company&#125;&#125; &#123;&#123;website&#125;&#125;</p>
+                                    <p class="text-xs text-gray-400 mt-1">Muutujad: &#123;&#123;first_name&#125;&#125; &#123;&#123;last_name&#125;&#125; &#123;&#123;company&#125;&#125; &#123;&#123;website&#125;&#125; &#123;&#123;lcp&#125;&#125; &#123;&#123;performance_score&#125;&#125; &#123;&#123;ai_line&#125;&#125;</p>
                                 </div>
                                 <div class="flex items-center gap-3">
                                     <x-primary-button>Salvesta samm</x-primary-button>
@@ -152,7 +158,13 @@
                                     </div>
                                 </div>
                                 <div class="mb-3">
-                                    <x-input-label value="Sisu (HTML)" />
+                                    <div class="flex items-center justify-between">
+                                        <x-input-label value="Sisu (HTML)" />
+                                        <button type="button"
+                                            class="text-xs text-indigo-600 hover:text-indigo-800 underline preview-btn">
+                                            Eelvaade
+                                        </button>
+                                    </div>
                                     <textarea name="body_template" rows="4"
                                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm font-mono text-sm focus:ring-indigo-500 focus:border-indigo-500" required></textarea>
                                 </div>
@@ -250,4 +262,96 @@
             </div>
         </div>
     </div>
+
+    {{-- ─── Email preview modal ─────────────────────────────────────────────── --}}
+    <div id="email-preview-modal"
+         class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4"
+         aria-modal="true" role="dialog">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between px-5 py-3 border-b">
+                <h3 class="font-medium text-gray-900">Kirja eelvaade</h3>
+                <button type="button" id="email-preview-close"
+                    class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="px-5 py-3 border-b bg-gray-50 text-sm">
+                <div><span class="text-gray-500">Teema:</span> <span id="email-preview-subject" class="font-medium text-gray-900"></span></div>
+            </div>
+            <div class="overflow-auto flex-1 p-5">
+                <iframe id="email-preview-frame"
+                        class="w-full border border-gray-200 rounded"
+                        style="height: 60vh;"
+                        sandbox="allow-same-origin"></iframe>
+            </div>
+            <div class="px-5 py-3 border-t bg-gray-50 text-xs text-gray-500">
+                Näidisandmed: Mari Maasikas / Näidis OÜ / LCP 2.8s / performance 45.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            // Sample data used to render {{variables}} in the preview.
+            const sample = {
+                first_name: 'Mari',
+                last_name: 'Maasikas',
+                full_name: 'Mari Maasikas',
+                company: 'Näidis OÜ',
+                website: 'https://naide.ee',
+                industry: 'E-kaubandus',
+                email: 'mari@naide.ee',
+                lcp: '2.8s',
+                performance_score: '45',
+                ai_line: 'Märkasin, et teie avaleht laeb mobiilis aeglaselt.',
+            };
+
+            function render(template) {
+                return (template || '').replace(/\{\{\s*(\w+)\s*\}\}/g, (match, key) => {
+                    return sample[key] !== undefined ? sample[key] : match;
+                });
+            }
+
+            const modal   = document.getElementById('email-preview-modal');
+            const frame   = document.getElementById('email-preview-frame');
+            const subject = document.getElementById('email-preview-subject');
+            const closeBtn = document.getElementById('email-preview-close');
+
+            function openModal(subjectText, bodyHtml) {
+                subject.textContent = subjectText || '(teema puudub)';
+                const doc = frame.contentDocument || frame.contentWindow.document;
+                doc.open();
+                doc.write(
+                    '<!doctype html><html><head><meta charset="utf-8">' +
+                    '<style>body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;color:#111;padding:16px;margin:0;}</style>' +
+                    '</head><body>' + bodyHtml + '</body></html>'
+                );
+                doc.close();
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+
+            function closeModal() {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+
+            document.querySelectorAll('.preview-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const form = btn.closest('form');
+                    if (!form) return;
+                    const subjectEl = form.querySelector('[name="subject"]');
+                    const bodyEl    = form.querySelector('[name="body_template"]');
+                    openModal(
+                        render(subjectEl ? subjectEl.value : ''),
+                        render(bodyEl ? bodyEl.value : '')
+                    );
+                });
+            });
+
+            closeBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+            });
+        })();
+    </script>
 </x-app-layout>
