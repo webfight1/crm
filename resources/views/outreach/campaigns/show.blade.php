@@ -288,9 +288,10 @@
         </div>
     </div>
 
+    @verbatim
     <script>
         (function () {
-            // Sample data used to render {{variables}} in the preview.
+            // Sample data used to render template variables in the preview.
             const sample = {
                 first_name: 'Mari',
                 last_name: 'Maasikas',
@@ -354,4 +355,5 @@
             });
         })();
     </script>
+    @endverbatim
 </x-app-layout>
