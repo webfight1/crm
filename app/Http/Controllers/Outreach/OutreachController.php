@@ -169,6 +169,15 @@ class OutreachController extends Controller
 
     public function campaignsUpdate(Request $request, OutreachCampaign $campaign): RedirectResponse
     {
+        // Unchecked HTML checkboxes send no value at all, so missing fields must
+        // be coerced to false before validation — otherwise validate() omits them
+        // from $data and update() leaves the existing DB value untouched.
+        $request->merge([
+            'reply_stop_enabled' => $request->boolean('reply_stop_enabled'),
+            'use_ai_line'        => $request->boolean('use_ai_line'),
+            'is_active'          => $request->boolean('is_active'),
+        ]);
+
         $data = $request->validate([
             'name'               => 'required|string|max:200',
             'description'        => 'nullable|string',
