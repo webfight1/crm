@@ -196,7 +196,13 @@
 
                     {{-- CSV import --}}
                     <div class="bg-white shadow-sm rounded-lg p-6">
-                        <h3 class="font-medium text-gray-900 mb-1">Impordi CSV</h3>
+                        <div class="flex items-start justify-between mb-1">
+                            <h3 class="font-medium text-gray-900">Impordi CSV</h3>
+                            <a href="{{ route('outreach.leads.csv-template') }}"
+                               class="text-xs text-indigo-600 hover:text-indigo-800 underline">
+                                Lae näidis CSV
+                            </a>
+                        </div>
                         <p class="text-xs text-gray-500 mb-4">Veerud: <code class="bg-gray-100 px-1 rounded">email, first_name, last_name, company, website, industry, lcp_mobile, performance_score, notes, qualification</code><br><span class="text-gray-400">qualification: <code>lead</code> (vaikimisi) või <code>skip</code> — skip-read ei saadeta.</span></p>
 
                         @if($errors->has('csv_file'))

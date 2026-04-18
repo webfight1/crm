@@ -338,6 +338,54 @@ class OutreachController extends Controller
             ->with('success', "Imporditi {$count} leadi.");
     }
 
+    /**
+     * Download a sample CSV template with headers and one example row.
+     * Streams directly so no file is written to disk.
+     */
+    public function csvTemplate(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $headers = [
+            'email',
+            'first_name',
+            'last_name',
+            'company',
+            'website',
+            'industry',
+            'lcp_mobile',
+            'performance_score',
+            'notes',
+            'qualification',
+            'custom_line',
+        ];
+
+        $example = [
+            'firma@naide.ee',
+            'Mari',
+            'Maasikas',
+            'Näidis OÜ',
+            'https://naide.ee',
+            'E-kaubandus',
+            '2.8s',
+            '45',
+            'Aeglane mobiilis',
+            'lead',
+            'Märkasin, et teie avaleht laeb mobiilis aeglaselt.',
+        ];
+
+        $callback = function () use ($headers, $example) {
+            $out = fopen('php://output', 'w');
+            // UTF-8 BOM so Excel opens the file with correct encoding
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, $headers);
+            fputcsv($out, $example);
+            fclose($out);
+        };
+
+        return response()->streamDownload($callback, 'outreach-leads-template.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
     // ─── Send Logs ────────────────────────────────────────────────────────────
 
     public function logsIndex(OutreachCampaign $campaign): View

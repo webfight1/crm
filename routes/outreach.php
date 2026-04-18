@@ -52,6 +52,7 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
 
     // ── CSV Import ───────────────────────────────────────────────────────────
     Route::post('/leads/import', [OutreachController::class, 'importCsv'])->name('leads.import');
+    Route::get('/leads/csv-template', [OutreachController::class, 'csvTemplate'])->name('leads.csv-template');
 
     // ── Manual Triggers ─────────────────────────────────────────────────────
     Route::post('/trigger/process',     [OutreachController::class, 'triggerProcess'])->name('trigger.process');
