@@ -57,6 +57,7 @@ class ProcessOutreachLeadsJob implements ShouldQueue
 
             $leads = OutreachLead::where('status', OutreachLead::STATUS_ACTIVE)
                 ->where('replied', false)
+                ->where('qualification', '!=', OutreachLead::QUALIFICATION_SKIP)
                 ->where('next_send_at', '<=', now())
                 ->where(function ($q) use ($staleCutoff) {
                     // Not currently being processed, or lock has gone stale

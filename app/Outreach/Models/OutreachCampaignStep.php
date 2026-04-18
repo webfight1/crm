@@ -43,7 +43,7 @@ class OutreachCampaignStep extends Model
      * Supported placeholders:
      *   {{first_name}}, {{last_name}}, {{full_name}},
      *   {{company}}, {{website}}, {{industry}}, {{email}},
-     *   {{ai_line}}
+     *   {{ai_line}}, {{lcp}}, {{performance_score}}
      *
      * {{ai_line}} is populated by OutreachEmailService before rendering:
      *   - campaign.use_ai_line = true  → lead.ai_line (generated once, saved)
@@ -62,16 +62,20 @@ class OutreachCampaignStep extends Model
     private function replaceVariables(string $template, OutreachLead $lead): string
     {
         $variables = [
-            '{{first_name}}' => $lead->first_name,
-            '{{last_name}}'  => $lead->last_name ?? '',
-            '{{full_name}}'  => trim("{$lead->first_name} " . ($lead->last_name ?? '')),
-            '{{company}}'    => $lead->company ?? '',
-            '{{website}}'    => $lead->website ?? '',
-            '{{industry}}'   => $lead->industry ?? '',
-            '{{email}}'      => $lead->email,
+            '{{first_name}}'        => $lead->first_name,
+            '{{last_name}}'         => $lead->last_name ?? '',
+            '{{full_name}}'         => trim("{$lead->first_name} " . ($lead->last_name ?? '')),
+            '{{company}}'           => $lead->company ?? '',
+            '{{website}}'           => $lead->website ?? '',
+            '{{industry}}'          => $lead->industry ?? '',
+            '{{email}}'             => $lead->email,
+            '{{lcp}}'               => $lead->lcp_mobile ?? '',
+            '{{performance_score}}' => $lead->performance_score !== null
+                                        ? (string) $lead->performance_score
+                                        : '',
             // ai_line is written to lead.ai_line by OutreachEmailService
             // before render is called, so reading it here is always safe.
-            '{{ai_line}}'    => $lead->ai_line ?? '',
+            '{{ai_line}}'           => $lead->ai_line ?? '',
         ];
 
         // strtr() is used instead of str_replace() because it performs all

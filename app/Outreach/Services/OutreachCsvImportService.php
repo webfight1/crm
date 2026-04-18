@@ -13,10 +13,16 @@ use Illuminate\Support\Facades\DB;
  *
  * ── Supported columns ───────────────────────────────────────────────────────
  *   Required : email
- *   Optional : first_name, last_name, company, website, industry
+ *   Optional : first_name, last_name, company, website, industry,
+ *              lcp_mobile, performance_score, notes, qualification
  *   Special  : custom_line — if present and non-empty, its value is stored as
  *              ai_line verbatim, bypassing the OpenAI generation entirely.
  *              Useful when you already have personalisation copy in the CSV.
+ *
+ *   qualification     — 'lead' (default) or 'skip'. Skipped rows are still
+ *                       imported but ignored by the send pipeline.
+ *   performance_score — integer 0-100, clamped.
+ *   lcp_mobile        — free-form string (e.g. "2.5s") rendered as {{lcp}}.
  *
  * Column order does not matter; matching is done by header name.
  * Missing optional columns are silently skipped.
@@ -101,7 +107,12 @@ class OutreachCsvImportService
 
         // Map column names to their array index
         $colMap = [];
-        foreach (['email', 'first_name', 'last_name', 'company', 'website', 'industry', 'custom_line'] as $col) {
+        foreach ([
+            'email', 'first_name', 'last_name',
+            'company', 'website', 'industry',
+            'lcp_mobile', 'performance_score', 'notes', 'qualification',
+            'custom_line',
+        ] as $col) {
             $idx = array_search($col, $headers, true);
             if ($idx !== false) {
                 $colMap[$col] = $idx;
@@ -130,23 +141,39 @@ class OutreachCsvImportService
                 continue;
             }
 
+            // Normalise qualification: accept only 'lead' or 'skip', default 'lead'
+            $qualRaw = strtolower((string) $this->col($row, $colMap, 'qualification'));
+            $qualification = $qualRaw === OutreachLead::QUALIFICATION_SKIP
+                ? OutreachLead::QUALIFICATION_SKIP
+                : OutreachLead::QUALIFICATION_LEAD;
+
+            // Performance score: integer 0-100 or null
+            $perfRaw = $this->col($row, $colMap, 'performance_score');
+            $performanceScore = is_numeric($perfRaw)
+                ? max(0, min(100, (int) $perfRaw))
+                : null;
+
             $batch[] = [
-                'campaign_id'  => $campaignId,
-                'email'        => $email,
-                'first_name'   => $this->col($row, $colMap, 'first_name') ?: 'Friend',
-                'last_name'    => $this->col($row, $colMap, 'last_name'),
-                'company'      => $this->col($row, $colMap, 'company'),
-                'website'      => $this->col($row, $colMap, 'website'),
-                'industry'     => $this->col($row, $colMap, 'industry'),
+                'campaign_id'       => $campaignId,
+                'email'             => $email,
+                'first_name'        => $this->col($row, $colMap, 'first_name') ?: 'Friend',
+                'last_name'         => $this->col($row, $colMap, 'last_name'),
+                'company'           => $this->col($row, $colMap, 'company'),
+                'website'           => $this->col($row, $colMap, 'website'),
+                'industry'          => $this->col($row, $colMap, 'industry'),
+                'lcp_mobile'        => $this->col($row, $colMap, 'lcp_mobile'),
+                'performance_score' => $performanceScore,
+                'notes'             => $this->col($row, $colMap, 'notes'),
+                'qualification'     => $qualification,
                 // custom_line in the CSV pre-fills ai_line, skipping OpenAI generation
-                'ai_line'      => $this->col($row, $colMap, 'custom_line'),
-                'status'       => OutreachLead::STATUS_ACTIVE,
-                'current_step' => 0,
-                'replied'      => 0,   // raw int for DB::table insert
-                'enrolled_at'  => $now,
-                'next_send_at' => $now,
-                'created_at'   => $now,
-                'updated_at'   => $now,
+                'ai_line'           => $this->col($row, $colMap, 'custom_line'),
+                'status'            => OutreachLead::STATUS_ACTIVE,
+                'current_step'      => 0,
+                'replied'           => 0,   // raw int for DB::table insert
+                'enrolled_at'       => $now,
+                'next_send_at'      => $now,
+                'created_at'        => $now,
+                'updated_at'        => $now,
             ];
 
             $queued++;

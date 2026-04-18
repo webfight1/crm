@@ -17,6 +17,10 @@ class OutreachLead extends Model
     const STATUS_BOUNCED       = 'bounced';
     const STATUS_UNSUBSCRIBED  = 'unsubscribed';
 
+    // Qualification constants (lead vs skip)
+    const QUALIFICATION_LEAD = 'lead';
+    const QUALIFICATION_SKIP = 'skip';
+
     protected $fillable = [
         'campaign_id',
         'assigned_email_account_id',
@@ -26,6 +30,10 @@ class OutreachLead extends Model
         'company',
         'website',
         'industry',
+        'lcp_mobile',
+        'performance_score',
+        'notes',
+        'qualification',
         'ai_line',
         'status',
         'current_step',
@@ -38,13 +46,14 @@ class OutreachLead extends Model
     ];
 
     protected $casts = [
-        'current_step'     => 'integer',
-        'replied'          => 'boolean',
-        'enrolled_at'      => 'datetime',
-        'next_send_at'     => 'datetime',
-        'last_sent_at'     => 'datetime',
-        'replied_at'       => 'datetime',
-        'processing_since' => 'datetime',
+        'current_step'      => 'integer',
+        'performance_score' => 'integer',
+        'replied'           => 'boolean',
+        'enrolled_at'       => 'datetime',
+        'next_send_at'      => 'datetime',
+        'last_sent_at'      => 'datetime',
+        'replied_at'        => 'datetime',
+        'processing_since'  => 'datetime',
     ];
 
     // ─── Relationships ──────────────────────────────────────────────────────

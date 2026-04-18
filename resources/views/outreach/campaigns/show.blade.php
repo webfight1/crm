@@ -197,7 +197,7 @@
                     {{-- CSV import --}}
                     <div class="bg-white shadow-sm rounded-lg p-6">
                         <h3 class="font-medium text-gray-900 mb-1">Impordi CSV</h3>
-                        <p class="text-xs text-gray-500 mb-4">Veerud: <code class="bg-gray-100 px-1 rounded">email, first_name, last_name, company, website, industry</code></p>
+                        <p class="text-xs text-gray-500 mb-4">Veerud: <code class="bg-gray-100 px-1 rounded">email, first_name, last_name, company, website, industry, lcp_mobile, performance_score, notes, qualification</code><br><span class="text-gray-400">qualification: <code>lead</code> (vaikimisi) või <code>skip</code> — skip-read ei saadeta.</span></p>
 
                         @if($errors->has('csv_file'))
                             <div class="mb-3 text-sm text-red-600">{{ $errors->first('csv_file') }}</div>
