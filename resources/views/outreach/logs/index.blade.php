@@ -18,6 +18,7 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Postkast</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Olek</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aeg</th>
+                            <th class="px-6 py-3"></th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -53,10 +54,21 @@
                             <td class="px-6 py-4 text-sm text-gray-500">
                                 {{ ($log->sent_at ?? $log->created_at)?->format('d.m.Y H:i') }}
                             </td>
+                            <td class="px-6 py-4 text-sm">
+                                @if($log->body)
+                                    <button
+                                        onclick="openEmailModal(this)"
+                                        data-subject="{{ e($log->subject) }}"
+                                        data-to="{{ e($log->to_email) }}"
+                                        data-body="{{ e($log->body) }}"
+                                        class="text-indigo-600 hover:text-indigo-900 text-xs font-medium"
+                                    >Vaata kirja</button>
+                                @endif
+                            </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="6" class="px-6 py-12 text-center text-gray-500">Logisid pole.</td>
+                            <td colspan="7" class="px-6 py-12 text-center text-gray-500">Logisid pole.</td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -67,4 +79,48 @@
             </div>
         </div>
     </div>
+
+    {{-- Email preview modal --}}
+    <div id="emailModal" class="fixed inset-0 z-50 hidden" aria-modal="true">
+        <div class="absolute inset-0 bg-black/50" onclick="closeEmailModal()"></div>
+        <div class="absolute inset-4 sm:inset-10 bg-white rounded-lg shadow-xl flex flex-col overflow-hidden">
+            <div class="flex items-start justify-between px-6 py-4 border-b bg-gray-50">
+                <div>
+                    <p class="text-xs text-gray-500 mb-1">Saaja: <span id="modalTo" class="font-medium text-gray-700"></span></p>
+                    <p class="text-sm font-semibold text-gray-900" id="modalSubject"></p>
+                </div>
+                <button onclick="closeEmailModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none ml-4">&times;</button>
+            </div>
+            <div class="flex-1 overflow-auto">
+                <iframe id="modalFrame" class="w-full h-full border-0" sandbox="allow-same-origin"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openEmailModal(btn) {
+            document.getElementById('modalTo').textContent      = btn.dataset.to;
+            document.getElementById('modalSubject').textContent = btn.dataset.subject;
+
+            const frame = document.getElementById('modalFrame');
+            const doc   = frame.contentDocument || frame.contentWindow.document;
+            doc.open();
+            doc.write(btn.dataset.body);
+            doc.close();
+
+            document.getElementById('emailModal').classList.remove('hidden');
+        }
+
+        function closeEmailModal() {
+            document.getElementById('emailModal').classList.add('hidden');
+
+            const frame = document.getElementById('modalFrame');
+            const doc   = frame.contentDocument || frame.contentWindow.document;
+            doc.open(); doc.write(''); doc.close();
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeEmailModal();
+        });
+    </script>
 </x-app-layout>
