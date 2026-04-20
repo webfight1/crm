@@ -92,7 +92,7 @@
                 <button onclick="closeEmailModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none ml-4">&times;</button>
             </div>
             <div class="flex-1 overflow-auto">
-                <iframe id="modalFrame" class="w-full h-full border-0" sandbox="allow-same-origin"></iframe>
+                <iframe id="modalFrame" class="w-full h-full border-0"></iframe>
             </div>
         </div>
     </div>
