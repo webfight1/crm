@@ -78,6 +78,20 @@ class OutreachEmailService
             return false;
         }
 
+        // ── PAGESPEED DATA GUARD ─────────────────────────────────────────────
+        // If the step template references {{lcp_mobile}} or {{performance_score}}
+        // but the lead has not been measured yet, skip this lead silently.
+        // It will be picked up again on the next scheduler run — once the
+        // operator has run outreach:measure-speed and the values are present.
+        if ($this->stepNeedsSpeedData($step) && ! $this->leadHasSpeedData($lead)) {
+            $this->logger->info('[Outreach] Lead missing PageSpeed data, skipping', [
+                'lead_id'    => $lead->id,
+                'step_order' => $stepOrder,
+            ]);
+            $lead->releaseProcessingLock();
+            return false;
+        }
+
         // ── INBOX SELECTION (reserves capacity atomically) ───────────────────
         $account = $this->rotation->selectInbox($lead, $campaign);
 
@@ -254,6 +268,28 @@ class OutreachEmailService
         }
 
         return true;
+    }
+
+    /**
+     * Returns true if the step's subject or body template contains a PageSpeed
+     * placeholder that requires prior measurement to render meaningfully.
+     */
+    private function stepNeedsSpeedData(OutreachCampaignStep $step): bool
+    {
+        $text = $step->subject . $step->body_template;
+
+        return str_contains($text, '{{lcp_mobile}}')
+            || str_contains($text, '{{lcp}}')
+            || str_contains($text, '{{performance_score}}');
+    }
+
+    /**
+     * Returns true if the lead already has PageSpeed measurement data.
+     * Both values are set in the same measurement run, so checking one is enough.
+     */
+    private function leadHasSpeedData(OutreachLead $lead): bool
+    {
+        return $lead->performance_score !== null;
     }
 
     private function afterSuccessfulSend(OutreachLead $lead, OutreachCampaign $campaign): void
