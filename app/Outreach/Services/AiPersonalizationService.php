@@ -155,12 +155,18 @@ class AiPersonalizationService
             // strtr() performs all substitutions in a single pass — no risk of
             // a substituted value containing a placeholder that gets re-evaluated.
             $resolvedPrompt = strtr($campaign->ai_prompt, [
-                '{{company}}'    => $lead->company    ?? '',
-                '{{website}}'    => $lead->website    ?? '',
-                '{{industry}}'   => $lead->industry   ?? '',
-                '{{first_name}}' => $lead->first_name ?? '',
-                '{{last_name}}'  => $lead->last_name  ?? '',
-                '{{email}}'      => $lead->email,
+                '{{company}}'           => $lead->company           ?? '',
+                '{{website}}'           => $lead->website           ?? '',
+                '{{industry}}'          => $lead->industry          ?? '',
+                '{{first_name}}'        => $lead->first_name        ?? '',
+                '{{last_name}}'         => $lead->last_name         ?? '',
+                '{{email}}'             => $lead->email,
+                '{{performance_score}}' => $lead->performance_score !== null
+                                            ? (string) $lead->performance_score
+                                            : '',
+                '{{lcp_mobile}}'        => $lead->lcp_mobile !== null
+                                            ? (string) $lead->lcp_mobile
+                                            : '',
             ]);
 
             // Append universal output-format constraints so the result is always
