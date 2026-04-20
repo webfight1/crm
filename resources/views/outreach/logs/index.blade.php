@@ -58,11 +58,12 @@
                                 @if($log->body)
                                     <button
                                         onclick="openEmailModal(this)"
-                                        data-subject="{{ e($log->subject) }}"
-                                        data-to="{{ e($log->to_email) }}"
-                                        data-body="{{ e($log->body) }}"
+                                        data-subject="{{ $log->subject }}"
+                                        data-to="{{ $log->to_email }}"
+                                        data-id="{{ $log->id }}"
                                         class="text-indigo-600 hover:text-indigo-900 text-xs font-medium"
                                     >Vaata kirja</button>
+                                    <template id="email-body-{{ $log->id }}">{!! $log->body !!}</template>
                                 @endif
                             </td>
                         </tr>
@@ -102,10 +103,13 @@
             document.getElementById('modalTo').textContent      = btn.dataset.to;
             document.getElementById('modalSubject').textContent = btn.dataset.subject;
 
+            const tpl  = document.getElementById('email-body-' + btn.dataset.id);
+            const html = tpl ? tpl.innerHTML : '';
+
             const frame = document.getElementById('modalFrame');
             const doc   = frame.contentDocument || frame.contentWindow.document;
             doc.open();
-            doc.write(btn.dataset.body);
+            doc.write(html);
             doc.close();
 
             document.getElementById('emailModal').classList.remove('hidden');
