@@ -284,12 +284,28 @@ class OutreachEmailService
     }
 
     /**
-     * Returns true if the lead already has PageSpeed measurement data.
-     * Both values are set in the same measurement run, so checking one is enough.
+     * Returns true if the lead has usable PageSpeed data.
+     *
+     * "Usable" means:
+     *   1. Measurement exists (performance_score is not null)
+     *   2. LCP mobile is ≤ 6 seconds — above 6s the site is likely broken,
+     *      parked, or the measurement unreliable. Not a viable prospect.
      */
     private function leadHasSpeedData(OutreachLead $lead): bool
     {
-        return $lead->performance_score !== null;
+        if ($lead->performance_score === null) {
+            return false;
+        }
+
+        if ($lead->lcp_mobile !== null && $lead->lcp_mobile > 6) {
+            $this->logger->info('[Outreach] Lead LCP too high, skipping', [
+                'lead_id'    => $lead->id,
+                'lcp_mobile' => $lead->lcp_mobile,
+            ]);
+            return false;
+        }
+
+        return true;
     }
 
     private function afterSuccessfulSend(OutreachLead $lead, OutreachCampaign $campaign): void
