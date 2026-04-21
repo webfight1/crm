@@ -96,25 +96,42 @@ class OutreachEmailService
         $account = $this->rotation->selectInbox($lead, $campaign);
 
         if (! $account) {
-            // All inboxes are at their daily limit. Deferring to the next capacity
-            // reset prevents this lead from re-entering the queue every minute
-            // until midnight (which would generate thousands of no-op jobs).
+            // selectInbox() returned null for one of two reasons:
             //
-            // next_send_at = tomorrow 00:00 + CAPACITY_RETRY_OFFSET_MINUTES
+            //   A) At least one inbox still has daily capacity but every such
+            //      inbox is within its post-send cooldown window. The correct
+            //      recovery is to defer the lead by a few minutes until the
+            //      soonest cooldown expires. Deferring a full day here would
+            //      badly under-utilise the inboxes.
             //
-            // The offset ensures ResetOutreachDailyLimitsJob has completed before
-            // ProcessOutreachLeadsJob picks this lead up again.
+            //   B) Every healthy inbox is at its daily_limit. Deferring to the
+            //      next capacity reset (tomorrow 00:00 + CAPACITY_RETRY_OFFSET_MINUTES)
+            //      prevents this lead from re-entering the queue every minute
+            //      until midnight.
             //
-            // If it is currently 00:30 and inboxes are already saturated today,
-            // addDay()->startOfDay() correctly targets the following midnight
-            // (~23.5 hours away) rather than the midnight that has already passed.
-            $retryAt = now()->addDay()->startOfDay()->addMinutes(self::CAPACITY_RETRY_OFFSET_MINUTES);
+            // The CAPACITY_RETRY_OFFSET ensures ResetOutreachDailyLimitsJob has
+            // completed before ProcessOutreachLeadsJob picks the lead up again.
+            $cooldownExit = $this->rotation->nextAvailabilityAt();
+
+            if ($cooldownExit !== null) {
+                // Case A — short defer until soonest cooldown expiry (+ small jitter)
+                $retryAt = $cooldownExit->copy()->addSeconds(random_int(5, 30));
+                $reason  = 'cooldown';
+            } else {
+                // Case B — wait for daily reset
+                // If it is currently 00:30 and inboxes are already saturated today,
+                // addDay()->startOfDay() correctly targets the following midnight
+                // (~23.5 hours away) rather than the midnight that has already passed.
+                $retryAt = now()->addDay()->startOfDay()->addMinutes(self::CAPACITY_RETRY_OFFSET_MINUTES);
+                $reason  = 'daily_limit';
+            }
 
             $lead->update(['next_send_at' => $retryAt]);
             $lead->releaseProcessingLock();
 
-            $this->logger->info('[Outreach] No inbox capacity, lead deferred to next reset', [
+            $this->logger->info('[Outreach] No inbox slot available, lead deferred', [
                 'lead_id'  => $lead->id,
+                'reason'   => $reason,
                 'retry_at' => $retryAt->toDateTimeString(),
             ]);
 

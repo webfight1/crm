@@ -5,6 +5,8 @@ namespace App\Outreach\Services;
 use App\Outreach\Models\OutreachCampaign;
 use App\Outreach\Models\OutreachEmailAccount;
 use App\Outreach\Models\OutreachLead;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Psr\Log\LoggerInterface;
 
@@ -118,6 +120,37 @@ class InboxRotationService
 
             return $account;
         });
+    }
+
+    /**
+     * Suggest when the caller should retry after selectInbox() returned null.
+     *
+     * Distinguishes two very different "no slot available" cases:
+     *
+     *  A) At least one inbox still has daily capacity but is currently within
+     *     the INBOX_COOLDOWN_SECONDS window → return the earliest moment one
+     *     of them will exit cooldown. Caller should defer the lead by a few
+     *     minutes, not a full day.
+     *
+     *  B) Every healthy inbox is at or above its daily_limit → return null,
+     *     signaling the caller to defer until the next capacity reset
+     *     (tomorrow 00:00 + offset).
+     */
+    public function nextAvailabilityAt(): ?CarbonInterface
+    {
+        $earliestCooldownExit = OutreachEmailAccount::where('is_active', true)
+            ->where('consecutive_failures', '<', OutreachEmailAccount::FAILURE_THRESHOLD)
+            ->whereColumn('sent_today', '<', 'daily_limit')
+            ->whereNotNull('last_sent_at')
+            ->min('last_sent_at');
+
+        if ($earliestCooldownExit === null) {
+            // No healthy inbox below daily_limit → case (B): wait for reset
+            return null;
+        }
+
+        // Case (A): soonest cooldown expiry among inboxes with remaining capacity
+        return Carbon::parse($earliestCooldownExit)->addSeconds(self::INBOX_COOLDOWN_SECONDS);
     }
 
     // ─── Private ────────────────────────────────────────────────────────────
