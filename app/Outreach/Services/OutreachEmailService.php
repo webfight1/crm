@@ -37,6 +37,18 @@ class OutreachEmailService
     private const PENDING_LOG_STALE_SECONDS     = 300;
     private const CAPACITY_RETRY_OFFSET_MINUTES = 2;
 
+    /**
+     * Minimum LCP-mobile (seconds) to consider a lead worth pitching.
+     *
+     * Business rule: we only reach out to sites whose Largest Contentful Paint
+     * on mobile is at or above this threshold — a faster site is already
+     * performing well and has no pain point to sell speed-optimisation on.
+     *
+     * Leads that measure below this value are marked qualification='skip'
+     * so ProcessOutreachLeadsJob no longer picks them up.
+     */
+    private const MIN_LCP_SECONDS_TO_SEND = 6.0;
+
     public function __construct(
         private readonly OutreachMailer           $mailer,
         private readonly InboxRotationService     $rotation,
@@ -284,7 +296,45 @@ class OutreachEmailService
             return false;
         }
 
+        // ── Fast-site guard ─────────────────────────────────────────────────
+        // Sites below MIN_LCP_SECONDS_TO_SEND don't have a performance pain
+        // point worth reaching out about. Mark them qualification='skip' so
+        // ProcessOutreachLeadsJob stops picking them up instead of skipping
+        // on every cycle (which would loop forever while next_send_at is past).
+        $lcp = $this->parseLcpSeconds($lead->lcp_mobile);
+        if ($lcp !== null && $lcp < self::MIN_LCP_SECONDS_TO_SEND) {
+            $this->logger->info('[Outreach] Lead too fast for speed-pitch, marking skip', [
+                'lead_id'     => $lead->id,
+                'lcp_mobile'  => $lead->lcp_mobile,
+                'lcp_seconds' => $lcp,
+                'threshold'   => self::MIN_LCP_SECONDS_TO_SEND,
+            ]);
+            $lead->update(['qualification' => OutreachLead::QUALIFICATION_SKIP]);
+            return false;
+        }
+
         return true;
+    }
+
+    /**
+     * Parse a stored lcp_mobile value into a float number of seconds.
+     *
+     * The column is VARCHAR — values may arrive as "4.9", "4.9s", "4,9", or
+     * a raw float from PageSpeedService. Returns null if the value is empty
+     * or unparseable so the caller can treat "unknown" distinctly from "fast".
+     */
+    private function parseLcpSeconds(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $normalised = str_replace(',', '.', (string) $value);
+        if (! preg_match('/-?\d+(?:\.\d+)?/', $normalised, $m)) {
+            return null;
+        }
+
+        return (float) $m[0];
     }
 
     /**
@@ -301,28 +351,15 @@ class OutreachEmailService
     }
 
     /**
-     * Returns true if the lead has usable PageSpeed data.
+     * Returns true if the lead has usable PageSpeed data for template rendering.
      *
-     * "Usable" means:
-     *   1. Measurement exists (performance_score is not null)
-     *   2. LCP mobile is ≤ 6 seconds — above 6s the site is likely broken,
-     *      parked, or the measurement unreliable. Not a viable prospect.
+     * "Usable" means the measurement exists (performance_score is not null).
+     * The slow-enough-to-pitch qualification is enforced earlier in
+     * passesSendGuards() via MIN_LCP_SECONDS_TO_SEND.
      */
     private function leadHasSpeedData(OutreachLead $lead): bool
     {
-        if ($lead->performance_score === null) {
-            return false;
-        }
-
-        if ($lead->lcp_mobile !== null && $lead->lcp_mobile > 6) {
-            $this->logger->info('[Outreach] Lead LCP too high, skipping', [
-                'lead_id'    => $lead->id,
-                'lcp_mobile' => $lead->lcp_mobile,
-            ]);
-            return false;
-        }
-
-        return true;
+        return $lead->performance_score !== null;
     }
 
     private function afterSuccessfulSend(OutreachLead $lead, OutreachCampaign $campaign): void
