@@ -67,4 +67,25 @@ class OutreachCampaign extends Model
 
         return $this->sentTodayCount() >= $this->daily_limit;
     }
+
+    /**
+     * True when at least one step references a PageSpeed placeholder.
+     *
+     * Used to scope business rules that only apply to speed-optimisation
+     * campaigns (e.g. "skip fast sites"). Campaigns that don't mention speed
+     * in any step remain unaffected by those rules.
+     */
+    public function pitchesSpeedOptimization(): bool
+    {
+        foreach ($this->steps as $step) {
+            $text = $step->subject . $step->body_template;
+            if (str_contains($text, '{{lcp_mobile}}')
+                || str_contains($text, '{{lcp}}')
+                || str_contains($text, '{{performance_score}}')
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

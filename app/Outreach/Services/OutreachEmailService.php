@@ -296,13 +296,20 @@ class OutreachEmailService
             return false;
         }
 
-        // ── Fast-site guard ─────────────────────────────────────────────────
-        // Sites below MIN_LCP_SECONDS_TO_SEND don't have a performance pain
-        // point worth reaching out about. Mark them qualification='skip' so
-        // ProcessOutreachLeadsJob stops picking them up instead of skipping
-        // on every cycle (which would loop forever while next_send_at is past).
+        // ── Fast-site guard (speed-optimisation campaigns only) ─────────────
+        // Sites below MIN_LCP_SECONDS_TO_SEND have no performance pain point
+        // worth pitching. This rule ONLY applies to campaigns whose templates
+        // actually reference PageSpeed placeholders — a generic outreach
+        // campaign with no speed messaging is unaffected.
+        //
+        // Mark matching leads qualification='skip' so ProcessOutreachLeadsJob
+        // stops picking them up instead of skipping on every cycle (which
+        // would loop forever while next_send_at is past).
         $lcp = $this->parseLcpSeconds($lead->lcp_mobile);
-        if ($lcp !== null && $lcp < self::MIN_LCP_SECONDS_TO_SEND) {
+        if ($lcp !== null
+            && $lcp < self::MIN_LCP_SECONDS_TO_SEND
+            && $campaign->pitchesSpeedOptimization()
+        ) {
             $this->logger->info('[Outreach] Lead too fast for speed-pitch, marking skip', [
                 'lead_id'     => $lead->id,
                 'lcp_mobile'  => $lead->lcp_mobile,
