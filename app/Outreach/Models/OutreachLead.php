@@ -73,6 +73,11 @@ class OutreachLead extends Model
         return $this->hasMany(OutreachSendLog::class, 'lead_id');
     }
 
+    public function messages(): HasMany
+    {
+        return $this->hasMany(OutreachMessage::class, 'lead_id');
+    }
+
     // ─── Helpers ────────────────────────────────────────────────────────────
 
     public function isReadyToSend(): bool

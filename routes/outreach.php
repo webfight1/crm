@@ -48,6 +48,10 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
         Route::delete('/{campaign}/leads/{lead}',              [OutreachController::class, 'leadsDestroy'])->name('leads.destroy');
     });
 
+    // ── Inbox (unified replies across mailboxes) ───────────────────────────
+    Route::get('/inbox',                   [OutreachController::class, 'inboxIndex'])->name('inbox.index');
+    Route::get('/inbox/{emailEncoded}',    [OutreachController::class, 'inboxThread'])->name('inbox.thread');
+
     // ── Logs ────────────────────────────────────────────────────────────────
     Route::get('/logs/{campaign}', [OutreachController::class, 'logsIndex'])->name('logs.index');
 

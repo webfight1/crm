@@ -4,6 +4,7 @@ namespace App\Outreach\Services;
 
 use App\Outreach\Models\OutreachEmailAccount;
 use App\Outreach\Models\OutreachLead;
+use App\Outreach\Models\OutreachMessage;
 use App\Outreach\Models\OutreachSendLog;
 use Illuminate\Support\Collection;
 use Psr\Log\LoggerInterface;
@@ -172,11 +173,11 @@ class ReplyDetectionService
         }
 
         // Strategy A: header-based Message-ID matching
-        $detected += $this->detectByMessageId($imap, $leads);
+        $detected += $this->detectByMessageId($imap, $leads, $account);
 
         // Strategy B: sender-address search for leads not yet caught
         $remaining = $leads->filter(fn($l) => ! $l->replied && $l->status === OutreachLead::STATUS_ACTIVE);
-        $detected += $this->detectBySenderAddress($imap, $remaining);
+        $detected += $this->detectBySenderAddress($imap, $remaining, $account);
 
         return $detected;
     }
@@ -189,7 +190,7 @@ class ReplyDetectionService
      *
      * @param resource $imap
      */
-    private function detectByMessageId($imap, Collection $leads): int
+    private function detectByMessageId($imap, Collection $leads, OutreachEmailAccount $account): int
     {
         // Build flat map: message_id => lead
         $messageIdMap = [];
@@ -240,6 +241,11 @@ class ReplyDetectionService
                 if ($this->headerContainsMessageId($inReplyTo, $sentMessageId)
                     || $this->headerContainsMessageId($references, $sentMessageId)
                 ) {
+                    // Persist message body BEFORE marking replied — if persist
+                    // throws we want the reply to remain detectable on the next
+                    // poller run rather than being silently lost.
+                    $this->persistMessage($imap, $msgNum, $rawHeaders, $lead, $account);
+
                     $lead->markReplied();
                     $detected++;
 
@@ -269,7 +275,7 @@ class ReplyDetectionService
      *
      * @param resource $imap
      */
-    private function detectBySenderAddress($imap, Collection $leads): int
+    private function detectBySenderAddress($imap, Collection $leads, OutreachEmailAccount $account): int
     {
         $detected = 0;
 
@@ -302,6 +308,8 @@ class ReplyDetectionService
                 // Without this gate, an auto-responder FROM the same address would
                 // trigger a false positive, even after the automated-sender check.
                 if ($this->hasReplyHeader($rawHeaders) || $this->hasReplySubject($rawHeaders)) {
+                    $this->persistMessage($imap, $msgNum, $rawHeaders, $lead, $account);
+
                     $lead->markReplied();
                     $detected++;
 
@@ -320,6 +328,298 @@ class ReplyDetectionService
         }
 
         return $detected;
+    }
+
+    // ─── Message Persistence ────────────────────────────────────────────────
+
+    /**
+     * Persist a matched reply to outreach_messages. Idempotent: a duplicate
+     * (email_account_id, imap_uid) is silently ignored thanks to firstOrCreate
+     * over the unique index.
+     *
+     * Failures here are logged but never propagated — losing the ability to
+     * mark a lead as replied because we couldn't decode a body would be worse
+     * than missing the body. Reply detection is the contract; persistence
+     * is best-effort.
+     *
+     * @param resource $imap
+     */
+    private function persistMessage(
+        $imap,
+        int                  $msgNum,
+        string               $rawHeaders,
+        OutreachLead         $lead,
+        OutreachEmailAccount $account,
+    ): void {
+        try {
+            $uid = imap_uid($imap, $msgNum);
+            if ($uid === false) {
+                $uid = null;
+            }
+
+            // Quick exit if we've already stored this message — saves a body fetch.
+            if ($uid !== null
+                && OutreachMessage::where('email_account_id', $account->id)
+                    ->where('imap_uid', $uid)
+                    ->exists()
+            ) {
+                return;
+            }
+
+            $messageId = $this->stripAngleBrackets($this->extractHeader($rawHeaders, 'Message-ID'));
+            $inReplyTo = $this->stripAngleBrackets($this->extractHeader($rawHeaders, 'In-Reply-To'));
+            $refs      = $this->extractHeader($rawHeaders, 'References') ?: null;
+            $subject   = $this->decodeMimeHeader($this->extractHeader($rawHeaders, 'Subject'));
+            $fromRaw   = $this->extractHeader($rawHeaders, 'From');
+            [$fromName, $fromEmail] = $this->parseFromHeader($fromRaw);
+
+            $structure = @imap_fetchstructure($imap, $msgNum);
+            [$bodyText, $bodyHtml, $hasAttachments] = $this->extractBodies($imap, $msgNum, $structure);
+
+            $receivedAt = $this->parseReceivedAt($rawHeaders, $imap, $msgNum);
+
+            OutreachMessage::firstOrCreate(
+                [
+                    'email_account_id' => $account->id,
+                    'imap_uid'         => $uid,
+                ],
+                [
+                    'lead_id'           => $lead->id,
+                    'direction'         => OutreachMessage::DIRECTION_INBOUND,
+                    'message_id'        => $messageId ?: null,
+                    'in_reply_to'       => $inReplyTo ?: null,
+                    'references_header' => $refs,
+                    'from_email'        => $fromEmail ?? $lead->email,
+                    'from_name'         => $fromName,
+                    'subject'           => $subject ?: null,
+                    'body_text'         => $bodyText,
+                    'body_html'         => $bodyHtml,
+                    'has_attachments'   => $hasAttachments,
+                    'received_at'       => $receivedAt,
+                ]
+            );
+        } catch (Throwable $e) {
+            $this->logger->error('[Outreach] Failed to persist reply message', [
+                'lead_id'    => $lead->id,
+                'account_id' => $account->id,
+                'msg_num'    => $msgNum,
+                'error'      => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Walk the IMAP structure tree and pull out text/plain, text/html, and
+     * an attachment flag. Handles non-multipart messages (single-part body)
+     * and multipart messages (alternative, mixed, related).
+     *
+     * Returns [bodyText, bodyHtml, hasAttachments].
+     *
+     * @param resource $imap
+     * @return array{0: ?string, 1: ?string, 2: bool}
+     */
+    private function extractBodies($imap, int $msgNum, $structure): array
+    {
+        if (! $structure) {
+            // Fall back to fetching the raw body as plain text.
+            $raw = @imap_body($imap, $msgNum);
+            return [is_string($raw) && $raw !== '' ? $raw : null, null, false];
+        }
+
+        // Non-multipart: structure has no `parts`. Fetch section "1".
+        if (empty($structure->parts)) {
+            $raw = @imap_fetchbody($imap, $msgNum, '1');
+            $decoded = $this->decodePart($raw, $structure->encoding ?? 0, $this->charsetFromPart($structure));
+
+            $isHtml = isset($structure->subtype) && strtolower($structure->subtype) === 'html';
+            return [
+                $isHtml ? null : $decoded,
+                $isHtml ? $decoded : null,
+                false,
+            ];
+        }
+
+        $bodyText       = null;
+        $bodyHtml       = null;
+        $hasAttachments = false;
+
+        $this->walkParts($imap, $msgNum, $structure->parts, '', $bodyText, $bodyHtml, $hasAttachments);
+
+        return [$bodyText, $bodyHtml, $hasAttachments];
+    }
+
+    /**
+     * Recursively walk multipart sections. Modifies $bodyText, $bodyHtml,
+     * and $hasAttachments by reference. The first text/plain and first
+     * text/html encountered win — typical RFC 2046 alternative ordering.
+     *
+     * @param resource $imap
+     */
+    private function walkParts(
+        $imap,
+        int     $msgNum,
+        array   $parts,
+        string  $prefix,
+        ?string &$bodyText,
+        ?string &$bodyHtml,
+        bool    &$hasAttachments,
+    ): void {
+        foreach ($parts as $i => $part) {
+            // IMAP section numbers are 1-indexed and dotted for nesting.
+            $section = $prefix === '' ? (string) ($i + 1) : $prefix . '.' . ($i + 1);
+
+            $disposition = isset($part->disposition) ? strtolower($part->disposition) : null;
+            if ($disposition === 'attachment') {
+                $hasAttachments = true;
+                continue;
+            }
+
+            // Recurse into nested multipart parts.
+            if (! empty($part->parts)) {
+                $this->walkParts($imap, $msgNum, $part->parts, $section, $bodyText, $bodyHtml, $hasAttachments);
+                continue;
+            }
+
+            $type    = isset($part->type) ? (int) $part->type : 0;       // 0 = TYPETEXT
+            $subtype = isset($part->subtype) ? strtolower($part->subtype) : '';
+
+            if ($type !== 0) {
+                // Non-text body part counts as an attachment if not already flagged.
+                if ($disposition === null) {
+                    $hasAttachments = true;
+                }
+                continue;
+            }
+
+            $raw     = @imap_fetchbody($imap, $msgNum, $section);
+            $decoded = $this->decodePart($raw, $part->encoding ?? 0, $this->charsetFromPart($part));
+
+            if ($subtype === 'plain' && $bodyText === null) {
+                $bodyText = $decoded;
+            } elseif ($subtype === 'html' && $bodyHtml === null) {
+                $bodyHtml = $decoded;
+            }
+        }
+    }
+
+    /**
+     * Decode an IMAP body part using its transfer encoding, then convert to UTF-8.
+     */
+    private function decodePart(string|false $raw, int $encoding, string $charset): ?string
+    {
+        if ($raw === false || $raw === '') {
+            return null;
+        }
+
+        // IMAP encoding constants: 0=7BIT, 1=8BIT, 2=BINARY, 3=BASE64,
+        // 4=QUOTED-PRINTABLE, 5=OTHER
+        $decoded = match ($encoding) {
+            3       => base64_decode($raw, true) ?: $raw,
+            4       => quoted_printable_decode($raw),
+            default => $raw,
+        };
+
+        if (strtoupper($charset) !== 'UTF-8') {
+            $converted = @iconv($charset, 'UTF-8//TRANSLIT//IGNORE', $decoded);
+            if ($converted !== false) {
+                return $converted;
+            }
+        }
+
+        return $decoded;
+    }
+
+    /**
+     * Pick out the charset parameter from a structure part. Defaults to UTF-8
+     * which is the safest assumption for modern Gmail-originated mail.
+     */
+    private function charsetFromPart($part): string
+    {
+        if (! empty($part->parameters)) {
+            foreach ($part->parameters as $param) {
+                if (isset($param->attribute) && strtolower($param->attribute) === 'charset') {
+                    return $param->value ?: 'UTF-8';
+                }
+            }
+        }
+        return 'UTF-8';
+    }
+
+    /**
+     * Decode RFC 2047 encoded-word headers (e.g. "=?UTF-8?B?...?=") to plain UTF-8.
+     */
+    private function decodeMimeHeader(string $value): string
+    {
+        if ($value === '') {
+            return '';
+        }
+
+        $decoded = @iconv_mime_decode($value, ICONV_MIME_DECODE_CONTINUE_ON_ERROR, 'UTF-8');
+        return $decoded !== false ? $decoded : $value;
+    }
+
+    /**
+     * Parse a From header into [name, email].
+     * Returns [null, null] if neither could be extracted.
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function parseFromHeader(string $from): array
+    {
+        if ($from === '') {
+            return [null, null];
+        }
+
+        $decoded = $this->decodeMimeHeader($from);
+
+        // "Display Name" <email@host>
+        if (preg_match('/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/', $decoded, $m)) {
+            $name  = trim($m[1]);
+            $email = trim($m[2]);
+            return [$name !== '' ? $name : null, $email !== '' ? $email : null];
+        }
+
+        // bare email
+        if (filter_var(trim($decoded), FILTER_VALIDATE_EMAIL)) {
+            return [null, trim($decoded)];
+        }
+
+        return [null, null];
+    }
+
+    /**
+     * Resolve the message's received timestamp. Prefer the Date: header
+     * (sender-clock authoritative), fall back to IMAP internal date.
+     */
+    private function parseReceivedAt(string $rawHeaders, $imap, int $msgNum): \Carbon\Carbon
+    {
+        $dateHeader = $this->extractHeader($rawHeaders, 'Date');
+        if ($dateHeader !== '') {
+            try {
+                return \Carbon\Carbon::parse($dateHeader);
+            } catch (Throwable) {
+                // fall through to internal date
+            }
+        }
+
+        $overview = @imap_fetch_overview($imap, (string) $msgNum);
+        if (is_array($overview) && isset($overview[0]->date)) {
+            try {
+                return \Carbon\Carbon::parse($overview[0]->date);
+            } catch (Throwable) {
+                // fall through
+            }
+        }
+
+        return \Carbon\Carbon::now();
+    }
+
+    /**
+     * Strip leading/trailing angle brackets from a Message-ID-shaped value.
+     */
+    private function stripAngleBrackets(string $value): string
+    {
+        return trim($value, " \t\r\n<>");
     }
 
     // ─── Header Helpers ─────────────────────────────────────────────────────

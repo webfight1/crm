@@ -9,6 +9,7 @@ use App\Outreach\Models\OutreachCampaign;
 use App\Outreach\Models\OutreachCampaignStep;
 use App\Outreach\Models\OutreachEmailAccount;
 use App\Outreach\Models\OutreachLead;
+use App\Outreach\Models\OutreachMessage;
 use App\Outreach\Models\OutreachSendLog;
 use App\Outreach\Services\OutreachCsvImportService;
 use Illuminate\Http\RedirectResponse;
@@ -466,5 +467,156 @@ class OutreachController extends Controller
             ->paginate(100);
 
         return view('outreach.logs.index', compact('campaign', 'logs'));
+    }
+
+    // ─── Inbox (Unified replies across mailboxes) ────────────────────────────
+
+    /**
+     * Inbox index — one row per unique reply-sender email.
+     *
+     * Groups OutreachMessage rows by from_email (lowercased) so that a single
+     * person who replied across multiple campaigns appears once. Each group
+     * surfaces the latest reply timestamp, total reply count, and the set of
+     * campaigns they're associated with via their lead records.
+     */
+    public function inboxIndex(Request $request): View
+    {
+        $search = trim((string) $request->query('q', ''));
+
+        $query = OutreachMessage::query()
+            ->where('direction', OutreachMessage::DIRECTION_INBOUND)
+            ->selectRaw('LOWER(from_email) as group_email')
+            ->selectRaw('MAX(received_at) as last_received_at')
+            ->selectRaw('COUNT(*) as reply_count')
+            ->selectRaw('MAX(from_name) as display_name')
+            ->groupBy('group_email')
+            ->orderByDesc('last_received_at');
+
+        if ($search !== '') {
+            $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $search) . '%';
+            $query->where(function ($q) use ($like) {
+                $q->where('from_email', 'like', $like)
+                  ->orWhere('from_name', 'like', $like)
+                  ->orWhere('subject', 'like', $like);
+            });
+        }
+
+        $threads = $query->paginate(30)->withQueryString();
+
+        // Annotate each row with related-lead summary so the index can show
+        // company, name, and campaign badges without N+1 per render.
+        $emails = $threads->getCollection()->pluck('group_email')->all();
+
+        $leadIndex = OutreachLead::with('campaign')
+            ->whereIn(\DB::raw('LOWER(email)'), $emails)
+            ->get()
+            ->groupBy(fn($l) => strtolower($l->email));
+
+        $threads->getCollection()->transform(function ($row) use ($leadIndex) {
+            $leads = $leadIndex->get($row->group_email, collect());
+            $first = $leads->first();
+            $row->lead_first_name = $first?->first_name;
+            $row->lead_last_name  = $first?->last_name;
+            $row->lead_company    = $first?->company;
+            $row->campaigns       = $leads->pluck('campaign.name')->filter()->unique()->values();
+            $row->lead_count      = $leads->count();
+            return $row;
+        });
+
+        return view('outreach.inbox.index', [
+            'threads' => $threads,
+            'search'  => $search,
+        ]);
+    }
+
+    /**
+     * Inbox thread view — full conversation history with one client.
+     *
+     * The {emailEncoded} segment is base64url-encoded by the index view so the
+     * route doesn't have to deal with '@' / '.' escaping. We aggregate every
+     * lead with this email (across campaigns) and merge sent (OutreachSendLog)
+     * + received (OutreachMessage) entries into a single chronological timeline.
+     */
+    public function inboxThread(string $emailEncoded): View
+    {
+        $email = $this->decodeEmail($emailEncoded);
+        abort_if($email === null, 404);
+
+        $leads = OutreachLead::with(['campaign', 'assignedEmailAccount'])
+            ->whereRaw('LOWER(email) = ?', [strtolower($email)])
+            ->get();
+
+        abort_if($leads->isEmpty(), 404);
+
+        $leadIds = $leads->pluck('id');
+
+        $sends = OutreachSendLog::where('status', OutreachSendLog::STATUS_SENT)
+            ->whereIn('lead_id', $leadIds)
+            ->with(['emailAccount', 'campaign', 'campaignStep'])
+            ->get();
+
+        $messages = OutreachMessage::whereIn('lead_id', $leadIds)
+            ->with(['emailAccount', 'lead.campaign'])
+            ->get();
+
+        // Tag each entry with a 'kind' so the view can render without
+        // instanceof checks, and a unified 'occurred_at' for sorting.
+        $timeline = collect()
+            ->merge($sends->map(fn($s) => (object) [
+                'kind'         => 'sent',
+                'occurred_at'  => $s->sent_at ?? $s->created_at,
+                'subject'      => $s->subject,
+                'body_html'    => null,
+                'body_text'    => $s->body,
+                'from_email'   => $s->from_email,
+                'from_name'    => $s->emailAccount?->name,
+                'to_email'     => $s->to_email,
+                'mailbox_name' => $s->emailAccount?->name ?? $s->emailAccount?->email,
+                'campaign'     => $s->campaign?->name,
+                'step_order'   => $s->step_order,
+                'has_attachments' => false,
+                'message_id'   => $s->message_id,
+            ]))
+            ->merge($messages->map(fn($m) => (object) [
+                'kind'         => 'received',
+                'occurred_at'  => $m->received_at,
+                'subject'      => $m->subject,
+                'body_html'    => $m->body_html,
+                'body_text'    => $m->body_text,
+                'from_email'   => $m->from_email,
+                'from_name'    => $m->from_name,
+                'to_email'     => $m->emailAccount?->email,
+                'mailbox_name' => $m->emailAccount?->name ?? $m->emailAccount?->email,
+                'campaign'     => $m->lead?->campaign?->name,
+                'step_order'   => null,
+                'has_attachments' => $m->has_attachments,
+                'message_id'   => $m->message_id,
+            ]))
+            ->sortBy(fn($e) => $e->occurred_at?->timestamp ?? 0)
+            ->values();
+
+        return view('outreach.inbox.thread', [
+            'email'    => $email,
+            'leads'    => $leads,
+            'timeline' => $timeline,
+        ]);
+    }
+
+    /**
+     * URL-safe email decoding shared with the index view's encoder.
+     * Returns null if the input is not a valid email address.
+     */
+    private function decodeEmail(string $encoded): ?string
+    {
+        $padding = strlen($encoded) % 4;
+        if ($padding) {
+            $encoded .= str_repeat('=', 4 - $padding);
+        }
+        $decoded = base64_decode(strtr($encoded, '-_', '+/'), true);
+
+        if ($decoded === false || ! filter_var($decoded, FILTER_VALIDATE_EMAIL)) {
+            return null;
+        }
+        return $decoded;
     }
 }

@@ -48,7 +48,14 @@
             </div>
 
             {{-- Quick links --}}
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <a href="{{ route('outreach.inbox.index') }}" class="bg-white shadow-sm rounded-lg p-6 hover:bg-gray-50 flex items-center gap-4">
+                    <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xl">📬</div>
+                    <div>
+                        <p class="font-medium text-gray-900">Inbox</p>
+                        <p class="text-sm text-gray-500">Klientide vastused</p>
+                    </div>
+                </a>
                 <a href="{{ route('outreach.accounts.index') }}" class="bg-white shadow-sm rounded-lg p-6 hover:bg-gray-50 flex items-center gap-4">
                     <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-xl">✉</div>
                     <div>

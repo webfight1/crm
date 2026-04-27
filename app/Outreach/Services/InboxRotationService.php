@@ -38,7 +38,7 @@ class InboxRotationService
     // Minimum seconds an inbox must "rest" between two sends.
     // Combined with the 3–10 min per-send delay in ProcessOutreachLeadsJob this
     // keeps spacing between outgoing messages well above 1 minute per inbox,
-    // which mirrors human sending cadence and avoids burst-pattern spam flags.
+    // which mirrors humon üks an sending cadence and avoids burst-pattern spam flags.
     const INBOX_COOLDOWN_SECONDS = 120;
 
     public function __construct(private readonly LoggerInterface $logger) {}
