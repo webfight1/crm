@@ -53,17 +53,24 @@ class InboxRotationService
         return DB::transaction(function () use ($lead, $campaign) {
 
             // ── 1. Sticky assignment ─────────────────────────────────────────
+            // Skip sticky if the previously assigned inbox is now flagged as
+            // the primary reply account — that account exists for replying to
+            // engaged leads, not for cold sending. Fall through to LRU rotation.
             if ($lead->assigned_email_account_id) {
-                $account = $this->reserveCapacity($lead->assigned_email_account_id);
+                $stickyAccount = OutreachEmailAccount::find($lead->assigned_email_account_id);
 
-                if ($account) {
-                    return $account;
+                if ($stickyAccount && ! $stickyAccount->is_primary_reply_account) {
+                    $account = $this->reserveCapacity($lead->assigned_email_account_id);
+
+                    if ($account) {
+                        return $account;
+                    }
+
+                    $this->logger->info('[Outreach] Sticky inbox saturated, falling back to rotation', [
+                        'lead_id'    => $lead->id,
+                        'account_id' => $lead->assigned_email_account_id,
+                    ]);
                 }
-
-                $this->logger->info('[Outreach] Sticky inbox saturated, falling back to rotation', [
-                    'lead_id'    => $lead->id,
-                    'account_id' => $lead->assigned_email_account_id,
-                ]);
             }
 
             // ── 2. Campaign-level daily cap (soft limit, not row-locked) ─────
@@ -84,6 +91,7 @@ class InboxRotationService
             $cooldownCutoff = now()->subSeconds(self::INBOX_COOLDOWN_SECONDS);
 
             $candidate = OutreachEmailAccount::where('is_active', true)
+                ->where('is_primary_reply_account', false)
                 ->where('consecutive_failures', '<', \App\Outreach\Models\OutreachEmailAccount::FAILURE_THRESHOLD)
                 ->whereColumn('sent_today', '<', 'daily_limit')
                 ->where(function ($q) use ($cooldownCutoff) {
@@ -139,6 +147,7 @@ class InboxRotationService
     public function nextAvailabilityAt(): ?CarbonInterface
     {
         $earliestCooldownExit = OutreachEmailAccount::where('is_active', true)
+            ->where('is_primary_reply_account', false)
             ->where('consecutive_failures', '<', OutreachEmailAccount::FAILURE_THRESHOLD)
             ->whereColumn('sent_today', '<', 'daily_limit')
             ->whereNotNull('last_sent_at')

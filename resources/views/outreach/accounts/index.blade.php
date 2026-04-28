@@ -32,7 +32,12 @@
                         @forelse($accounts as $account)
                         <tr>
                             <td class="px-6 py-4">
-                                <p class="font-medium text-gray-900">{{ $account->name }}</p>
+                                <p class="font-medium text-gray-900">
+                                    {{ $account->name }}
+                                    @if($account->is_primary_reply_account)
+                                        <span class="ml-2 inline-block px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">↪ Põhipostkast vastusteks</span>
+                                    @endif
+                                </p>
                                 <p class="text-sm text-gray-500">{{ $account->email }}</p>
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-600">{{ $account->smtp_host }}:{{ $account->smtp_port }}</td>

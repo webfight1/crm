@@ -6,6 +6,11 @@
                 @php
                     $primary = $leads->first();
                     $displayName = trim(($primary->first_name ?? '') . ' ' . ($primary->last_name ?? ''));
+                    $primaryReply = \App\Outreach\Models\OutreachEmailAccount::primaryReplyAccount();
+                    $lastSubject = $timeline->reverse()->firstWhere('subject') ? $timeline->reverse()->firstWhere(fn($e) => !empty($e->subject))?->subject : null;
+                    $replySubjectDefault = $lastSubject
+                        ? (str_starts_with(strtolower($lastSubject), 're:') ? $lastSubject : 'Re: ' . $lastSubject)
+                        : '';
                 @endphp
                 @if($displayName !== '' || $primary->company)
                     <p class="text-sm text-gray-500 mt-0.5">
@@ -20,6 +25,13 @@
 
     <div class="py-8">
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8 space-y-6">
+
+            @if(session('success'))
+                <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded">{{ session('success') }}</div>
+            @endif
+            @if(session('error'))
+                <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">{{ session('error') }}</div>
+            @endif
 
             <div class="bg-white shadow-sm rounded-lg p-4">
                 <h3 class="text-sm font-semibold text-gray-700 mb-2">Lead'id ({{ $leads->count() }})</h3>
@@ -104,6 +116,49 @@
                         Vestluses pole veel ühtegi sõnumit.
                     </div>
                 @endforelse
+            </div>
+
+            {{-- Reply form --}}
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
+                    <span class="text-sm font-medium text-gray-800">↪ Vasta</span>
+                    @if($primaryReply)
+                        <span class="text-xs text-gray-500">postkastilt <strong>{{ $primaryReply->email }}</strong></span>
+                    @endif
+                </div>
+
+                @if(! $primaryReply)
+                    <div class="p-4 text-sm text-yellow-800 bg-yellow-50 border-t border-yellow-200">
+                        Vastamiseks pole põhipostkasti seadistatud. Mine
+                        <a href="{{ route('outreach.accounts.index') }}" class="underline font-medium">Postkastid</a>
+                        → vali oma põhi-mailbox (nt veiko@webfight.ee) → märgi "Põhipostkast vastusteks".
+                    </div>
+                @elseif(! $primaryReply->is_active)
+                    <div class="p-4 text-sm text-yellow-800 bg-yellow-50 border-t border-yellow-200">
+                        Põhipostkast <strong>{{ $primaryReply->email }}</strong> on hetkel välja lülitatud. Aktiveeri see Postkastid lehel.
+                    </div>
+                @else
+                    <form method="POST" action="{{ route('outreach.inbox.reply', rtrim(strtr(base64_encode($email), '+/', '-_'), '=')) }}" class="p-4 space-y-3">
+                        @csrf
+                        <div>
+                            <x-input-label for="subject" value="Subjekt" />
+                            <x-text-input id="subject" name="subject" class="mt-1 block w-full"
+                                          :value="old('subject', $replySubjectDefault)" required />
+                            <x-input-error :messages="$errors->get('subject')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="body" value="Sõnum" />
+                            <textarea id="body" name="body" rows="8" required
+                                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ old('body') }}</textarea>
+                            <x-input-error :messages="$errors->get('body')" class="mt-1" />
+                            <p class="text-xs text-gray-500 mt-1">Saadetakse tavalise tekstina (rida-vahetused säilivad).</p>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <p class="text-xs text-gray-400">Vastus säilitab Gmaili threadi (In-Reply-To + References headerid).</p>
+                            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700">Saada vastus</button>
+                        </div>
+                    </form>
+                @endif
             </div>
         </div>
     </div>

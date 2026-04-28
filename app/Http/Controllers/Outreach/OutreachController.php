@@ -58,25 +58,38 @@ class OutreachController extends Controller
 
     public function accountsStore(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'name'            => 'required|string|max:100',
-            'email'           => 'required|email|unique:outreach_email_accounts,email',
-            'provider'        => 'required|in:gmail,smtp,outlook',
-            'smtp_host'       => 'required|string',
-            'smtp_port'       => 'required|integer|between:1,65535',
-            'smtp_username'   => 'required|string',
-            'smtp_password'   => 'required|string',
-            'smtp_encryption' => 'required|in:tls,ssl,none',
-            'imap_host'       => 'nullable|string',
-            'imap_port'       => 'nullable|integer|between:1,65535',
-            'imap_username'   => 'nullable|string',
-            'imap_password'   => 'nullable|string',
-            'imap_encryption' => 'nullable|in:ssl,tls,none',
-            'daily_limit'     => 'required|integer|min:1|max:500',
-            'is_active'       => 'boolean',
+        $request->merge([
+            'is_primary_reply_account' => $request->boolean('is_primary_reply_account'),
         ]);
 
-        OutreachEmailAccount::create($data);
+        $data = $request->validate([
+            'name'                     => 'required|string|max:100',
+            'email'                    => 'required|email|unique:outreach_email_accounts,email',
+            'provider'                 => 'required|in:gmail,smtp,outlook',
+            'smtp_host'                => 'required|string',
+            'smtp_port'                => 'required|integer|between:1,65535',
+            'smtp_username'            => 'required|string',
+            'smtp_password'            => 'required|string',
+            'smtp_encryption'          => 'required|in:tls,ssl,none',
+            'imap_host'                => 'nullable|string',
+            'imap_port'                => 'nullable|integer|between:1,65535',
+            'imap_username'            => 'nullable|string',
+            'imap_password'            => 'nullable|string',
+            'imap_encryption'          => 'nullable|in:ssl,tls,none',
+            'daily_limit'              => 'required|integer|min:1|max:500',
+            'is_active'                => 'boolean',
+            'is_primary_reply_account' => 'boolean',
+        ]);
+
+        $account = \DB::transaction(function () use ($data) {
+            if (! empty($data['is_primary_reply_account'])) {
+                // Single-primary invariant: clear any existing primary flag
+                // before setting the new one.
+                OutreachEmailAccount::where('is_primary_reply_account', true)
+                    ->update(['is_primary_reply_account' => false]);
+            }
+            return OutreachEmailAccount::create($data);
+        });
 
         return redirect()->route('outreach.accounts.index')
                          ->with('success', 'Email account added.');
@@ -90,22 +103,24 @@ class OutreachController extends Controller
     public function accountsUpdate(Request $request, OutreachEmailAccount $account): RedirectResponse
     {
         $request->merge([
-            'is_active' => $request->has('is_active'),
+            'is_active'                => $request->has('is_active'),
+            'is_primary_reply_account' => $request->boolean('is_primary_reply_account'),
         ]);
 
         $data = $request->validate([
-            'name'            => 'required|string|max:100',
-            'smtp_host'       => 'required|string',
-            'smtp_port'       => 'required|integer|between:1,65535',
-            'smtp_username'   => 'required|string',
-            'smtp_password'   => 'nullable|string',   // Optional — leave blank to keep current
-            'smtp_encryption' => 'required|in:tls,ssl,none',
-            'imap_host'       => 'nullable|string',
-            'imap_port'       => 'nullable|integer|between:1,65535',
-            'imap_username'   => 'nullable|string',
-            'imap_password'   => 'nullable|string',
-            'daily_limit'     => 'required|integer|min:1|max:500',
-            'is_active'       => 'boolean',
+            'name'                     => 'required|string|max:100',
+            'smtp_host'                => 'required|string',
+            'smtp_port'                => 'required|integer|between:1,65535',
+            'smtp_username'            => 'required|string',
+            'smtp_password'            => 'nullable|string',   // Optional — leave blank to keep current
+            'smtp_encryption'          => 'required|in:tls,ssl,none',
+            'imap_host'                => 'nullable|string',
+            'imap_port'                => 'nullable|integer|between:1,65535',
+            'imap_username'            => 'nullable|string',
+            'imap_password'            => 'nullable|string',
+            'daily_limit'              => 'required|integer|min:1|max:500',
+            'is_active'                => 'boolean',
+            'is_primary_reply_account' => 'boolean',
         ]);
 
         // Don't overwrite encrypted passwords with null when field is left blank
@@ -116,7 +131,15 @@ class OutreachController extends Controller
             unset($data['imap_password']);
         }
 
-        $account->update($data);
+        \DB::transaction(function () use ($data, $account) {
+            if (! empty($data['is_primary_reply_account'])) {
+                // Single-primary invariant: clear flag from any other account.
+                OutreachEmailAccount::where('is_primary_reply_account', true)
+                    ->where('id', '!=', $account->id)
+                    ->update(['is_primary_reply_account' => false]);
+            }
+            $account->update($data);
+        });
 
         return redirect()->route('outreach.accounts.index')
                          ->with('success', 'Account updated.');
@@ -604,6 +627,129 @@ class OutreachController extends Controller
             'leads'    => $leads,
             'timeline' => $timeline,
         ]);
+    }
+
+    /**
+     * Send a reply from the CRM (Variant A handoff).
+     *
+     * From: defaults to the primary reply account (e.g. veiko@webfight.ee). If
+     * none has been configured the operator is asked to set one; we never
+     * silently fall back to the cold-sending mailbox because that would
+     * defeat the entire point of the handoff.
+     *
+     * Threading: In-Reply-To is the most recent inbound message's Message-ID
+     * if available; otherwise the most recent outbound (CRM-sent) reply or
+     * the original cold send. References is the prior thread's References
+     * chain plus the In-Reply-To value, so Gmail keeps the conversation
+     * stitched on both sides.
+     */
+    public function inboxReply(
+        Request $request,
+        string $emailEncoded,
+        \App\Outreach\Services\OutreachMailer $mailer,
+    ): RedirectResponse {
+        $email = $this->decodeEmail($emailEncoded);
+        abort_if($email === null, 404);
+
+        $data = $request->validate([
+            'subject' => 'required|string|max:500',
+            'body'    => 'required|string',
+        ]);
+
+        $primary = OutreachEmailAccount::primaryReplyAccount();
+        if (! $primary) {
+            return back()->with('error', 'Lisa enne põhi-postkast (Postkastid → muuda → "Põhipostkast vastusteks").');
+        }
+        if (! $primary->is_active) {
+            return back()->with('error', 'Põhipostkast on välja lülitatud — aktiveeri see enne vastamist.');
+        }
+
+        // Pick a representative lead for this contact so we can attribute the
+        // outbound message and audit-log it. If the same email exists across
+        // multiple campaigns, we pick the most recently active one so the
+        // thread reads as a continuation of the latest conversation.
+        $lead = OutreachLead::whereRaw('LOWER(email) = ?', [strtolower($email)])
+            ->orderByDesc('updated_at')
+            ->first();
+        abort_if(! $lead, 404);
+
+        // Build the In-Reply-To / References chain from the existing thread.
+        // Pull the most recent inbound message and the most recent outbound
+        // send log; whichever is newer becomes In-Reply-To.
+        $lastInbound = OutreachMessage::where('lead_id', $lead->id)
+            ->where('direction', OutreachMessage::DIRECTION_INBOUND)
+            ->whereNotNull('message_id')
+            ->orderByDesc('received_at')
+            ->first();
+
+        $lastSend = OutreachSendLog::where('lead_id', $lead->id)
+            ->where('status', OutreachSendLog::STATUS_SENT)
+            ->whereNotNull('message_id')
+            ->orderByDesc('sent_at')
+            ->first();
+
+        $lastOutboundReply = OutreachMessage::where('lead_id', $lead->id)
+            ->where('direction', OutreachMessage::DIRECTION_OUTBOUND)
+            ->whereNotNull('message_id')
+            ->orderByDesc('received_at')
+            ->first();
+
+        // Pick the most recent prior message (any direction) as In-Reply-To
+        $candidates = collect([
+            $lastInbound  ? ['ts' => $lastInbound->received_at,  'id' => $lastInbound->message_id,         'refs' => $lastInbound->references_header] : null,
+            $lastOutboundReply ? ['ts' => $lastOutboundReply->received_at, 'id' => $lastOutboundReply->message_id, 'refs' => $lastOutboundReply->references_header] : null,
+            $lastSend     ? ['ts' => $lastSend->sent_at,         'id' => $lastSend->message_id,            'refs' => null] : null,
+        ])->filter()->sortByDesc('ts')->values();
+
+        $inReplyTo = $candidates->first()['id'] ?? null;
+        // References = prior chain + the message we are replying to.
+        // If no prior References header, References = just the In-Reply-To.
+        $priorRefs = $candidates->first()['refs'] ?? null;
+        $references = trim(($priorRefs ?? '') . ' ' . ($inReplyTo ? '<' . trim($inReplyTo, '<>') . '>' : ''));
+
+        $contactName = trim(($lead->first_name ?? '') . ' ' . ($lead->last_name ?? ''));
+
+        try {
+            $sentMessageId = $mailer->send(
+                account:    $primary,
+                toEmail:    $email,
+                toName:     $contactName !== '' ? $contactName : $email,
+                subject:    $data['subject'],
+                htmlBody:   nl2br(e($data['body'])),
+                inReplyTo:  $inReplyTo,
+                references: $references !== '' ? $references : null,
+            );
+        } catch (\Throwable $e) {
+            \Log::error('[Outreach] CRM reply send failed', [
+                'lead_id' => $lead->id,
+                'to'      => $email,
+                'error'   => $e->getMessage(),
+            ]);
+            return back()->with('error', 'Saatmine ebaõnnestus: ' . $e->getMessage());
+        }
+
+        // Persist our outbound message so it shows up in the thread timeline
+        // and so future client replies can match against this Message-ID.
+        OutreachMessage::create([
+            'lead_id'           => $lead->id,
+            'email_account_id'  => $primary->id,
+            'direction'         => OutreachMessage::DIRECTION_OUTBOUND,
+            'message_id'        => $sentMessageId,
+            'in_reply_to'       => $inReplyTo,
+            'references_header' => $references !== '' ? $references : null,
+            'from_email'        => $primary->email,
+            'from_name'         => $primary->name,
+            'subject'           => $data['subject'],
+            'body_text'         => $data['body'],
+            'body_html'         => null,
+            'has_attachments'   => false,
+            'received_at'       => now(),
+            'imap_uid'          => null,
+        ]);
+
+        return redirect()
+            ->route('outreach.inbox.thread', $emailEncoded)
+            ->with('success', 'Vastus saadetud.');
     }
 
     /**

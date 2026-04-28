@@ -49,8 +49,9 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
     });
 
     // ── Inbox (unified replies across mailboxes) ───────────────────────────
-    Route::get('/inbox',                   [OutreachController::class, 'inboxIndex'])->name('inbox.index');
-    Route::get('/inbox/{emailEncoded}',    [OutreachController::class, 'inboxThread'])->name('inbox.thread');
+    Route::get('/inbox',                          [OutreachController::class, 'inboxIndex'])->name('inbox.index');
+    Route::get('/inbox/{emailEncoded}',           [OutreachController::class, 'inboxThread'])->name('inbox.thread');
+    Route::post('/inbox/{emailEncoded}/reply',    [OutreachController::class, 'inboxReply'])->name('inbox.reply');
 
     // ── Logs ────────────────────────────────────────────────────────────────
     Route::get('/logs/{campaign}', [OutreachController::class, 'logsIndex'])->name('logs.index');

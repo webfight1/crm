@@ -35,20 +35,22 @@ class OutreachEmailAccount extends Model
         'sent_today',
         'last_sent_at',
         'is_active',
+        'is_primary_reply_account',
         'consecutive_failures',
         'last_error',
         'disabled_at',
     ];
 
     protected $casts = [
-        'smtp_port'             => 'integer',
-        'imap_port'             => 'integer',
-        'daily_limit'           => 'integer',
-        'sent_today'            => 'integer',
-        'is_active'             => 'boolean',
-        'last_sent_at'          => 'datetime',
-        'consecutive_failures'  => 'integer',
-        'disabled_at'           => 'datetime',
+        'smtp_port'                => 'integer',
+        'imap_port'                => 'integer',
+        'daily_limit'              => 'integer',
+        'sent_today'               => 'integer',
+        'is_active'                => 'boolean',
+        'is_primary_reply_account' => 'boolean',
+        'last_sent_at'             => 'datetime',
+        'consecutive_failures'     => 'integer',
+        'disabled_at'              => 'datetime',
     ];
 
     protected $hidden = ['smtp_password', 'imap_password'];
@@ -153,5 +155,15 @@ class OutreachEmailAccount extends Model
     {
         return $this->is_active
             && $this->consecutive_failures < self::FAILURE_THRESHOLD;
+    }
+
+    /**
+     * Return the single account flagged as the primary reply mailbox, or null
+     * if none has been configured. The controller enforces single-primary on
+     * write so first() is sufficient even though the column is non-unique.
+     */
+    public static function primaryReplyAccount(): ?self
+    {
+        return static::where('is_primary_reply_account', true)->first();
     }
 }

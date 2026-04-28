@@ -25,6 +25,12 @@ class OutreachMailer
     /**
      * Send a single outreach email.
      *
+     * $inReplyTo and $references seed RFC 2822 thread headers so Gmail (and
+     * other compliant clients) place the message in the same conversation as
+     * the prior exchange. This is what makes Layer 2 handoff work: a reply
+     * sent from veiko@webfight.ee lands in the same client-side thread as the
+     * original cold email from a sacrificial mailbox.
+     *
      * @return string The SMTP Message-ID assigned to the sent email.
      * @throws \Throwable on transport failure.
      */
@@ -34,6 +40,8 @@ class OutreachMailer
         string               $toName,
         string               $subject,
         string               $htmlBody,
+        ?string              $inReplyTo = null,
+        ?string              $references = null,
     ): string {
         $messageId = $this->generateMessageId($account->smtp_host ?? 'outreach');
 
@@ -42,22 +50,45 @@ class OutreachMailer
             ->to(new Address($toEmail, $toName))
             ->subject($subject)
             ->html($htmlBody);
-        
-        $email->getHeaders()->addIdHeader('Message-ID', $messageId);
+
+        $headers = $email->getHeaders();
+        $headers->addIdHeader('Message-ID', $messageId);
+
+        if ($inReplyTo !== null && $inReplyTo !== '') {
+            // Both headers expect angle-bracket-wrapped Message-IDs. Strip any
+            // existing brackets so we don't end up with <<...>>.
+            $bracketed = $this->bracketMessageId($inReplyTo);
+            $headers->addTextHeader('In-Reply-To', $bracketed);
+        }
+
+        if ($references !== null && $references !== '') {
+            // References is a space-separated chain of message IDs. We accept
+            // a pre-built chain (caller assembles the prior thread) and emit
+            // it verbatim, only normalizing whitespace.
+            $normalized = preg_replace('/\s+/', ' ', trim($references));
+            $headers->addTextHeader('References', $normalized);
+        }
 
         $transport      = $this->buildTransport($account);
         $symfonyMailer  = new SymfonyMailer($transport);
 
         $this->logger->info('[Outreach] Sending email', [
-            'from'       => $account->email,
-            'to'         => $toEmail,
-            'subject'    => $subject,
-            'message_id' => $messageId,
+            'from'         => $account->email,
+            'to'           => $toEmail,
+            'subject'      => $subject,
+            'message_id'   => $messageId,
+            'in_reply_to'  => $inReplyTo,
         ]);
 
         $symfonyMailer->send($email);
 
         return $messageId;
+    }
+
+    private function bracketMessageId(string $id): string
+    {
+        $stripped = trim($id, " \t\r\n<>");
+        return '<' . $stripped . '>';
     }
 
     // ─── Transport Builder ──────────────────────────────────────────────────

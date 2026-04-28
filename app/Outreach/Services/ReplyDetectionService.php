@@ -160,13 +160,20 @@ class ReplyDetectionService
     {
         $detected = 0;
 
-        $leads = OutreachLead::where('assigned_email_account_id', $account->id)
-            ->where('replied', false)
+        // For the primary reply account we scan ALL active leads' sends — not
+        // just leads assigned to this mailbox — because handed-off conversations
+        // (Layer 2 Variant A) land here from any campaign's sending mailbox.
+        $leadQuery = OutreachLead::where('replied', false)
             ->where('status', OutreachLead::STATUS_ACTIVE)
             ->whereHas('sendLogs', fn($q) => $q->where('status', OutreachSendLog::STATUS_SENT))
             ->with(['sendLogs' => fn($q) => $q->where('status', OutreachSendLog::STATUS_SENT)
-                                              ->orderBy('sent_at')])
-            ->get();
+                                              ->orderBy('sent_at')]);
+
+        if (! $account->is_primary_reply_account) {
+            $leadQuery->where('assigned_email_account_id', $account->id);
+        }
+
+        $leads = $leadQuery->get();
 
         if ($leads->isEmpty()) {
             return 0;
@@ -199,6 +206,21 @@ class ReplyDetectionService
                 if ($log->message_id) {
                     $messageIdMap[$log->message_id] = $lead;
                 }
+            }
+        }
+
+        // Include CRM-originated outbound replies (Layer 2 sends) so a
+        // follow-up reply from the client lands as a thread match against
+        // our most recent outgoing message, not just the original cold send.
+        $leadsById = $leads->keyBy('id');
+        $outbound = OutreachMessage::where('direction', OutreachMessage::DIRECTION_OUTBOUND)
+            ->whereIn('lead_id', $leads->pluck('id'))
+            ->whereNotNull('message_id')
+            ->get(['lead_id', 'message_id']);
+
+        foreach ($outbound as $msg) {
+            if ($lead = $leadsById->get($msg->lead_id)) {
+                $messageIdMap[$msg->message_id] = $lead;
             }
         }
 

@@ -100,6 +100,21 @@
                         </div>
                     </div>
 
+                    <div class="bg-purple-50 border border-purple-200 rounded p-4">
+                        <label class="flex items-start gap-2 cursor-pointer">
+                            <input type="checkbox" name="is_primary_reply_account" value="1"
+                                   @checked(old('is_primary_reply_account', $account->is_primary_reply_account))
+                                   class="mt-1 rounded border-gray-300 text-purple-600">
+                            <div>
+                                <span class="text-sm font-medium text-gray-800">Põhipostkast vastusteks</span>
+                                <p class="text-xs text-gray-600 mt-1">
+                                    Vastused CRM-i Inbox'ist saadetakse alati sellelt postkastilt (nt veiko@webfight.ee).
+                                    Cold-email saatmiseks seda postkasti ei kasutata. Korraga saab olla ainult üks põhipostkast — märkimine teiselt eemaldatakse automaatselt.
+                                </p>
+                            </div>
+                        </label>
+                    </div>
+
                     <div class="flex items-center gap-3">
                         <x-primary-button>Salvesta</x-primary-button>
                         <a href="{{ route('outreach.accounts.index') }}" class="text-sm text-gray-600 hover:text-gray-900">Tühista</a>
