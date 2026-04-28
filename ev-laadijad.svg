@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 320" fill="currentColor" fill-rule="evenodd">
+  <g transform="translate(40 20) skewX(-12)">
+    <rect x="0" y="0" width="180" height="30"/>
+    <rect x="0" y="65" width="180" height="30"/>
+    <rect x="0" y="130" width="180" height="30"/>
+  </g>
+  <g transform="translate(250 20) skewX(-12)">
+    <polygon points="0,0 35,0 70,100 105,0 140,0 70,160"/>
+  </g>
+  <g transform="translate(80 215) skewX(-12)">
+    <path d="M0,0 L12,0 L12,50 L30,50 L30,60 L0,60 Z"/>
+    <path d="M64,0 L87,60 L75,60 L70,48 L58,48 L53,60 L42,60 Z M58,38 L70,38 L64,15 Z"/>
+    <path d="M121,0 L144,60 L132,60 L127,48 L115,48 L110,60 L99,60 Z M115,38 L127,38 L121,15 Z"/>
+    <path d="M156,0 L188,0 Q201,0 201,30 Q201,60 188,60 L156,60 Z M168,10 L184,10 Q189,10 189,30 Q189,50 184,50 L168,50 Z"/>
+    <path d="M213,0 L225,0 L225,60 L213,60 Z"/>
+    <path d="M257,0 L267,0 L267,50 Q267,60 256,60 L246,60 Q237,60 237,52 L237,46 L247,46 L247,50 Q247,52 250,52 L256,52 Q257,52 257,50 Z"/>
+    <path d="M301,0 L324,60 L312,60 L307,48 L295,48 L290,60 L279,60 Z M295,38 L307,38 L301,15 Z"/>
+    <path d="M336,0 L368,0 Q381,0 381,30 Q381,60 368,60 L336,60 Z M348,10 L364,10 Q369,10 369,30 Q369,50 364,50 L348,50 Z"/>
+  </g>
+  <text x="448" y="300" text-anchor="end" font-family="Arial Black, Helvetica, sans-serif" font-style="italic" font-weight="900" font-size="22" letter-spacing="1">evlaadijad.ee</text>
+</svg>

@@ -89,6 +89,10 @@ class OutreachController extends Controller
 
     public function accountsUpdate(Request $request, OutreachEmailAccount $account): RedirectResponse
     {
+        $request->merge([
+            'is_active' => $request->has('is_active'),
+        ]);
+
         $data = $request->validate([
             'name'            => 'required|string|max:100',
             'smtp_host'       => 'required|string',
