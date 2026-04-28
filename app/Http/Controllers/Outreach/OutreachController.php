@@ -564,7 +564,7 @@ class OutreachController extends Controller
      * lead with this email (across campaigns) and merge sent (OutreachSendLog)
      * + received (OutreachMessage) entries into a single chronological timeline.
      */
-    public function inboxThread(string $emailEncoded): View
+    public function inboxThread(string $emailEncoded, \App\Outreach\Services\OutreachActivityLookup $lookup): View
     {
         $email = $this->decodeEmail($emailEncoded);
         abort_if($email === null, 404);
@@ -574,6 +574,8 @@ class OutreachController extends Controller
             ->get();
 
         abort_if($leads->isEmpty(), 404);
+
+        $crmLink = $lookup->findCrmRecord($email);
 
         $leadIds = $leads->pluck('id');
 
@@ -626,6 +628,7 @@ class OutreachController extends Controller
             'email'    => $email,
             'leads'    => $leads,
             'timeline' => $timeline,
+            'crmLink'  => $crmLink,
         ]);
     }
 

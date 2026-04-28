@@ -16,7 +16,55 @@
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8 space-y-6">
+
+            @if($outreachActivity['has_activity'])
+                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-medium text-gray-900">📬 Outreach vestlus</h3>
+                            <a href="{{ $outreachActivity['inbox_url'] }}" class="text-sm text-purple-600 hover:text-purple-800 font-medium">Ava vestlus →</a>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                            <div>
+                                <dt class="text-xs text-gray-500">Vastuseid</dt>
+                                <dd class="text-2xl font-semibold text-purple-700">{{ $outreachActivity['reply_count'] }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-gray-500">Saadetud</dt>
+                                <dd class="text-2xl font-semibold text-gray-700">{{ $outreachActivity['sent_count'] }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-gray-500">Kampaaniaid</dt>
+                                <dd class="text-2xl font-semibold text-gray-700">{{ $outreachActivity['campaigns']->count() }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-gray-500">Viimane vastus</dt>
+                                <dd class="text-sm font-medium text-gray-900 mt-1">
+                                    @if($outreachActivity['last_received_at'])
+                                        {{ $outreachActivity['last_received_at']->diffForHumans() }}
+                                    @else
+                                        —
+                                    @endif
+                                </dd>
+                            </div>
+                        </div>
+
+                        @if($outreachActivity['latest_subject'] || $outreachActivity['latest_snippet'])
+                            <div class="p-3 bg-purple-50 border border-purple-100 rounded">
+                                @if($outreachActivity['latest_subject'])
+                                    <p class="text-sm font-medium text-gray-900">{{ $outreachActivity['latest_subject'] }}</p>
+                                @endif
+                                @if($outreachActivity['latest_snippet'])
+                                    <p class="text-sm text-gray-600 mt-1">{{ $outreachActivity['latest_snippet'] }}</p>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @endif
+
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
                     <dl class="grid grid-cols-1 md:grid-cols-2 gap-6">

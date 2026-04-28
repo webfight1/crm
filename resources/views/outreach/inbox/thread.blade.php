@@ -33,6 +33,31 @@
                 <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">{{ session('error') }}</div>
             @endif
 
+            @if($crmLink['customer'] || $crmLink['contact'])
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-blue-900">🔗 Seotud CRM-i kirjega</h3>
+                            <p class="text-sm text-blue-700 mt-1">
+                                @if($crmLink['customer'])
+                                    Klient:
+                                    <a href="{{ route('customers.show', $crmLink['customer']) }}" class="font-medium underline">
+                                        {{ $crmLink['customer']->full_name }}
+                                    </a>
+                                @endif
+                                @if($crmLink['contact'])
+                                    @if($crmLink['customer']) · @endif
+                                    Kontakt:
+                                    <a href="{{ route('contacts.show', $crmLink['contact']) }}" class="font-medium underline">
+                                        {{ $crmLink['contact']->full_name }}
+                                    </a>
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <div class="bg-white shadow-sm rounded-lg p-4">
                 <h3 class="text-sm font-semibold text-gray-700 mb-2">Lead'id ({{ $leads->count() }})</h3>
                 <div class="space-y-2">

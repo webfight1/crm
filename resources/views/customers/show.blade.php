@@ -270,6 +270,62 @@
                         </div>
                     @endif
 
+                    <!-- Outreach Activity -->
+                    @if($outreachActivity['has_activity'])
+                        <div class="mt-6 bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                            <div class="p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-lg font-medium text-gray-900">📬 Outreach vestlus</h3>
+                                    <a href="{{ $outreachActivity['inbox_url'] }}" class="text-sm text-purple-600 hover:text-purple-800 font-medium">Ava vestlus →</a>
+                                </div>
+
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                                    <div>
+                                        <dt class="text-xs text-gray-500">Vastuseid</dt>
+                                        <dd class="text-2xl font-semibold text-purple-700">{{ $outreachActivity['reply_count'] }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-xs text-gray-500">Saadetud</dt>
+                                        <dd class="text-2xl font-semibold text-gray-700">{{ $outreachActivity['sent_count'] }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-xs text-gray-500">Kampaaniaid</dt>
+                                        <dd class="text-2xl font-semibold text-gray-700">{{ $outreachActivity['campaigns']->count() }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-xs text-gray-500">Viimane vastus</dt>
+                                        <dd class="text-sm font-medium text-gray-900 mt-1">
+                                            @if($outreachActivity['last_received_at'])
+                                                {{ $outreachActivity['last_received_at']->diffForHumans() }}
+                                            @else
+                                                —
+                                            @endif
+                                        </dd>
+                                    </div>
+                                </div>
+
+                                @if($outreachActivity['latest_subject'] || $outreachActivity['latest_snippet'])
+                                    <div class="mt-3 p-3 bg-purple-50 border border-purple-100 rounded">
+                                        @if($outreachActivity['latest_subject'])
+                                            <p class="text-sm font-medium text-gray-900">{{ $outreachActivity['latest_subject'] }}</p>
+                                        @endif
+                                        @if($outreachActivity['latest_snippet'])
+                                            <p class="text-sm text-gray-600 mt-1">{{ $outreachActivity['latest_snippet'] }}</p>
+                                        @endif
+                                    </div>
+                                @endif
+
+                                @if($outreachActivity['campaigns']->isNotEmpty())
+                                    <div class="mt-3">
+                                        @foreach($outreachActivity['campaigns'] as $campaignName)
+                                            <span class="inline-block px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded mr-1 mb-1">{{ $campaignName }}</span>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+
                     <!-- Related Tasks -->
                     @if($customer->tasks->count() > 0)
                         <div class="mt-6 bg-white overflow-hidden shadow-sm sm:rounded-lg">

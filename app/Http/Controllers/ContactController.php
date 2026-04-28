@@ -61,11 +61,13 @@ class ContactController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Contact $contact)
+    public function show(Contact $contact, \App\Outreach\Services\OutreachActivityLookup $outreach)
     {
         $contact->load(['customer', 'company', 'deals', 'tasks']);
-        
-        return view('contacts.show', compact('contact'));
+
+        $outreachActivity = $outreach->summaryForEmail($contact->email);
+
+        return view('contacts.show', compact('contact', 'outreachActivity'));
     }
 
     /**

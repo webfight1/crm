@@ -70,11 +70,13 @@ class CustomerController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Customer $customer)
+    public function show(Customer $customer, \App\Outreach\Services\OutreachActivityLookup $outreach)
     {
         $customer->load(['company', 'contacts', 'deals', 'tasks']);
-        
-        return view('customers.show', compact('customer'));
+
+        $outreachActivity = $outreach->summaryForEmail($customer->email);
+
+        return view('customers.show', compact('customer', 'outreachActivity'));
     }
 
     /**
