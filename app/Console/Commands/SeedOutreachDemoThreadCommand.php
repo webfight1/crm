@@ -29,7 +29,7 @@ class SeedOutreachDemoThreadCommand extends Command
 
     protected $description = 'Seed (or clean) a single demo Outreach conversation for UI preview';
 
-    private const DEMO_EMAIL = 'mari.maasikas.demo@naide.ee';
+    private const DEMO_EMAIL = 'veiko.teeke@gmail.com';
 
     public function handle(): int
     {

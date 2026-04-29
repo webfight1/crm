@@ -614,21 +614,28 @@ class OutreachController extends Controller
                 'has_attachments' => false,
                 'message_id'   => $s->message_id,
             ]))
-            ->merge($messages->map(fn($m) => (object) [
-                'kind'         => 'received',
-                'occurred_at'  => $m->received_at,
-                'subject'      => $m->subject,
-                'body_html'    => $m->body_html,
-                'body_text'    => $m->body_text,
-                'from_email'   => $m->from_email,
-                'from_name'    => $m->from_name,
-                'to_email'     => $m->emailAccount?->email,
-                'mailbox_name' => $m->emailAccount?->name ?? $m->emailAccount?->email,
-                'campaign'     => $m->lead?->campaign?->name,
-                'step_order'   => null,
-                'has_attachments' => $m->has_attachments,
-                'message_id'   => $m->message_id,
-            ]))
+            ->merge($messages->map(function ($m) use ($email) {
+                $isOutbound = $m->direction === \App\Outreach\Models\OutreachMessage::DIRECTION_OUTBOUND;
+                return (object) [
+                    // 'received'  = client replied to us (inbound)
+                    // 'crm_reply' = we sent a manual reply from the CRM (outbound)
+                    'kind'         => $isOutbound ? 'crm_reply' : 'received',
+                    'occurred_at'  => $m->received_at,
+                    'subject'      => $m->subject,
+                    'body_html'    => $m->body_html,
+                    'body_text'    => $m->body_text,
+                    'from_email'   => $m->from_email,
+                    'from_name'    => $m->from_name,
+                    // For outbound CRM replies the lead's email is the recipient,
+                    // not the inbox we sent through.
+                    'to_email'     => $isOutbound ? $email : $m->emailAccount?->email,
+                    'mailbox_name' => $m->emailAccount?->name ?? $m->emailAccount?->email,
+                    'campaign'     => $m->lead?->campaign?->name,
+                    'step_order'   => null,
+                    'has_attachments' => $m->has_attachments,
+                    'message_id'   => $m->message_id,
+                ];
+            }))
             ->sortBy(fn($e) => $e->occurred_at?->timestamp ?? 0)
             ->values();
 

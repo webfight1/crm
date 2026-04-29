@@ -82,11 +82,28 @@
             <div class="space-y-4">
                 @forelse($timeline as $entry)
                     @php
-                        $isReceived = $entry->kind === 'received';
-                        $bg     = $isReceived ? 'bg-purple-50 border-purple-200' : 'bg-white border-gray-200';
-                        $label  = $isReceived ? 'Vastus kliendilt' : 'Saadetud (samm ' . ($entry->step_order ?? '?') . ')';
-                        $iconBg = $isReceived ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700';
-                        $icon   = $isReceived ? '←' : '→';
+                        // Three kinds of timeline entries:
+                        //   sent      — campaign step we sent to the lead
+                        //   received  — inbound reply from the lead
+                        //   crm_reply — manual reply from the CRM (outbound, post-handoff)
+                        $kind = $entry->kind;
+                        if ($kind === 'received') {
+                            $bg = 'bg-purple-50 border-purple-200';
+                            $iconBg = 'bg-purple-100 text-purple-700';
+                            $icon = '←';
+                            $label = 'Vastus kliendilt';
+                        } elseif ($kind === 'crm_reply') {
+                            $bg = 'bg-emerald-50 border-emerald-200';
+                            $iconBg = 'bg-emerald-100 text-emerald-700';
+                            $icon = '↪';
+                            $label = 'Sinu vastus CRM-ist';
+                        } else {
+                            $bg = 'bg-white border-gray-200';
+                            $iconBg = 'bg-indigo-100 text-indigo-700';
+                            $icon = '→';
+                            $label = 'Saadetud (samm ' . ($entry->step_order ?? '?') . ')';
+                        }
+                        $isReceived = $kind === 'received';
                     @endphp
                     <div class="border rounded-lg shadow-sm {{ $bg }}">
                         <div class="px-4 py-3 border-b border-gray-200 flex items-start justify-between gap-4">
