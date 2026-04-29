@@ -23,6 +23,42 @@
         </div>
     </x-slot>
 
+    @push('scripts')
+    <script>
+        // Auto-grow email-body iframes to fit their content. We re-measure
+        // on resize because the iframe's wrapped text reflows when the parent
+        // container changes width.
+        function fitEmailIframes() {
+            document.querySelectorAll('iframe.email-body-iframe').forEach(iframe => {
+                try {
+                    const doc = iframe.contentDocument;
+                    if (! doc || ! doc.body) return;
+                    // Use html scrollHeight rather than body — handles bodies
+                    // with padding/margin that body alone underestimates.
+                    const h = Math.max(
+                        doc.body.scrollHeight,
+                        doc.documentElement.scrollHeight,
+                    );
+                    iframe.style.height = (h + 16) + 'px';  // small bottom buffer
+                } catch (e) {
+                    // contentDocument can be unreadable on some sandbox combinations;
+                    // leave the placeholder height in that case.
+                }
+            });
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            // Iframes may not have loaded yet at DOMContentLoaded — bind onload
+            // to each so we resize after their content is parsed.
+            document.querySelectorAll('iframe.email-body-iframe').forEach(iframe => {
+                iframe.addEventListener('load', fitEmailIframes);
+            });
+            // First-pass resize for any iframe already finished loading
+            fitEmailIframes();
+        });
+        window.addEventListener('resize', fitEmailIframes);
+    </script>
+    @endpush
+
     <div class="py-8">
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
@@ -138,13 +174,17 @@
                             @endif
                             @if($entry->body_html)
                                 {{-- Sandboxed iframe isolates the email's HTML/CSS/scripts
-                                     from the CRM session. sandbox="" disables ALL features
-                                     (scripts, forms, top navigation), so a malicious sender's
-                                     HTML cannot exfiltrate session cookies or run code. --}}
+                                     from the CRM session. allow-same-origin lets the PARENT
+                                     read the iframe's body height (for auto-resize), but
+                                     scripts INSIDE the iframe stay blocked because
+                                     allow-scripts is not granted. Forms, top-nav, plugins
+                                     all blocked. A malicious sender cannot run code or
+                                     touch the parent. --}}
                                 <iframe
-                                    sandbox=""
+                                    sandbox="allow-same-origin"
                                     srcdoc="{{ $entry->body_html }}"
-                                    class="w-full h-96 border border-gray-200 rounded bg-white"
+                                    class="w-full border border-gray-200 rounded bg-white email-body-iframe"
+                                    style="height: 60px;"
                                     title="Email body"></iframe>
                             @elseif($entry->body_text)
                                 <pre class="whitespace-pre-wrap text-sm text-gray-700 font-sans">{{ $entry->body_text }}</pre>
