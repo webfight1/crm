@@ -143,7 +143,7 @@
                                      HTML cannot exfiltrate session cookies or run code. --}}
                                 <iframe
                                     sandbox=""
-                                    srcdoc="{{ htmlspecialchars($entry->body_html, ENT_QUOTES, 'UTF-8') }}"
+                                    srcdoc="{{ $entry->body_html }}"
                                     class="w-full h-96 border border-gray-200 rounded bg-white"
                                     title="Email body"></iframe>
                             @elseif($entry->body_text)
