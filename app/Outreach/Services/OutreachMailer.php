@@ -3,6 +3,7 @@
 namespace App\Outreach\Services;
 
 use App\Outreach\Models\OutreachEmailAccount;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\Mailer as SymfonyMailer;
@@ -43,6 +44,21 @@ class OutreachMailer
         ?string              $inReplyTo = null,
         ?string              $references = null,
     ): string {
+        // Branch on provider — Zone Relay accounts cannot reach SMTP from a
+        // remote VPS, so route through an HMAC-authenticated HTTP endpoint
+        // that lives on the host's web server (e.g. webfight.ee/mail-relay.php).
+        if ($account->usesRelay()) {
+            return $this->sendViaRelay(
+                $account,
+                $toEmail,
+                $toName,
+                $subject,
+                $htmlBody,
+                $inReplyTo,
+                $references,
+            );
+        }
+
         $messageId = $this->generateMessageId($account->smtp_host ?? 'outreach');
 
         $email = (new Email())
@@ -83,6 +99,102 @@ class OutreachMailer
         $symfonyMailer->send($email);
 
         return $messageId;
+    }
+
+    /**
+     * Send a single email through an HMAC-authenticated HTTP relay running
+     * on the host that owns the From: domain (e.g. zone.ee shared hosting).
+     *
+     * The relay receives a JSON payload, verifies the HMAC signature against
+     * the shared secret, and dispatches via local PHP mail(). It returns the
+     * Message-ID it actually used so we can store it for thread matching.
+     *
+     * Throws \RuntimeException on any auth or transport failure — caller
+     * (OutreachEmailService) treats this the same as an SMTP transport
+     * failure, so retry / failure-counter behaviour is identical.
+     */
+    private function sendViaRelay(
+        OutreachEmailAccount $account,
+        string $toEmail,
+        string $toName,
+        string $subject,
+        string $htmlBody,
+        ?string $inReplyTo,
+        ?string $references,
+    ): string {
+        $relayUrl    = trim((string) $account->relay_url);
+        $relaySecret = (string) $account->relay_secret;
+
+        if ($relayUrl === '' || $relaySecret === '') {
+            throw new \RuntimeException(
+                'Zone Relay account is missing relay_url or relay_secret. Configure them on the account.'
+            );
+        }
+
+        // Generate the Message-ID locally so we can store it before the HTTP
+        // round-trip — same contract as the SMTP path.
+        $domain = parse_url($relayUrl, PHP_URL_HOST) ?: 'webfight.ee';
+        $messageId = $this->generateMessageId($domain);
+
+        $payload = [
+            'from_email'  => $account->email,
+            'from_name'   => $account->name,
+            'to_email'    => $toEmail,
+            'to_name'     => $toName,
+            'subject'     => $subject,
+            'html_body'   => $htmlBody,
+            'message_id'  => $messageId,
+            'in_reply_to' => $inReplyTo !== null && $inReplyTo !== ''
+                                ? $this->bracketMessageId($inReplyTo)
+                                : null,
+            'references'  => $references !== null && $references !== ''
+                                ? preg_replace('/\s+/', ' ', trim($references))
+                                : null,
+        ];
+
+        $body      = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $timestamp = (string) time();
+        $signature = hash_hmac('sha256', $timestamp . $body, $relaySecret);
+
+        $this->logger->info('[Outreach] Sending email via relay', [
+            'from'        => $account->email,
+            'to'          => $toEmail,
+            'subject'     => $subject,
+            'message_id'  => $messageId,
+            'in_reply_to' => $inReplyTo,
+            'relay_url'   => $relayUrl,
+        ]);
+
+        try {
+            $response = Http::timeout(30)
+                ->withHeaders([
+                    'X-Timestamp'  => $timestamp,
+                    'X-Signature'  => $signature,
+                    'Content-Type' => 'application/json',
+                ])
+                ->withBody($body, 'application/json')
+                ->post($relayUrl);
+        } catch (\Throwable $e) {
+            throw new \RuntimeException('Relay HTTP failure: ' . $e->getMessage(), 0, $e);
+        }
+
+        if ($response->failed()) {
+            throw new \RuntimeException(sprintf(
+                'Relay returned %d: %s',
+                $response->status(),
+                Str::limit((string) $response->body(), 300),
+            ));
+        }
+
+        $json = $response->json();
+        if (! is_array($json) || empty($json['ok'])) {
+            throw new \RuntimeException(
+                'Relay rejected: ' . Str::limit((string) $response->body(), 300)
+            );
+        }
+
+        // Honour any Message-ID the relay assigned, falling back to ours.
+        return (string) ($json['message_id'] ?? $messageId);
     }
 
     private function bracketMessageId(string $id): string

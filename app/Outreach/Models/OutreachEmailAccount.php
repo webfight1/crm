@@ -31,6 +31,8 @@ class OutreachEmailAccount extends Model
         'imap_username',
         'imap_password',
         'imap_encryption',
+        'relay_url',
+        'relay_secret',
         'daily_limit',
         'sent_today',
         'last_sent_at',
@@ -53,7 +55,9 @@ class OutreachEmailAccount extends Model
         'disabled_at'              => 'datetime',
     ];
 
-    protected $hidden = ['smtp_password', 'imap_password'];
+    protected $hidden = ['smtp_password', 'imap_password', 'relay_secret'];
+
+    public const PROVIDER_ZONE_RELAY = 'zone_relay';
 
     // ─── Accessors / Mutators ───────────────────────────────────────────────
 
@@ -75,6 +79,21 @@ class OutreachEmailAccount extends Model
     public function getImapPasswordAttribute(?string $value): ?string
     {
         return $value ? Crypt::decryptString($value) : null;
+    }
+
+    public function setRelaySecretAttribute(?string $value): void
+    {
+        $this->attributes['relay_secret'] = $value ? Crypt::encryptString($value) : null;
+    }
+
+    public function getRelaySecretAttribute(?string $value): ?string
+    {
+        return $value ? Crypt::decryptString($value) : null;
+    }
+
+    public function usesRelay(): bool
+    {
+        return $this->provider === self::PROVIDER_ZONE_RELAY;
     }
 
     // ─── Relationships ──────────────────────────────────────────────────────

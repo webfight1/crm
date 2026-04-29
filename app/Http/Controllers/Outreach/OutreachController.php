@@ -65,17 +65,19 @@ class OutreachController extends Controller
         $data = $request->validate([
             'name'                     => 'required|string|max:100',
             'email'                    => 'required|email|unique:outreach_email_accounts,email',
-            'provider'                 => 'required|in:gmail,smtp,outlook',
-            'smtp_host'                => 'required|string',
-            'smtp_port'                => 'required|integer|between:1,65535',
-            'smtp_username'            => 'required|string',
-            'smtp_password'            => 'required|string',
-            'smtp_encryption'          => 'required|in:tls,ssl,none',
+            'provider'                 => 'required|in:gmail,smtp,outlook,zone_relay',
+            'smtp_host'                => 'required_unless:provider,zone_relay|nullable|string',
+            'smtp_port'                => 'required_unless:provider,zone_relay|nullable|integer|between:1,65535',
+            'smtp_username'            => 'required_unless:provider,zone_relay|nullable|string',
+            'smtp_password'            => 'required_unless:provider,zone_relay|nullable|string',
+            'smtp_encryption'          => 'required_unless:provider,zone_relay|nullable|in:tls,ssl,none',
             'imap_host'                => 'nullable|string',
             'imap_port'                => 'nullable|integer|between:1,65535',
             'imap_username'            => 'nullable|string',
             'imap_password'            => 'nullable|string',
             'imap_encryption'          => 'nullable|in:ssl,tls,none',
+            'relay_url'                => 'required_if:provider,zone_relay|nullable|url',
+            'relay_secret'             => 'required_if:provider,zone_relay|nullable|string|min:16',
             'daily_limit'              => 'required|integer|min:1|max:500',
             'is_active'                => 'boolean',
             'is_primary_reply_account' => 'boolean',
@@ -109,15 +111,18 @@ class OutreachController extends Controller
 
         $data = $request->validate([
             'name'                     => 'required|string|max:100',
-            'smtp_host'                => 'required|string',
-            'smtp_port'                => 'required|integer|between:1,65535',
-            'smtp_username'            => 'required|string',
+            'provider'                 => 'nullable|in:gmail,smtp,outlook,zone_relay',
+            'smtp_host'                => 'nullable|string',
+            'smtp_port'                => 'nullable|integer|between:1,65535',
+            'smtp_username'            => 'nullable|string',
             'smtp_password'            => 'nullable|string',   // Optional — leave blank to keep current
-            'smtp_encryption'          => 'required|in:tls,ssl,none',
+            'smtp_encryption'          => 'nullable|in:tls,ssl,none',
             'imap_host'                => 'nullable|string',
             'imap_port'                => 'nullable|integer|between:1,65535',
             'imap_username'            => 'nullable|string',
             'imap_password'            => 'nullable|string',
+            'relay_url'                => 'nullable|url',
+            'relay_secret'             => 'nullable|string|min:16',
             'daily_limit'              => 'required|integer|min:1|max:500',
             'is_active'                => 'boolean',
             'is_primary_reply_account' => 'boolean',
@@ -129,6 +134,9 @@ class OutreachController extends Controller
         }
         if (empty($data['imap_password'])) {
             unset($data['imap_password']);
+        }
+        if (empty($data['relay_secret'])) {
+            unset($data['relay_secret']);
         }
 
         \DB::transaction(function () use ($data, $account) {

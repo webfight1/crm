@@ -24,14 +24,36 @@
 
                     <div>
                         <x-input-label for="provider" value="Teenusepakkuja" />
-                        <select id="provider" name="provider" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                        <select id="provider" name="provider" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" onchange="toggleRelayFields(this.value)">
                             <option value="smtp" @selected(old('provider')=='smtp')>SMTP (üldine)</option>
                             <option value="gmail" @selected(old('provider')=='gmail')>Gmail</option>
                             <option value="outlook" @selected(old('provider')=='outlook')>Outlook</option>
+                            <option value="zone_relay" @selected(old('provider')=='zone_relay')>Zone Relay (HTTP fail veebiserveris)</option>
                         </select>
+                        <p class="text-xs text-gray-500 mt-1">
+                            <strong>Zone Relay</strong> — kui SMTP-i välismaalt ei lubata (zone.ee shared hosting). Saadab läbi PHP mail-relay.php faili sinu domeeni veebiserveris.
+                        </p>
                     </div>
 
-                    <fieldset class="border border-gray-200 rounded p-4">
+                    <fieldset id="relay-fields" class="border border-purple-200 bg-purple-50 rounded p-4" style="display: none;">
+                        <legend class="text-sm font-medium text-purple-800 px-1">Zone Relay seaded</legend>
+                        <div class="space-y-4 mt-2">
+                            <div>
+                                <x-input-label for="relay_url" value="Relay URL" />
+                                <x-text-input id="relay_url" name="relay_url" class="mt-1 block w-full" :value="old('relay_url')" placeholder="https://webfight.ee/mail-relay.php" />
+                                <p class="text-xs text-gray-600 mt-1">URL kus mail-relay.php fail veebiserveris asub. HTTPS kohustuslik.</p>
+                                <x-input-error :messages="$errors->get('relay_url')" class="mt-1" />
+                            </div>
+                            <div>
+                                <x-input-label for="relay_secret" value="Shared secret (vähemalt 16 tähemärki)" />
+                                <x-text-input id="relay_secret" name="relay_secret" type="password" class="mt-1 block w-full" :value="old('relay_secret')" />
+                                <p class="text-xs text-gray-600 mt-1">Sama väärtus mis relay-failis (RELAY_SECRET konstant). Genereeri pikk juhuslik string.</p>
+                                <x-input-error :messages="$errors->get('relay_secret')" class="mt-1" />
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset id="smtp-fields" class="border border-gray-200 rounded p-4">
                         <legend class="text-sm font-medium text-gray-700 px-1">SMTP seaded</legend>
                         <div class="grid grid-cols-2 gap-4 mt-2">
                             <div>
@@ -130,4 +152,21 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function toggleRelayFields(provider) {
+            const relayFields = document.getElementById('relay-fields');
+            const smtpFields  = document.getElementById('smtp-fields');
+            if (provider === 'zone_relay') {
+                relayFields.style.display = 'block';
+                smtpFields.style.display  = 'none';
+            } else {
+                relayFields.style.display = 'none';
+                smtpFields.style.display  = 'block';
+            }
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            toggleRelayFields(document.getElementById('provider').value);
+        });
+    </script>
 </x-app-layout>
