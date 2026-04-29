@@ -153,16 +153,20 @@
     </div>
 
     <script>
+        // Toggling display:none alone is not enough — hidden inputs still
+        // participate in HTML5 validation, which prevents form submit when a
+        // hidden "required" field is blank. Setting `disabled` on the
+        // <fieldset> opts the browser out of both submission and validation.
         function toggleRelayFields(provider) {
             const relayFields = document.getElementById('relay-fields');
             const smtpFields  = document.getElementById('smtp-fields');
-            if (provider === 'zone_relay') {
-                relayFields.style.display = 'block';
-                smtpFields.style.display  = 'none';
-            } else {
-                relayFields.style.display = 'none';
-                smtpFields.style.display  = 'block';
-            }
+            const useRelay    = provider === 'zone_relay';
+
+            relayFields.style.display = useRelay ? 'block' : 'none';
+            smtpFields.style.display  = useRelay ? 'none'  : 'block';
+
+            relayFields.disabled = ! useRelay;
+            smtpFields.disabled  = useRelay;
         }
         document.addEventListener('DOMContentLoaded', () => {
             toggleRelayFields(document.getElementById('provider').value);
