@@ -603,8 +603,11 @@ class OutreachController extends Controller
                 'kind'         => 'sent',
                 'occurred_at'  => $s->sent_at ?? $s->created_at,
                 'subject'      => $s->subject,
-                'body_html'    => null,
-                'body_text'    => $s->body,
+                // OutreachSendLog::$body is the rendered HTML message
+                // (OutreachMailer dispatches it via Email::html()), so route
+                // it through the HTML branch — the text branch escapes tags.
+                'body_html'    => $s->body,
+                'body_text'    => null,
                 'from_email'   => $s->from_email,
                 'from_name'    => $s->emailAccount?->name,
                 'to_email'     => $s->to_email,
