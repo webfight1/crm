@@ -160,17 +160,32 @@ class ReplyDetectionService
     {
         $detected = 0;
 
-        // For the primary reply account we scan ALL active leads' sends — not
-        // just leads assigned to this mailbox — because handed-off conversations
-        // (Layer 2 Variant A) land here from any campaign's sending mailbox.
-        $leadQuery = OutreachLead::where('replied', false)
-            ->where('status', OutreachLead::STATUS_ACTIVE)
+        // Selection rules differ between mailbox roles:
+        //
+        //   PRIMARY REPLY ACCOUNT (e.g. veiko@webfight.ee)
+        //     The mailbox where handed-off conversations live. A client may
+        //     keep replying here for weeks after the initial cold-email reply.
+        //     We must keep capturing every follow-up, so the only constraint
+        //     is "we've sent something to this lead at some point" — replied
+        //     and status filters are intentionally NOT applied.
+        //
+        //   COLD-SEND MAILBOX (every other mailbox)
+        //     Only the lead's first reply matters here; once they reply we
+        //     mark them and any further follow-ups should land at the primary
+        //     reply account (after Layer 2 handoff). Filtering by replied=false
+        //     and status=active keeps each polling pass cheap.
+        $leadQuery = OutreachLead::query()
             ->whereHas('sendLogs', fn($q) => $q->where('status', OutreachSendLog::STATUS_SENT))
             ->with(['sendLogs' => fn($q) => $q->where('status', OutreachSendLog::STATUS_SENT)
                                               ->orderBy('sent_at')]);
 
-        if (! $account->is_primary_reply_account) {
-            $leadQuery->where('assigned_email_account_id', $account->id);
+        if ($account->is_primary_reply_account) {
+            // No replied/status/assignment filters — every prior conversation
+            // remains in scope for the primary mailbox.
+        } else {
+            $leadQuery->where('assigned_email_account_id', $account->id)
+                      ->where('replied', false)
+                      ->where('status', OutreachLead::STATUS_ACTIVE);
         }
 
         $leads = $leadQuery->get();
@@ -182,8 +197,14 @@ class ReplyDetectionService
         // Strategy A: header-based Message-ID matching
         $detected += $this->detectByMessageId($imap, $leads, $account);
 
-        // Strategy B: sender-address search for leads not yet caught
-        $remaining = $leads->filter(fn($l) => ! $l->replied && $l->status === OutreachLead::STATUS_ACTIVE);
+        // Strategy B: sender-address search.
+        // For the primary reply account every lead stays in scope (follow-up
+        // captures). For cold-send mailboxes we still want to catch only the
+        // first reply per lead, so we drop already-replied / inactive leads.
+        $remaining = $account->is_primary_reply_account
+            ? $leads
+            : $leads->filter(fn($l) => ! $l->replied && $l->status === OutreachLead::STATUS_ACTIVE);
+
         $detected += $this->detectBySenderAddress($imap, $remaining, $account);
 
         return $detected;
@@ -254,30 +275,32 @@ class ReplyDetectionService
             $inReplyTo  = $this->extractHeader($rawHeaders, 'In-Reply-To');
             $references = $this->extractHeader($rawHeaders, 'References');
 
-            // Check each sent Message-ID against thread headers
+            // Check each sent Message-ID against thread headers.
+            // Note: we DO process already-replied leads — for the primary
+            // reply mailbox, follow-up replies past the first one still need
+            // to be persisted into the conversation thread. The
+            // markReplied() + audit hop is gated to first-reply only so we
+            // don't keep updating replied_at or spamming the audit log.
             foreach ($messageIdMap as $sentMessageId => $lead) {
-                if ($lead->replied) {
-                    continue;
-                }
-
                 if ($this->headerContainsMessageId($inReplyTo, $sentMessageId)
                     || $this->headerContainsMessageId($references, $sentMessageId)
                 ) {
-                    // Persist message body BEFORE marking replied — if persist
-                    // throws we want the reply to remain detectable on the next
-                    // poller run rather than being silently lost.
+                    // Persist first — UNIQUE (account_id, imap_uid) makes this
+                    // idempotent across poller runs.
                     $this->persistMessage($imap, $msgNum, $rawHeaders, $lead, $account);
 
-                    $lead->markReplied();
-                    $detected++;
-
-                    $this->audit->replyDetected($lead->id, 'message_id', $sentMessageId);
+                    if (! $lead->replied) {
+                        $lead->markReplied();
+                        $detected++;
+                        $this->audit->replyDetected($lead->id, 'message_id', $sentMessageId);
+                    }
 
                     $this->logger->info('[Outreach] Reply detected via Message-ID header', [
-                        'lead_id'    => $lead->id,
-                        'email'      => $lead->email,
-                        'message_id' => $sentMessageId,
-                        'msg_num'    => $msgNum,
+                        'lead_id'         => $lead->id,
+                        'email'           => $lead->email,
+                        'message_id'      => $sentMessageId,
+                        'msg_num'         => $msgNum,
+                        'already_replied' => (bool) $lead->replied,
                     ]);
 
                     // One message can only match one lead; stop checking IDs
@@ -332,15 +355,17 @@ class ReplyDetectionService
                 if ($this->hasReplyHeader($rawHeaders) || $this->hasReplySubject($rawHeaders)) {
                     $this->persistMessage($imap, $msgNum, $rawHeaders, $lead, $account);
 
-                    $lead->markReplied();
-                    $detected++;
-
-                    $this->audit->replyDetected($lead->id, 'sender_address');
+                    if (! $lead->replied) {
+                        $lead->markReplied();
+                        $detected++;
+                        $this->audit->replyDetected($lead->id, 'sender_address');
+                    }
 
                     $this->logger->info('[Outreach] Reply detected via sender address', [
-                        'lead_id' => $lead->id,
-                        'email'   => $lead->email,
-                        'msg_num' => $msgNum,
+                        'lead_id'         => $lead->id,
+                        'email'           => $lead->email,
+                        'msg_num'         => $msgNum,
+                        'already_replied' => (bool) $lead->replied,
                     ]);
 
                     // One confirmed reply is enough — stop scanning other messages
