@@ -27,12 +27,49 @@
                         ? (str_starts_with(strtolower($lastSubject), 're:') ? $lastSubject : 'Re: ' . $lastSubject)
                         : '';
                 @endphp
-                @if($displayName !== '' || $companyName)
-                    <p class="text-sm text-gray-500 mt-0.5">
-                        @if($displayName !== ''){{ $displayName }}@endif
-                        @if($companyName) · {{ $companyName }}@endif
-                    </p>
-                @endif
+                <div class="flex items-center gap-2 mt-0.5">
+                    @if($displayName !== '' || $companyName)
+                        <p class="text-sm text-gray-500">
+                            @if($displayName !== ''){{ $displayName }}@endif
+                            @if($companyName) · {{ $companyName }}@endif
+                        </p>
+                    @endif
+                    <button type="button"
+                            onclick="document.getElementById('contact-edit-form').classList.toggle('hidden')"
+                            class="text-xs text-indigo-600 hover:text-indigo-900">
+                        ✎ muuda
+                    </button>
+                </div>
+
+                <form id="contact-edit-form" method="POST"
+                      action="{{ route('outreach.inbox.contact', rtrim(strtr(base64_encode($email), '+/', '-_'), '=')) }}"
+                      class="hidden mt-3 p-3 bg-gray-50 border border-gray-200 rounded space-y-2">
+                    @csrf
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <div>
+                            <label class="text-[11px] text-gray-500 uppercase">Eesnimi</label>
+                            <input type="text" name="first_name" value="{{ $firstName }}"
+                                   class="mt-0.5 block w-full text-sm border-gray-300 rounded shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="text-[11px] text-gray-500 uppercase">Perenimi</label>
+                            <input type="text" name="last_name" value="{{ $lastName }}"
+                                   class="mt-0.5 block w-full text-sm border-gray-300 rounded shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="text-[11px] text-gray-500 uppercase">Ettevõte</label>
+                            <input type="text" name="company" value="{{ $primaryLead->company ?? '' }}"
+                                   class="mt-0.5 block w-full text-sm border-gray-300 rounded shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <p class="text-[11px] text-gray-500">Salvestus uuendab kõiki lead'e selle emailiga + Customer/Contact (v.a ettevõtte FK).</p>
+                        <button type="submit"
+                                class="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700">
+                            Salvesta
+                        </button>
+                    </div>
+                </form>
             </div>
             <a href="{{ route('outreach.inbox.index') }}" class="text-sm text-indigo-600 hover:text-indigo-900">← Inbox</a>
         </div>

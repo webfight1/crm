@@ -982,6 +982,64 @@ class OutreachController extends Controller
     }
 
     /**
+     * Update display name (and lead-side company) for every record linked
+     * to a given inbox email. The same change is mirrored to every Lead with
+     * this email, plus the matching Customer and Contact records, so the
+     * inbox, campaign view, and customer profile all show the same name.
+     *
+     * Why this lives in the inbox controller: many leads start out with a
+     * placeholder name like "Friend" because the operator doesn't yet know
+     * who replied. Once a real reply arrives, the inbox is the natural
+     * place to fix the name without context-switching to the campaign UI.
+     *
+     * Customer/Contact company_id is an FK to Companies and is intentionally
+     * NOT edited here — that needs a company picker. Lead.company is a free
+     * text field so we update it inline.
+     */
+    public function inboxUpdateContact(Request $request, string $emailEncoded): RedirectResponse
+    {
+        $email = $this->decodeEmail($emailEncoded);
+        abort_if($email === null, 404);
+
+        $data = $request->validate([
+            'first_name' => 'nullable|string|max:255',
+            'last_name'  => 'nullable|string|max:255',
+            'company'    => 'nullable|string|max:255',
+        ]);
+
+        $emailLower = strtolower($email);
+
+        // Update every Lead that shares this email — usually one, but some
+        // contacts are enrolled across multiple campaigns under the same address.
+        $leadFields = array_filter([
+            'first_name' => $data['first_name'] ?? null,
+            'last_name'  => $data['last_name']  ?? null,
+            'company'    => $data['company']    ?? null,
+        ], fn($v) => $v !== null);
+
+        if (! empty($leadFields)) {
+            OutreachLead::whereRaw('LOWER(email) = ?', [$emailLower])->update($leadFields);
+        }
+
+        // Mirror name fields to Customer / Contact when they exist. Skip
+        // the company field — that lives behind an FK and is edited on the
+        // customer/contact's own page.
+        $crmFields = array_filter([
+            'first_name' => $data['first_name'] ?? null,
+            'last_name'  => $data['last_name']  ?? null,
+        ], fn($v) => $v !== null);
+
+        if (! empty($crmFields)) {
+            Customer::whereRaw('LOWER(email) = ?', [$emailLower])->update($crmFields);
+            Contact::whereRaw('LOWER(email) = ?', [$emailLower])->update($crmFields);
+        }
+
+        return redirect()
+            ->route('outreach.inbox.thread', $emailEncoded)
+            ->with('success', 'Kontakti andmed uuendatud.');
+    }
+
+    /**
      * URL-safe email decoding shared with the index view's encoder.
      * Returns null if the input is not a valid email address.
      */
