@@ -9,6 +9,7 @@ use App\Outreach\Models\OutreachCampaign;
 use App\Outreach\Models\OutreachCampaignStep;
 use App\Models\Contact;
 use App\Models\Customer;
+use App\Outreach\Models\OutreachArchivedThread;
 use App\Outreach\Models\OutreachEmailAccount;
 use App\Outreach\Models\OutreachLead;
 use App\Outreach\Models\OutreachMessage;
@@ -536,9 +537,13 @@ class OutreachController extends Controller
     {
         $search = trim((string) $request->query('q', ''));
         $filter = $request->query('filter', 'all');
-        if (! in_array($filter, ['all', 'unanswered', 'recent', 'lead', 'customer'], true)) {
+        if (! in_array($filter, ['all', 'unanswered', 'recent', 'lead', 'customer', 'archived'], true)) {
             $filter = 'all';
         }
+
+        // Archive scope: every filter except 'archived' hides archived threads.
+        // The 'archived' filter shows ONLY archived threads.
+        $archivedEmails = OutreachArchivedThread::pluck('email_lower')->all();
 
         $query = OutreachMessage::query()
             ->where('direction', OutreachMessage::DIRECTION_INBOUND)
@@ -570,6 +575,20 @@ class OutreachController extends Controller
         }
         if ($filter === 'customer') {
             $query->having('has_customer', '=', 1);
+        }
+
+        if ($filter === 'archived') {
+            // Show only archived threads.
+            if (empty($archivedEmails)) {
+                $query->whereRaw('1 = 0'); // nothing
+            } else {
+                $query->whereIn(\DB::raw('LOWER(from_email)'), $archivedEmails);
+            }
+        } else {
+            // All other filters hide archived threads.
+            if (! empty($archivedEmails)) {
+                $query->whereNotIn(\DB::raw('LOWER(from_email)'), $archivedEmails);
+            }
         }
 
         $threads = $query->paginate(30)->withQueryString();
@@ -832,11 +851,14 @@ class OutreachController extends Controller
         // thread payload so the same Blade can render both panels.
         $shared = $this->buildInboxViewData($request, $email);
 
+        $isArchived = OutreachArchivedThread::where('email_lower', strtolower($email))->exists();
+
         return view('outreach.inbox.thread', array_merge($shared, [
-            'email'    => $email,
-            'leads'    => $leads,
-            'timeline' => $timeline,
-            'crmLink'  => $crmLink,
+            'email'      => $email,
+            'leads'      => $leads,
+            'timeline'   => $timeline,
+            'crmLink'    => $crmLink,
+            'isArchived' => $isArchived,
         ]));
     }
 
@@ -1037,6 +1059,45 @@ class OutreachController extends Controller
         return redirect()
             ->route('outreach.inbox.thread', $emailEncoded)
             ->with('success', 'Kontakti andmed uuendatud.');
+    }
+
+    /**
+     * Archive an inbox thread (per from-email). Hides the thread from the
+     * default inbox views; user can find it back via the "Arhiveeritud"
+     * filter. A new inbound message auto-unarchives the thread (handled in
+     * ReplyDetectionService::persistMessage).
+     */
+    public function inboxArchive(Request $request, string $emailEncoded): RedirectResponse
+    {
+        $email = $this->decodeEmail($emailEncoded);
+        abort_if($email === null, 404);
+
+        OutreachArchivedThread::updateOrCreate(
+            ['email_lower' => strtolower($email)],
+            [
+                'archived_at'         => now(),
+                'archived_by_user_id' => auth()->id(),
+            ]
+        );
+
+        return redirect()
+            ->route('outreach.inbox.index')
+            ->with('success', 'Vestlus arhiveeritud.');
+    }
+
+    /**
+     * Restore a previously-archived inbox thread to the regular inbox.
+     */
+    public function inboxUnarchive(Request $request, string $emailEncoded): RedirectResponse
+    {
+        $email = $this->decodeEmail($emailEncoded);
+        abort_if($email === null, 404);
+
+        OutreachArchivedThread::where('email_lower', strtolower($email))->delete();
+
+        return redirect()
+            ->route('outreach.inbox.thread', $emailEncoded)
+            ->with('success', 'Vestlus tagasi inbox-i.');
     }
 
     /**

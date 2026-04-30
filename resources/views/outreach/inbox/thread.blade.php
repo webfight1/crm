@@ -71,7 +71,28 @@
                     </div>
                 </form>
             </div>
-            <a href="{{ route('outreach.inbox.index') }}" class="text-sm text-indigo-600 hover:text-indigo-900">← Inbox</a>
+            <div class="flex items-center gap-2">
+                @php $encoded = rtrim(strtr(base64_encode($email), '+/', '-_'), '='); @endphp
+                @if($isArchived ?? false)
+                    <form method="POST" action="{{ route('outreach.inbox.unarchive', $encoded) }}" class="inline">
+                        @csrf
+                        <button type="submit"
+                                class="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded hover:bg-amber-100">
+                            ↩ Eemalda arhiivist
+                        </button>
+                    </form>
+                @else
+                    <form method="POST" action="{{ route('outreach.inbox.archive', $encoded) }}" class="inline"
+                          onsubmit="return confirm('Arhiveeri see vestlus? Saad selle hiljem ‘Arhiveeritud’ filtrist tagasi tuua.');">
+                        @csrf
+                        <button type="submit"
+                                class="px-3 py-1.5 bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-200">
+                            🗄 Arhiveeri
+                        </button>
+                    </form>
+                @endif
+                <a href="{{ route('outreach.inbox.index') }}" class="text-sm text-indigo-600 hover:text-indigo-900">← Inbox</a>
+            </div>
         </div>
     </x-slot>
 

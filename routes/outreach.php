@@ -53,6 +53,8 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
     Route::get('/inbox/{emailEncoded}',           [OutreachController::class, 'inboxThread'])->name('inbox.thread');
     Route::post('/inbox/{emailEncoded}/reply',    [OutreachController::class, 'inboxReply'])->name('inbox.reply');
     Route::post('/inbox/{emailEncoded}/contact',  [OutreachController::class, 'inboxUpdateContact'])->name('inbox.contact');
+    Route::post('/inbox/{emailEncoded}/archive',  [OutreachController::class, 'inboxArchive'])->name('inbox.archive');
+    Route::post('/inbox/{emailEncoded}/unarchive',[OutreachController::class, 'inboxUnarchive'])->name('inbox.unarchive');
 
     // ── Logs ────────────────────────────────────────────────────────────────
     Route::get('/logs/{campaign}', [OutreachController::class, 'logsIndex'])->name('logs.index');

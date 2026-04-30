@@ -4,6 +4,7 @@ namespace App\Outreach\Services;
 
 use App\Models\Contact;
 use App\Models\Customer;
+use App\Outreach\Models\OutreachArchivedThread;
 use App\Outreach\Models\OutreachEmailAccount;
 use App\Outreach\Models\OutreachLead;
 use App\Outreach\Models\OutreachMessage;
@@ -545,7 +546,7 @@ class ReplyDetectionService
             // then whichever attribution gave us a known address.
             $fallbackEmail = $lead?->email ?? $customer?->email ?? $contact?->email ?? '';
 
-            OutreachMessage::firstOrCreate(
+            $msg = OutreachMessage::firstOrCreate(
                 [
                     'email_account_id' => $account->id,
                     'imap_uid'         => $uid,
@@ -567,6 +568,15 @@ class ReplyDetectionService
                     'received_at'       => $receivedAt,
                 ]
             );
+
+            // Auto-unarchive: a new genuine inbound message resurfaces an
+            // archived thread. We only do this when firstOrCreate actually
+            // INSERTed (wasRecentlyCreated) — otherwise re-running a poll on
+            // already-stored messages would keep clearing the archive.
+            if ($msg->wasRecentlyCreated && $msg->from_email) {
+                OutreachArchivedThread::where('email_lower', strtolower($msg->from_email))
+                    ->delete();
+            }
         } catch (Throwable $e) {
             $this->logger->error('[Outreach] Failed to persist reply message', [
                 'lead_id'     => $lead?->id,

@@ -21,6 +21,7 @@
                 'recent'     => 'Viimased 7p',
                 'lead'       => 'Lead',
                 'customer'   => 'Klient',
+                'archived'   => 'Arhiveeritud',
             ];
         @endphp
         <div class="flex gap-1 text-xs flex-wrap">
