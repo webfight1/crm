@@ -4,18 +4,33 @@
             <div>
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">Vestlus — {{ $email }}</h2>
                 @php
-                    $primary = $leads->first();
-                    $displayName = trim(($primary->first_name ?? '') . ' ' . ($primary->last_name ?? ''));
+                    // Display metadata cascades through whichever attribution
+                    // exists for this thread: lead → customer → contact. A
+                    // thread can be customer-only (no lead) when Strategy C
+                    // captured fresh business mail from a CRM contact.
+                    $primaryLead     = $leads->first();
+                    $primaryCustomer = $crmLink['customer'] ?? null;
+                    $primaryContact  = $crmLink['contact']  ?? null;
+
+                    $firstName   = $primaryLead?->first_name ?? $primaryCustomer?->first_name ?? $primaryContact?->first_name ?? '';
+                    $lastName    = $primaryLead?->last_name  ?? $primaryCustomer?->last_name  ?? $primaryContact?->last_name  ?? '';
+                    $displayName = trim($firstName . ' ' . $lastName);
+
+                    $companyName = $primaryLead->company
+                                   ?? $primaryCustomer?->company?->name
+                                   ?? $primaryContact?->company?->name
+                                   ?? null;
+
                     $primaryReply = \App\Outreach\Models\OutreachEmailAccount::primaryReplyAccount();
                     $lastSubject = $timeline->reverse()->firstWhere('subject') ? $timeline->reverse()->firstWhere(fn($e) => !empty($e->subject))?->subject : null;
                     $replySubjectDefault = $lastSubject
                         ? (str_starts_with(strtolower($lastSubject), 're:') ? $lastSubject : 'Re: ' . $lastSubject)
                         : '';
                 @endphp
-                @if($displayName !== '' || $primary->company)
+                @if($displayName !== '' || $companyName)
                     <p class="text-sm text-gray-500 mt-0.5">
                         @if($displayName !== ''){{ $displayName }}@endif
-                        @if($primary->company) · {{ $primary->company }}@endif
+                        @if($companyName) · {{ $companyName }}@endif
                     </p>
                 @endif
             </div>
@@ -100,26 +115,28 @@
                 </div>
             @endif
 
-            <div class="bg-white shadow-sm rounded-lg p-4">
-                <h3 class="text-sm font-semibold text-gray-700 mb-2">Lead'id ({{ $leads->count() }})</h3>
-                <div class="space-y-2">
-                    @foreach($leads as $lead)
-                        <div class="flex items-center justify-between text-sm">
-                            <div>
-                                <a href="{{ route('outreach.campaigns.show', $lead->campaign) }}" class="text-indigo-600 hover:text-indigo-900">
-                                    {{ $lead->campaign->name ?? '—' }}
-                                </a>
-                                <span class="text-gray-400 mx-1">·</span>
-                                <span class="text-gray-600">{{ $lead->status }}</span>
-                                @if($lead->replied)
-                                    <span class="ml-2 px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">Vastanud</span>
-                                @endif
+            @if($leads->isNotEmpty())
+                <div class="bg-white shadow-sm rounded-lg p-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-2">Lead'id ({{ $leads->count() }})</h3>
+                    <div class="space-y-2">
+                        @foreach($leads as $lead)
+                            <div class="flex items-center justify-between text-sm">
+                                <div>
+                                    <a href="{{ route('outreach.campaigns.show', $lead->campaign) }}" class="text-indigo-600 hover:text-indigo-900">
+                                        {{ $lead->campaign->name ?? '—' }}
+                                    </a>
+                                    <span class="text-gray-400 mx-1">·</span>
+                                    <span class="text-gray-600">{{ $lead->status }}</span>
+                                    @if($lead->replied)
+                                        <span class="ml-2 px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">Vastanud</span>
+                                    @endif
+                                </div>
+                                <span class="text-xs text-gray-400">via {{ $lead->assignedEmailAccount?->name ?? '—' }}</span>
                             </div>
-                            <span class="text-xs text-gray-400">via {{ $lead->assignedEmailAccount?->name ?? '—' }}</span>
-                        </div>
-                    @endforeach
+                        @endforeach
+                    </div>
                 </div>
-            </div>
+            @endif
 
             <div class="space-y-4">
                 @forelse($timeline as $entry)
