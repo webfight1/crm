@@ -580,9 +580,10 @@ class ReplyDetectionService
     }
 
     /**
-     * Walk the IMAP structure tree and pull out text/plain, text/html, and
-     * an attachment flag. Handles non-multipart messages (single-part body)
-     * and multipart messages (alternative, mixed, related).
+     * Walk the IMAP structure tree and pull out text/plain, text/html, an
+     * attachment flag, and any inline images referenced by Content-ID. The
+     * inline images are inlined into body_html as `data:` URIs so the iframe
+     * preview renders them without further server-side requests.
      *
      * Returns [bodyText, bodyHtml, hasAttachments].
      *
@@ -613,16 +614,36 @@ class ReplyDetectionService
         $bodyText       = null;
         $bodyHtml       = null;
         $hasAttachments = false;
+        $inlineImages   = [];   // [cid => data:image/...;base64,...]
 
-        $this->walkParts($imap, $msgNum, $structure->parts, '', $bodyText, $bodyHtml, $hasAttachments);
+        $this->walkParts($imap, $msgNum, $structure->parts, '', $bodyText, $bodyHtml, $hasAttachments, $inlineImages);
+
+        // Replace cid:abc-style references in body_html with the data: URIs
+        // we collected. Both src="cid:X" and src='cid:X' need handling, plus
+        // unquoted edge cases. Unmatched cids are left as-is so the original
+        // markup survives — the iframe will just show a broken image icon.
+        if ($bodyHtml !== null && ! empty($inlineImages)) {
+            $bodyHtml = preg_replace_callback(
+                '/(["\'])\s*cid:([^"\'>\s]+)\s*\1/i',
+                function ($m) use ($inlineImages) {
+                    $cid = trim($m[2], '<>');
+                    return isset($inlineImages[$cid])
+                        ? $m[1] . $inlineImages[$cid] . $m[1]
+                        : $m[0];
+                },
+                $bodyHtml
+            );
+        }
 
         return [$bodyText, $bodyHtml, $hasAttachments];
     }
 
     /**
      * Recursively walk multipart sections. Modifies $bodyText, $bodyHtml,
-     * and $hasAttachments by reference. The first text/plain and first
-     * text/html encountered win — typical RFC 2046 alternative ordering.
+     * $hasAttachments, and $inlineImages by reference. The first text/plain
+     * and first text/html encountered win — typical RFC 2046 alternative
+     * ordering. Inline images (type=5 with Content-ID) are collected
+     * separately so they can be inlined into body_html as data: URIs.
      *
      * @param resource $imap
      */
@@ -634,28 +655,54 @@ class ReplyDetectionService
         ?string &$bodyText,
         ?string &$bodyHtml,
         bool    &$hasAttachments,
+        array   &$inlineImages,
     ): void {
         foreach ($parts as $i => $part) {
             // IMAP section numbers are 1-indexed and dotted for nesting.
             $section = $prefix === '' ? (string) ($i + 1) : $prefix . '.' . ($i + 1);
 
             $disposition = isset($part->disposition) ? strtolower($part->disposition) : null;
+
+            // Recurse into nested multipart parts.
+            if (! empty($part->parts)) {
+                $this->walkParts($imap, $msgNum, $part->parts, $section, $bodyText, $bodyHtml, $hasAttachments, $inlineImages);
+                continue;
+            }
+
+            $type    = isset($part->type) ? (int) $part->type : 0;       // 0=TEXT, 5=IMAGE
+            $subtype = isset($part->subtype) ? strtolower($part->subtype) : '';
+            $hasContentId = ! empty($part->ifid) && ! empty($part->id);
+
+            // Inline image with Content-ID → grab as data: URI for HTML inlining.
+            // Some clients (Apple Mail, Outlook) attach images with disposition='inline'
+            // and a cid. We handle them whether or not 'inline' is set, as long as
+            // there's a Content-ID — that's the signal HTML body needs them.
+            if ($type === 5 && $hasContentId) {
+                $cid = trim((string) $part->id, '<>');
+                $raw = @imap_fetchbody($imap, $msgNum, $section);
+                if ($cid !== '' && is_string($raw) && $raw !== '') {
+                    $encoding = (int) ($part->encoding ?? 0);
+                    // Re-base64 to keep data URI short. Encoding 3 = BASE64
+                    // means raw is already base64; just strip whitespace.
+                    if ($encoding === 3) {
+                        $b64 = preg_replace('/\s+/', '', $raw);
+                    } else {
+                        $bin = $encoding === 4 ? quoted_printable_decode($raw) : $raw;
+                        $b64 = base64_encode($bin);
+                    }
+                    $inlineImages[$cid] = 'data:image/' . ($subtype ?: 'png') . ';base64,' . $b64;
+                }
+                continue;
+            }
+
             if ($disposition === 'attachment') {
                 $hasAttachments = true;
                 continue;
             }
 
-            // Recurse into nested multipart parts.
-            if (! empty($part->parts)) {
-                $this->walkParts($imap, $msgNum, $part->parts, $section, $bodyText, $bodyHtml, $hasAttachments);
-                continue;
-            }
-
-            $type    = isset($part->type) ? (int) $part->type : 0;       // 0 = TYPETEXT
-            $subtype = isset($part->subtype) ? strtolower($part->subtype) : '';
-
             if ($type !== 0) {
-                // Non-text body part counts as an attachment if not already flagged.
+                // Non-text, non-inline-image part — treat as attachment
+                // unless disposition explicitly marks it inline.
                 if ($disposition === null) {
                     $hasAttachments = true;
                 }
