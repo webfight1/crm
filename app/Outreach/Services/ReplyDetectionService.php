@@ -160,32 +160,36 @@ class ReplyDetectionService
     {
         $detected = 0;
 
-        // Selection rules differ between mailbox roles:
+        // Selection rules per mailbox role:
         //
         //   PRIMARY REPLY ACCOUNT (e.g. veiko@webfight.ee)
-        //     The mailbox where handed-off conversations live. A client may
-        //     keep replying here for weeks after the initial cold-email reply.
-        //     We must keep capturing every follow-up, so the only constraint
-        //     is "we've sent something to this lead at some point" — replied
-        //     and status filters are intentionally NOT applied.
+        //     Every conversation we've ever started stays in scope. After
+        //     handoff, clients may keep replying here for weeks; we don't
+        //     filter by replied/status/assignment.
         //
         //   COLD-SEND MAILBOX (every other mailbox)
-        //     Only the lead's first reply matters here; once they reply we
-        //     mark them and any further follow-ups should land at the primary
-        //     reply account (after Layer 2 handoff). Filtering by replied=false
-        //     and status=active keeps each polling pass cheap.
+        //     Two distinct selection paths combined with OR:
+        //       (a) "First-reply detection" — leads still in active sequence
+        //           assigned to THIS mailbox. The first reply flips replied=true.
+        //       (b) "Always-listening" — every qualified lead (replied=true)
+        //           regardless of which mailbox they were originally assigned
+        //           to. This catches the common scenario where a former lead
+        //           writes a fresh email to ANY of our cold mailboxes — even
+        //           one that didn't originally contact them. Without this
+        //           branch, those messages would be silently lost.
         $leadQuery = OutreachLead::query()
             ->whereHas('sendLogs', fn($q) => $q->where('status', OutreachSendLog::STATUS_SENT))
             ->with(['sendLogs' => fn($q) => $q->where('status', OutreachSendLog::STATUS_SENT)
                                               ->orderBy('sent_at')]);
 
-        if ($account->is_primary_reply_account) {
-            // No replied/status/assignment filters — every prior conversation
-            // remains in scope for the primary mailbox.
-        } else {
-            $leadQuery->where('assigned_email_account_id', $account->id)
-                      ->where('replied', false)
-                      ->where('status', OutreachLead::STATUS_ACTIVE);
+        if (! $account->is_primary_reply_account) {
+            $leadQuery->where(function ($q) use ($account) {
+                $q->where(function ($firstReply) use ($account) {
+                    $firstReply->where('assigned_email_account_id', $account->id)
+                               ->where('replied', false)
+                               ->where('status', OutreachLead::STATUS_ACTIVE);
+                })->orWhere('replied', true);
+            });
         }
 
         $leads = $leadQuery->get();
@@ -197,15 +201,11 @@ class ReplyDetectionService
         // Strategy A: header-based Message-ID matching
         $detected += $this->detectByMessageId($imap, $leads, $account);
 
-        // Strategy B: sender-address search.
-        // For the primary reply account every lead stays in scope (follow-up
-        // captures). For cold-send mailboxes we still want to catch only the
-        // first reply per lead, so we drop already-replied / inactive leads.
-        $remaining = $account->is_primary_reply_account
-            ? $leads
-            : $leads->filter(fn($l) => ! $l->replied && $l->status === OutreachLead::STATUS_ACTIVE);
-
-        $detected += $this->detectBySenderAddress($imap, $remaining, $account);
+        // Strategy B: sender-address search runs against every lead in scope.
+        // The "always-listening" extension means qualified leads are deliberately
+        // kept in scope on cold mailboxes too, so any fresh inbound from them
+        // (including stand-alone messages with no In-Reply-To) is captured.
+        $detected += $this->detectBySenderAddress($imap, $leads, $account);
 
         return $detected;
     }

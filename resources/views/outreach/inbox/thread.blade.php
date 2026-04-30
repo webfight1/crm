@@ -59,8 +59,14 @@
     </script>
     @endpush
 
-    <div class="py-8">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8 space-y-6">
+    <div class="py-6">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div class="lg:col-span-1">
+                    @include('outreach.inbox._list')
+                </div>
+
+                <div class="lg:col-span-2 space-y-6">
 
             @if(session('success'))
                 <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded">{{ session('success') }}</div>
@@ -242,6 +248,8 @@
                     </form>
                 @endif
             </div>
+                </div> {{-- /lg:col-span-2 --}}
+            </div> {{-- /grid --}}
         </div>
     </div>
 </x-app-layout>

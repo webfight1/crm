@@ -516,7 +516,25 @@ class OutreachController extends Controller
      */
     public function inboxIndex(Request $request): View
     {
+        return view('outreach.inbox.index', $this->buildInboxViewData($request, null));
+    }
+
+    /**
+     * Build the data structure shared by both the inbox index (no thread
+     * selected) and the inbox thread view. Returns:
+     *   - threads: paginated list of inbox rows (one per unique sender email)
+     *   - search:  current search query string
+     *   - filter:  current filter chip ('all' | 'unanswered' | 'recent')
+     *   - selectedEmail: lowercased email of the currently open thread, or null
+     *   - timeline, leads, crmLink: only populated when a thread is selected
+     */
+    private function buildInboxViewData(Request $request, ?string $selectedEmail): array
+    {
         $search = trim((string) $request->query('q', ''));
+        $filter = $request->query('filter', 'all');
+        if (! in_array($filter, ['all', 'unanswered', 'recent'], true)) {
+            $filter = 'all';
+        }
 
         $query = OutreachMessage::query()
             ->where('direction', OutreachMessage::DIRECTION_INBOUND)
@@ -524,6 +542,7 @@ class OutreachController extends Controller
             ->selectRaw('MAX(received_at) as last_received_at')
             ->selectRaw('COUNT(*) as reply_count')
             ->selectRaw('MAX(from_name) as display_name')
+            ->selectRaw('MAX(subject) as latest_subject')
             ->groupBy('group_email')
             ->orderByDesc('last_received_at');
 
@@ -536,18 +555,44 @@ class OutreachController extends Controller
             });
         }
 
+        if ($filter === 'recent') {
+            $query->having('last_received_at', '>=', now()->subDays(7));
+        }
+
         $threads = $query->paginate(30)->withQueryString();
 
-        // Annotate each row with related-lead summary so the index can show
-        // company, name, and campaign badges without N+1 per render.
         $emails = $threads->getCollection()->pluck('group_email')->all();
 
+        // ── Lead-side metadata (name / company / campaigns) for each row ────
         $leadIndex = OutreachLead::with('campaign')
             ->whereIn(\DB::raw('LOWER(email)'), $emails)
             ->get()
             ->groupBy(fn($l) => strtolower($l->email));
 
-        $threads->getCollection()->transform(function ($row) use ($leadIndex) {
+        // ── "Last outbound" lookup per email so we can compute is_unanswered.
+        // We compare each row's last_received_at against the most recent
+        // outbound activity for the same lead(s): either an outreach_send_log
+        // (campaign step we sent) or an outreach_messages outbound row
+        // (manual reply we sent from the CRM).
+        $allLeadIds = $leadIndex->flatten(1)->pluck('id')->all();
+
+        $sendByLead = $allLeadIds
+            ? OutreachSendLog::whereIn('lead_id', $allLeadIds)
+                ->where('status', OutreachSendLog::STATUS_SENT)
+                ->selectRaw('lead_id, MAX(sent_at) as last_sent_at')
+                ->groupBy('lead_id')
+                ->pluck('last_sent_at', 'lead_id')
+            : collect();
+
+        $outboundByLead = $allLeadIds
+            ? OutreachMessage::whereIn('lead_id', $allLeadIds)
+                ->where('direction', OutreachMessage::DIRECTION_OUTBOUND)
+                ->selectRaw('lead_id, MAX(received_at) as last_outbound_at')
+                ->groupBy('lead_id')
+                ->pluck('last_outbound_at', 'lead_id')
+            : collect();
+
+        $threads->getCollection()->transform(function ($row) use ($leadIndex, $sendByLead, $outboundByLead) {
             $leads = $leadIndex->get($row->group_email, collect());
             $first = $leads->first();
             $row->lead_first_name = $first?->first_name;
@@ -555,13 +600,42 @@ class OutreachController extends Controller
             $row->lead_company    = $first?->company;
             $row->campaigns       = $leads->pluck('campaign.name')->filter()->unique()->values();
             $row->lead_count      = $leads->count();
+
+            // Latest outbound timestamp across all this contact's leads.
+            $lastOutbound = null;
+            foreach ($leads as $l) {
+                foreach ([$sendByLead->get($l->id), $outboundByLead->get($l->id)] as $ts) {
+                    if ($ts && (! $lastOutbound || $ts > $lastOutbound)) {
+                        $lastOutbound = $ts;
+                    }
+                }
+            }
+            $row->last_outbound_at = $lastOutbound;
+            $row->is_unanswered    = $lastOutbound === null
+                || $row->last_received_at > $lastOutbound;
+
             return $row;
         });
 
-        return view('outreach.inbox.index', [
-            'threads' => $threads,
-            'search'  => $search,
-        ]);
+        // Apply unanswered filter post-query (the predicate depends on a
+        // join+aggregate that's awkward in a single SQL grouping).
+        if ($filter === 'unanswered') {
+            $threads->setCollection(
+                $threads->getCollection()->filter(fn($r) => $r->is_unanswered)->values()
+            );
+        }
+
+        $data = [
+            'threads'        => $threads,
+            'search'         => $search,
+            'filter'         => $filter,
+            'selectedEmail'  => $selectedEmail !== null ? strtolower($selectedEmail) : null,
+            'timeline'       => null,
+            'leads'          => null,
+            'crmLink'        => null,
+        ];
+
+        return $data;
     }
 
     /**
@@ -572,7 +646,7 @@ class OutreachController extends Controller
      * lead with this email (across campaigns) and merge sent (OutreachSendLog)
      * + received (OutreachMessage) entries into a single chronological timeline.
      */
-    public function inboxThread(string $emailEncoded, \App\Outreach\Services\OutreachActivityLookup $lookup): View
+    public function inboxThread(Request $request, string $emailEncoded, \App\Outreach\Services\OutreachActivityLookup $lookup): View
     {
         $email = $this->decodeEmail($emailEncoded);
         abort_if($email === null, 404);
@@ -642,12 +716,16 @@ class OutreachController extends Controller
             ->sortBy(fn($e) => $e->occurred_at?->timestamp ?? 0)
             ->values();
 
-        return view('outreach.inbox.thread', [
+        // Reuse the index data builder for the left rail, then overlay the
+        // thread payload so the same Blade can render both panels.
+        $shared = $this->buildInboxViewData($request, $email);
+
+        return view('outreach.inbox.thread', array_merge($shared, [
             'email'    => $email,
             'leads'    => $leads,
             'timeline' => $timeline,
             'crmLink'  => $crmLink,
-        ]);
+        ]));
     }
 
     /**
