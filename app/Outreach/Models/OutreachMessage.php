@@ -24,6 +24,8 @@ class OutreachMessage extends Model
 
     protected $fillable = [
         'lead_id',
+        'customer_id',
+        'contact_id',
         'email_account_id',
         'direction',
         'message_id',
@@ -50,6 +52,16 @@ class OutreachMessage extends Model
     public function lead(): BelongsTo
     {
         return $this->belongsTo(OutreachLead::class, 'lead_id');
+    }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Customer::class, 'customer_id');
+    }
+
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Contact::class, 'contact_id');
     }
 
     public function emailAccount(): BelongsTo

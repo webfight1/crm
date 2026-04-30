@@ -18,10 +18,12 @@
             $chips = [
                 'all'        => 'Kõik',
                 'unanswered' => 'Vastamata',
-                'recent'     => 'Viimased 7 päeva',
+                'recent'     => 'Viimased 7p',
+                'lead'       => 'Lead',
+                'customer'   => 'Klient',
             ];
         @endphp
-        <div class="flex gap-1 text-xs">
+        <div class="flex gap-1 text-xs flex-wrap">
             @foreach($chips as $key => $label)
                 @php
                     $url = route('outreach.inbox.index', array_filter([
@@ -31,7 +33,7 @@
                     $active = $filter === $key;
                 @endphp
                 <a href="{{ $url }}"
-                   class="px-3 py-1 rounded-full {{ $active ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                   class="px-2.5 py-1 rounded-full {{ $active ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
                     {{ $label }}
                 </a>
             @endforeach
@@ -80,7 +82,15 @@
                                 </span>
                             @endif
                         </div>
-                        <p class="text-xs text-gray-500 truncate mt-0.5">{{ $thread->group_email }}</p>
+                        <div class="flex items-center gap-1 mt-0.5">
+                            <p class="text-xs text-gray-500 truncate flex-1">{{ $thread->group_email }}</p>
+                            @if(! empty($thread->is_customer))
+                                <span class="px-1.5 py-0.5 text-[10px] bg-blue-100 text-blue-800 rounded shrink-0">Klient</span>
+                            @endif
+                            @if(! empty($thread->is_lead) && empty($thread->is_customer))
+                                <span class="px-1.5 py-0.5 text-[10px] bg-purple-100 text-purple-800 rounded shrink-0">Lead</span>
+                            @endif
+                        </div>
                         @if($thread->latest_subject)
                             <p class="text-xs {{ $hasUnread ? 'text-gray-900 font-medium' : 'text-gray-700' }} truncate mt-1">{{ $thread->latest_subject }}</p>
                         @endif

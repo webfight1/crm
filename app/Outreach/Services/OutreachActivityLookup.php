@@ -57,32 +57,48 @@ class OutreachActivityLookup
 
         $emailLower = strtolower(trim($email));
 
-        $leads = OutreachLead::with('campaign')
-            ->whereRaw('LOWER(email) = ?', [$emailLower])
-            ->get();
+        $leads    = OutreachLead::with('campaign')->whereRaw('LOWER(email) = ?', [$emailLower])->get();
+        $customer = Customer::whereRaw('LOWER(email) = ?', [$emailLower])->first();
+        $contact  = Contact::whereRaw('LOWER(email) = ?', [$emailLower])->first();
 
-        if ($leads->isEmpty()) {
+        if ($leads->isEmpty() && ! $customer && ! $contact) {
             return $empty;
         }
 
         $leadIds = $leads->pluck('id');
 
-        $replyCount = OutreachMessage::whereIn('lead_id', $leadIds)
+        // Inbound messages may be attributed to a lead, a customer, or a
+        // contact (or any combination). Aggregate across all three lenses.
+        $messageQuery = OutreachMessage::query()
             ->where('direction', OutreachMessage::DIRECTION_INBOUND)
-            ->count();
+            ->where(function ($q) use ($leadIds, $customer, $contact) {
+                if ($leadIds->isNotEmpty()) {
+                    $q->orWhereIn('lead_id', $leadIds);
+                }
+                if ($customer) {
+                    $q->orWhere('customer_id', $customer->id);
+                }
+                if ($contact) {
+                    $q->orWhere('contact_id', $contact->id);
+                }
+            });
 
-        $sentCount = OutreachSendLog::whereIn('lead_id', $leadIds)
-            ->where('status', OutreachSendLog::STATUS_SENT)
-            ->count();
+        $replyCount = (clone $messageQuery)->count();
 
-        $latest = OutreachMessage::whereIn('lead_id', $leadIds)
-            ->where('direction', OutreachMessage::DIRECTION_INBOUND)
-            ->orderByDesc('received_at')
-            ->first();
+        $latest = (clone $messageQuery)->orderByDesc('received_at')->first();
 
-        $lastSentAt = OutreachSendLog::whereIn('lead_id', $leadIds)
-            ->where('status', OutreachSendLog::STATUS_SENT)
-            ->max('sent_at');
+        // Sent count + last_sent_at only meaningful when a lead exists.
+        $sentCount = $leadIds->isNotEmpty()
+            ? OutreachSendLog::whereIn('lead_id', $leadIds)
+                ->where('status', OutreachSendLog::STATUS_SENT)
+                ->count()
+            : 0;
+
+        $lastSentAt = $leadIds->isNotEmpty()
+            ? OutreachSendLog::whereIn('lead_id', $leadIds)
+                ->where('status', OutreachSendLog::STATUS_SENT)
+                ->max('sent_at')
+            : null;
 
         $snippet = null;
         if ($latest) {
@@ -96,7 +112,7 @@ class OutreachActivityLookup
         $encoded = rtrim(strtr(base64_encode($emailLower), '+/', '-_'), '=');
 
         return [
-            'has_activity'     => true,
+            'has_activity'     => $replyCount > 0 || $sentCount > 0,
             'lead_count'       => $leads->count(),
             'reply_count'      => $replyCount,
             'sent_count'       => $sentCount,

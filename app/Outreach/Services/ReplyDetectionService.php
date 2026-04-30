@@ -2,6 +2,8 @@
 
 namespace App\Outreach\Services;
 
+use App\Models\Contact;
+use App\Models\Customer;
 use App\Outreach\Models\OutreachEmailAccount;
 use App\Outreach\Models\OutreachLead;
 use App\Outreach\Models\OutreachMessage;
@@ -198,7 +200,8 @@ class ReplyDetectionService
             return 0;
         }
 
-        // Strategy A: header-based Message-ID matching
+        // Strategy A: header-based Message-ID matching (lead-only — Customers
+        // and Contacts have no outbound message_ids to match against).
         $detected += $this->detectByMessageId($imap, $leads, $account);
 
         // Strategy B: sender-address search runs against every lead in scope.
@@ -206,6 +209,12 @@ class ReplyDetectionService
         // kept in scope on cold mailboxes too, so any fresh inbound from them
         // (including stand-alone messages with no In-Reply-To) is captured.
         $detected += $this->detectBySenderAddress($imap, $leads, $account);
+
+        // Strategy C: scan for inbound from any Customer or Contact whose
+        // email is registered in the main CRM tables, even if they were never
+        // an outreach lead. Captures direct business correspondence into the
+        // unified inbox.
+        $detected += $this->detectCrmContacts($imap, $account);
 
         return $detected;
     }
@@ -287,7 +296,7 @@ class ReplyDetectionService
                 ) {
                     // Persist first — UNIQUE (account_id, imap_uid) makes this
                     // idempotent across poller runs.
-                    $this->persistMessage($imap, $msgNum, $rawHeaders, $lead, $account);
+                    $this->persistMessage($imap, $msgNum, $rawHeaders, $account, lead: $lead);
 
                     if (! $lead->replied) {
                         $lead->markReplied();
@@ -353,7 +362,7 @@ class ReplyDetectionService
                 // Without this gate, an auto-responder FROM the same address would
                 // trigger a false positive, even after the automated-sender check.
                 if ($this->hasReplyHeader($rawHeaders) || $this->hasReplySubject($rawHeaders)) {
-                    $this->persistMessage($imap, $msgNum, $rawHeaders, $lead, $account);
+                    $this->persistMessage($imap, $msgNum, $rawHeaders, $account, lead: $lead);
 
                     if (! $lead->replied) {
                         $lead->markReplied();
@@ -377,12 +386,106 @@ class ReplyDetectionService
         return $detected;
     }
 
+    // ─── Strategy C ─────────────────────────────────────────────────────────
+
+    /**
+     * Scan inbound for any email address that exists as a Customer or Contact
+     * in the main CRM tables. Captures direct business correspondence into
+     * the same outreach inbox without those people having ever been
+     * outreach leads.
+     *
+     * Search window: 30 days back. Customers don't have a "first contact"
+     * date the same way leads do, so we use a fixed sliding window.
+     *
+     * @param resource $imap
+     */
+    private function detectCrmContacts($imap, OutreachEmailAccount $account): int
+    {
+        // Build a single map: lowercased email => ['customer' => ?, 'contact' => ?]
+        // so a single email matching both records picks both up at once.
+        $contacts = [];
+
+        Customer::whereNotNull('email')->where('email', '!=', '')
+            ->select('id', 'email')
+            ->get()
+            ->each(function ($c) use (&$contacts) {
+                $key = strtolower(trim($c->email));
+                $contacts[$key]['customer'] = $c;
+            });
+
+        Contact::whereNotNull('email')->where('email', '!=', '')
+            ->select('id', 'email')
+            ->get()
+            ->each(function ($c) use (&$contacts) {
+                $key = strtolower(trim($c->email));
+                $contacts[$key]['contact'] = $c;
+            });
+
+        if (empty($contacts)) {
+            return 0;
+        }
+
+        $detected = 0;
+        $since    = now()->subDays(30)->format('d-M-Y');
+
+        foreach ($contacts as $email => $links) {
+            $criteria = sprintf('FROM "%s" SINCE "%s"', $email, $since);
+            $results  = @imap_search($imap, $criteria);
+
+            if (! $results) {
+                continue;
+            }
+
+            foreach ($results as $msgNum) {
+                $rawHeaders = @imap_fetchheader($imap, $msgNum);
+                if (! $rawHeaders) {
+                    continue;
+                }
+
+                if ($this->isAutomatedSender($rawHeaders)) {
+                    continue;
+                }
+
+                // For CRM-direct contacts we don't require a Re:/reply header
+                // — they may be writing fresh business mail. The from-address
+                // match against an existing CRM record is itself the signal.
+                $this->persistMessage(
+                    $imap,
+                    $msgNum,
+                    $rawHeaders,
+                    $account,
+                    customer: $links['customer'] ?? null,
+                    contact:  $links['contact']  ?? null,
+                );
+
+                $detected++;
+
+                $this->logger->info('[Outreach] Inbound captured from CRM contact', [
+                    'email'       => $email,
+                    'customer_id' => isset($links['customer']) ? $links['customer']->id : null,
+                    'contact_id'  => isset($links['contact'])  ? $links['contact']->id  : null,
+                    'account_id'  => $account->id,
+                    'msg_num'     => $msgNum,
+                ]);
+            }
+        }
+
+        return $detected;
+    }
+
     // ─── Message Persistence ────────────────────────────────────────────────
 
     /**
      * Persist a matched reply to outreach_messages. Idempotent: a duplicate
      * (email_account_id, imap_uid) is silently ignored thanks to firstOrCreate
      * over the unique index.
+     *
+     * The attribution arguments — $lead, $customer, $contact — are all
+     * optional, but at least one must be supplied (caller's responsibility).
+     * A message linked only to a Customer represents direct correspondence
+     * outside the outreach pipeline (Strategy C). When both a Lead and a
+     * Customer match the same email, callers should pass both so the message
+     * appears in either context.
      *
      * Failures here are logged but never propagated — losing the ability to
      * mark a lead as replied because we couldn't decode a body would be worse
@@ -395,8 +498,10 @@ class ReplyDetectionService
         $imap,
         int                  $msgNum,
         string               $rawHeaders,
-        OutreachLead         $lead,
         OutreachEmailAccount $account,
+        ?OutreachLead        $lead     = null,
+        ?Customer            $customer = null,
+        ?Contact             $contact  = null,
     ): void {
         try {
             $uid = imap_uid($imap, $msgNum);
@@ -425,18 +530,24 @@ class ReplyDetectionService
 
             $receivedAt = $this->parseReceivedAt($rawHeaders, $imap, $msgNum);
 
+            // Pick a from_email fallback in priority order: the parsed header,
+            // then whichever attribution gave us a known address.
+            $fallbackEmail = $lead?->email ?? $customer?->email ?? $contact?->email ?? '';
+
             OutreachMessage::firstOrCreate(
                 [
                     'email_account_id' => $account->id,
                     'imap_uid'         => $uid,
                 ],
                 [
-                    'lead_id'           => $lead->id,
+                    'lead_id'           => $lead?->id,
+                    'customer_id'       => $customer?->id,
+                    'contact_id'        => $contact?->id,
                     'direction'         => OutreachMessage::DIRECTION_INBOUND,
                     'message_id'        => $messageId ?: null,
                     'in_reply_to'       => $inReplyTo ?: null,
                     'references_header' => $refs,
-                    'from_email'        => $fromEmail ?? $lead->email,
+                    'from_email'        => $fromEmail ?? $fallbackEmail,
                     'from_name'         => $fromName,
                     'subject'           => $subject ?: null,
                     'body_text'         => $bodyText,
@@ -447,10 +558,12 @@ class ReplyDetectionService
             );
         } catch (Throwable $e) {
             $this->logger->error('[Outreach] Failed to persist reply message', [
-                'lead_id'    => $lead->id,
-                'account_id' => $account->id,
-                'msg_num'    => $msgNum,
-                'error'      => $e->getMessage(),
+                'lead_id'     => $lead?->id,
+                'customer_id' => $customer?->id,
+                'contact_id'  => $contact?->id,
+                'account_id'  => $account->id,
+                'msg_num'     => $msgNum,
+                'error'       => $e->getMessage(),
             ]);
         }
     }

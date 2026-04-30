@@ -7,6 +7,8 @@ use App\Outreach\Jobs\CheckOutreachRepliesJob;
 use App\Outreach\Jobs\ProcessOutreachLeadsJob;
 use App\Outreach\Models\OutreachCampaign;
 use App\Outreach\Models\OutreachCampaignStep;
+use App\Models\Contact;
+use App\Models\Customer;
 use App\Outreach\Models\OutreachEmailAccount;
 use App\Outreach\Models\OutreachLead;
 use App\Outreach\Models\OutreachMessage;
@@ -534,7 +536,7 @@ class OutreachController extends Controller
     {
         $search = trim((string) $request->query('q', ''));
         $filter = $request->query('filter', 'all');
-        if (! in_array($filter, ['all', 'unanswered', 'recent'], true)) {
+        if (! in_array($filter, ['all', 'unanswered', 'recent', 'lead', 'customer'], true)) {
             $filter = 'all';
         }
 
@@ -546,6 +548,8 @@ class OutreachController extends Controller
             ->selectRaw('SUM(CASE WHEN read_at IS NULL THEN 1 ELSE 0 END) as unread_count')
             ->selectRaw('MAX(from_name) as display_name')
             ->selectRaw('MAX(subject) as latest_subject')
+            ->selectRaw('MAX(CASE WHEN lead_id IS NOT NULL THEN 1 ELSE 0 END) as has_lead')
+            ->selectRaw('MAX(CASE WHEN customer_id IS NOT NULL OR contact_id IS NOT NULL THEN 1 ELSE 0 END) as has_customer')
             ->groupBy('group_email')
             ->orderByDesc('last_received_at');
 
@@ -561,6 +565,12 @@ class OutreachController extends Controller
         if ($filter === 'recent') {
             $query->having('last_received_at', '>=', now()->subDays(7));
         }
+        if ($filter === 'lead') {
+            $query->having('has_lead', '=', 1);
+        }
+        if ($filter === 'customer') {
+            $query->having('has_customer', '=', 1);
+        }
 
         $threads = $query->paginate(30)->withQueryString();
 
@@ -571,6 +581,16 @@ class OutreachController extends Controller
             ->whereIn(\DB::raw('LOWER(email)'), $emails)
             ->get()
             ->groupBy(fn($l) => strtolower($l->email));
+
+        // ── Customer / Contact records for the same emails (Layer 4 cross-link)
+        // Used to enrich the row with display_name / company when no Lead exists
+        // (e.g. a long-standing customer who was never part of an outreach campaign).
+        $customerIndex = Customer::whereIn(\DB::raw('LOWER(email)'), $emails)
+            ->get()
+            ->keyBy(fn($c) => strtolower($c->email));
+        $contactIndex = Contact::whereIn(\DB::raw('LOWER(email)'), $emails)
+            ->get()
+            ->keyBy(fn($c) => strtolower($c->email));
 
         // ── "Last outbound" lookup per email so we can compute is_unanswered.
         // We compare each row's last_received_at against the most recent
@@ -595,16 +615,49 @@ class OutreachController extends Controller
                 ->pluck('last_outbound_at', 'lead_id')
             : collect();
 
-        $threads->getCollection()->transform(function ($row) use ($leadIndex, $sendByLead, $outboundByLead) {
-            $leads = $leadIndex->get($row->group_email, collect());
-            $first = $leads->first();
-            $row->lead_first_name = $first?->first_name;
-            $row->lead_last_name  = $first?->last_name;
-            $row->lead_company    = $first?->company;
+        // Customer / Contact-keyed outbound timestamps too — needed for
+        // is_unanswered when the thread has no lead at all (Strategy C path).
+        $allCustomerIds = $customerIndex->pluck('id')->all();
+        $allContactIds  = $contactIndex->pluck('id')->all();
+
+        $outboundByCustomer = $allCustomerIds
+            ? OutreachMessage::whereIn('customer_id', $allCustomerIds)
+                ->where('direction', OutreachMessage::DIRECTION_OUTBOUND)
+                ->selectRaw('customer_id, MAX(received_at) as last_outbound_at')
+                ->groupBy('customer_id')
+                ->pluck('last_outbound_at', 'customer_id')
+            : collect();
+
+        $outboundByContact = $allContactIds
+            ? OutreachMessage::whereIn('contact_id', $allContactIds)
+                ->where('direction', OutreachMessage::DIRECTION_OUTBOUND)
+                ->selectRaw('contact_id, MAX(received_at) as last_outbound_at')
+                ->groupBy('contact_id')
+                ->pluck('last_outbound_at', 'contact_id')
+            : collect();
+
+        $threads->getCollection()->transform(function ($row) use ($leadIndex, $customerIndex, $contactIndex, $sendByLead, $outboundByLead, $outboundByCustomer, $outboundByContact) {
+            $leads    = $leadIndex->get($row->group_email, collect());
+            $customer = $customerIndex->get($row->group_email);
+            $contact  = $contactIndex->get($row->group_email);
+            $first    = $leads->first();
+
+            // Display metadata cascades: lead → customer → contact, whichever
+            // exists first wins. Both could be set (lead converted to customer)
+            // — the lead's stored info is usually most recent so we prefer it.
+            $row->lead_first_name = $first?->first_name ?? $customer?->first_name ?? $contact?->first_name;
+            $row->lead_last_name  = $first?->last_name  ?? $customer?->last_name  ?? $contact?->last_name;
+            $row->lead_company    = $first?->company
+                                    ?? $customer?->company?->name
+                                    ?? $contact?->company?->name;
             $row->campaigns       = $leads->pluck('campaign.name')->filter()->unique()->values();
             $row->lead_count      = $leads->count();
+            $row->is_customer     = (bool) ($customer || $contact);
+            $row->is_lead         = $leads->isNotEmpty();
 
-            // Latest outbound timestamp across all this contact's leads.
+            // Latest outbound timestamp across all attribution channels for
+            // this email — leads, customer, contact. Whichever fired most
+            // recently wins.
             $lastOutbound = null;
             foreach ($leads as $l) {
                 foreach ([$sendByLead->get($l->id), $outboundByLead->get($l->id)] as $ts) {
@@ -612,6 +665,12 @@ class OutreachController extends Controller
                         $lastOutbound = $ts;
                     }
                 }
+            }
+            if ($customer && ($ts = $outboundByCustomer->get($customer->id)) && (! $lastOutbound || $ts > $lastOutbound)) {
+                $lastOutbound = $ts;
+            }
+            if ($contact && ($ts = $outboundByContact->get($contact->id)) && (! $lastOutbound || $ts > $lastOutbound)) {
+                $lastOutbound = $ts;
             }
             $row->last_outbound_at = $lastOutbound;
             $row->is_unanswered    = $lastOutbound === null
@@ -666,32 +725,61 @@ class OutreachController extends Controller
         $email = $this->decodeEmail($emailEncoded);
         abort_if($email === null, 404);
 
+        $emailLower = strtolower($email);
+
+        // A thread can hang off any combination of: outreach leads, a
+        // Customer record, and/or a Contact record. We need at least one
+        // for the URL to resolve — otherwise an unknown email 404s.
         $leads = OutreachLead::with(['campaign', 'assignedEmailAccount'])
-            ->whereRaw('LOWER(email) = ?', [strtolower($email)])
+            ->whereRaw('LOWER(email) = ?', [$emailLower])
             ->get();
+        $customer = Customer::whereRaw('LOWER(email) = ?', [$emailLower])->first();
+        $contact  = Contact::whereRaw('LOWER(email) = ?', [$emailLower])->first();
 
-        abort_if($leads->isEmpty(), 404);
+        abort_if($leads->isEmpty() && ! $customer && ! $contact, 404);
 
-        $crmLink = $lookup->findCrmRecord($email);
+        $crmLink = ['customer' => $customer, 'contact' => $contact];
 
-        // Mark all inbound messages for this contact as read. Done before
-        // the timeline is built so the rendered list reflects the new state
-        // and the dashboard badge updates on the next page load.
         $leadIds = $leads->pluck('id');
-        OutreachMessage::whereIn('lead_id', $leadIds)
+
+        // Mark inbound messages read across every attribution channel — a
+        // single thread may span lead-replies AND customer-direct mail.
+        OutreachMessage::query()
             ->where('direction', OutreachMessage::DIRECTION_INBOUND)
             ->whereNull('read_at')
+            ->where(function ($q) use ($leadIds, $customer, $contact) {
+                if ($leadIds->isNotEmpty()) {
+                    $q->orWhereIn('lead_id', $leadIds);
+                }
+                if ($customer) {
+                    $q->orWhere('customer_id', $customer->id);
+                }
+                if ($contact) {
+                    $q->orWhere('contact_id', $contact->id);
+                }
+            })
             ->update(['read_at' => now()]);
 
-        $leadIds = $leads->pluck('id');
+        $sends = $leadIds->isNotEmpty()
+            ? OutreachSendLog::where('status', OutreachSendLog::STATUS_SENT)
+                ->whereIn('lead_id', $leadIds)
+                ->with(['emailAccount', 'campaign', 'campaignStep'])
+                ->get()
+            : collect();
 
-        $sends = OutreachSendLog::where('status', OutreachSendLog::STATUS_SENT)
-            ->whereIn('lead_id', $leadIds)
-            ->with(['emailAccount', 'campaign', 'campaignStep'])
-            ->get();
-
-        $messages = OutreachMessage::whereIn('lead_id', $leadIds)
+        $messages = OutreachMessage::query()
             ->with(['emailAccount', 'lead.campaign'])
+            ->where(function ($q) use ($leadIds, $customer, $contact) {
+                if ($leadIds->isNotEmpty()) {
+                    $q->orWhereIn('lead_id', $leadIds);
+                }
+                if ($customer) {
+                    $q->orWhere('customer_id', $customer->id);
+                }
+                if ($contact) {
+                    $q->orWhere('contact_id', $contact->id);
+                }
+            })
             ->get();
 
         // Tag each entry with a 'kind' so the view can render without
@@ -787,50 +875,64 @@ class OutreachController extends Controller
             return back()->with('error', 'Põhipostkast on välja lülitatud — aktiveeri see enne vastamist.');
         }
 
-        // Pick a representative lead for this contact so we can attribute the
-        // outbound message and audit-log it. If the same email exists across
-        // multiple campaigns, we pick the most recently active one so the
-        // thread reads as a continuation of the latest conversation.
-        $lead = OutreachLead::whereRaw('LOWER(email) = ?', [strtolower($email)])
+        $emailLower = strtolower($email);
+
+        // Look up every attribution channel for this email. The thread can
+        // exist on a Lead, a Customer, or a Contact (or any combination).
+        // We attribute the outbound message to as many of them as we find,
+        // so it appears in the thread regardless of which lens is used.
+        $lead = OutreachLead::whereRaw('LOWER(email) = ?', [$emailLower])
             ->orderByDesc('updated_at')
             ->first();
-        abort_if(! $lead, 404);
+        $customer = Customer::whereRaw('LOWER(email) = ?', [$emailLower])->first();
+        $contact  = Contact::whereRaw('LOWER(email) = ?', [$emailLower])->first();
 
-        // Build the In-Reply-To / References chain from the existing thread.
-        // Pull the most recent inbound message and the most recent outbound
-        // send log; whichever is newer becomes In-Reply-To.
-        $lastInbound = OutreachMessage::where('lead_id', $lead->id)
-            ->where('direction', OutreachMessage::DIRECTION_INBOUND)
-            ->whereNotNull('message_id')
-            ->orderByDesc('received_at')
-            ->first();
+        abort_if(! $lead && ! $customer && ! $contact, 404);
 
-        $lastSend = OutreachSendLog::where('lead_id', $lead->id)
-            ->where('status', OutreachSendLog::STATUS_SENT)
-            ->whereNotNull('message_id')
-            ->orderByDesc('sent_at')
-            ->first();
+        // Build the In-Reply-To / References chain across all attribution
+        // channels. Pick the newest prior message (lead inbound, lead outbound,
+        // lead send log, customer inbound, customer outbound, contact inbound,
+        // contact outbound) so threading stitches into the right conversation.
+        $candidates = collect();
 
-        $lastOutboundReply = OutreachMessage::where('lead_id', $lead->id)
-            ->where('direction', OutreachMessage::DIRECTION_OUTBOUND)
-            ->whereNotNull('message_id')
-            ->orderByDesc('received_at')
-            ->first();
+        $pushCandidate = function ($ts, $id, $refs) use ($candidates) {
+            if ($id) {
+                $candidates->push(['ts' => $ts, 'id' => $id, 'refs' => $refs]);
+            }
+        };
 
-        // Pick the most recent prior message (any direction) as In-Reply-To
-        $candidates = collect([
-            $lastInbound  ? ['ts' => $lastInbound->received_at,  'id' => $lastInbound->message_id,         'refs' => $lastInbound->references_header] : null,
-            $lastOutboundReply ? ['ts' => $lastOutboundReply->received_at, 'id' => $lastOutboundReply->message_id, 'refs' => $lastOutboundReply->references_header] : null,
-            $lastSend     ? ['ts' => $lastSend->sent_at,         'id' => $lastSend->message_id,            'refs' => null] : null,
-        ])->filter()->sortByDesc('ts')->values();
+        if ($lead) {
+            if ($m = OutreachMessage::where('lead_id', $lead->id)->where('direction', OutreachMessage::DIRECTION_INBOUND)->whereNotNull('message_id')->orderByDesc('received_at')->first()) {
+                $pushCandidate($m->received_at, $m->message_id, $m->references_header);
+            }
+            if ($m = OutreachMessage::where('lead_id', $lead->id)->where('direction', OutreachMessage::DIRECTION_OUTBOUND)->whereNotNull('message_id')->orderByDesc('received_at')->first()) {
+                $pushCandidate($m->received_at, $m->message_id, $m->references_header);
+            }
+            if ($s = OutreachSendLog::where('lead_id', $lead->id)->where('status', OutreachSendLog::STATUS_SENT)->whereNotNull('message_id')->orderByDesc('sent_at')->first()) {
+                $pushCandidate($s->sent_at, $s->message_id, null);
+            }
+        }
+        if ($customer) {
+            if ($m = OutreachMessage::where('customer_id', $customer->id)->whereNotNull('message_id')->orderByDesc('received_at')->first()) {
+                $pushCandidate($m->received_at, $m->message_id, $m->references_header);
+            }
+        }
+        if ($contact) {
+            if ($m = OutreachMessage::where('contact_id', $contact->id)->whereNotNull('message_id')->orderByDesc('received_at')->first()) {
+                $pushCandidate($m->received_at, $m->message_id, $m->references_header);
+            }
+        }
 
-        $inReplyTo = $candidates->first()['id'] ?? null;
-        // References = prior chain + the message we are replying to.
-        // If no prior References header, References = just the In-Reply-To.
-        $priorRefs = $candidates->first()['refs'] ?? null;
+        $best = $candidates->sortByDesc('ts')->first();
+        $inReplyTo  = $best['id']   ?? null;
+        $priorRefs  = $best['refs'] ?? null;
         $references = trim(($priorRefs ?? '') . ' ' . ($inReplyTo ? '<' . trim($inReplyTo, '<>') . '>' : ''));
 
-        $contactName = trim(($lead->first_name ?? '') . ' ' . ($lead->last_name ?? ''));
+        // Display name precedence: lead > customer > contact
+        $contactName = trim(
+            ($lead?->first_name ?? $customer?->first_name ?? $contact?->first_name ?? '') . ' ' .
+            ($lead?->last_name  ?? $customer?->last_name  ?? $contact?->last_name  ?? '')
+        );
 
         try {
             $sentMessageId = $mailer->send(
@@ -844,17 +946,21 @@ class OutreachController extends Controller
             );
         } catch (\Throwable $e) {
             \Log::error('[Outreach] CRM reply send failed', [
-                'lead_id' => $lead->id,
-                'to'      => $email,
-                'error'   => $e->getMessage(),
+                'lead_id'     => $lead?->id,
+                'customer_id' => $customer?->id,
+                'contact_id'  => $contact?->id,
+                'to'          => $email,
+                'error'       => $e->getMessage(),
             ]);
             return back()->with('error', 'Saatmine ebaõnnestus: ' . $e->getMessage());
         }
 
-        // Persist our outbound message so it shows up in the thread timeline
-        // and so future client replies can match against this Message-ID.
+        // Persist outbound message with every attribution channel set so
+        // the message surfaces in the thread regardless of which lens.
         OutreachMessage::create([
-            'lead_id'           => $lead->id,
+            'lead_id'           => $lead?->id,
+            'customer_id'       => $customer?->id,
+            'contact_id'        => $contact?->id,
             'email_account_id'  => $primary->id,
             'direction'         => OutreachMessage::DIRECTION_OUTBOUND,
             'message_id'        => $sentMessageId,
