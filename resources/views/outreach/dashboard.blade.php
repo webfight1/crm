@@ -31,14 +31,15 @@
             @endif
 
             {{-- Stats --}}
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
                 @foreach([
-                    ['label' => 'Kampaaniad',        'value' => $stats['campaigns'],    'color' => 'blue'],
-                    ['label' => 'Aktiivsed leadid',  'value' => $stats['active_leads'], 'color' => 'green'],
-                    ['label' => 'Vastanud',           'value' => $stats['replied'],      'color' => 'purple'],
-                    ['label' => 'Lõpetatud',          'value' => $stats['completed'],    'color' => 'gray'],
-                    ['label' => 'Saadetud täna',      'value' => $stats['sent_today'],   'color' => 'indigo'],
-                    ['label' => 'Ebaõnnestunud täna', 'value' => $stats['failed_today'],'color' => 'red'],
+                    ['label' => 'Uued vastused',      'value' => $stats['unread_replies'], 'color' => 'purple'],
+                    ['label' => 'Kampaaniad',         'value' => $stats['campaigns'],      'color' => 'blue'],
+                    ['label' => 'Aktiivsed leadid',   'value' => $stats['active_leads'],   'color' => 'green'],
+                    ['label' => 'Vastanud',           'value' => $stats['replied'],        'color' => 'purple'],
+                    ['label' => 'Lõpetatud',          'value' => $stats['completed'],      'color' => 'gray'],
+                    ['label' => 'Saadetud täna',      'value' => $stats['sent_today'],     'color' => 'indigo'],
+                    ['label' => 'Ebaõnnestunud täna', 'value' => $stats['failed_today'],   'color' => 'red'],
                 ] as $stat)
                 <div class="bg-white shadow-sm rounded-lg p-5">
                     <p class="text-sm text-gray-500">{{ $stat['label'] }}</p>
@@ -50,10 +51,21 @@
             {{-- Quick links --}}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <a href="{{ route('outreach.inbox.index') }}" class="bg-white shadow-sm rounded-lg p-6 hover:bg-gray-50 flex items-center gap-4">
-                    <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xl">📬</div>
+                    <div class="relative w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xl shrink-0">
+                        📬
+                        @if($stats['unread_replies'] > 0)
+                            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-5 h-5 px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">{{ $stats['unread_replies'] }}</span>
+                        @endif
+                    </div>
                     <div>
                         <p class="font-medium text-gray-900">Inbox</p>
-                        <p class="text-sm text-gray-500">Klientide vastused</p>
+                        <p class="text-sm text-gray-500">
+                            @if($stats['unread_replies'] > 0)
+                                {{ $stats['unread_replies'] }} uut vastust ootab
+                            @else
+                                Klientide vastused
+                            @endif
+                        </p>
                     </div>
                 </a>
                 <a href="{{ route('outreach.accounts.index') }}" class="bg-white shadow-sm rounded-lg p-6 hover:bg-gray-50 flex items-center gap-4">

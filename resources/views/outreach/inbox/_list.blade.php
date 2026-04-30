@@ -47,19 +47,42 @@
                 if ($name === '') { $name = $thread->display_name ?: $thread->group_email; }
                 $isActive = isset($selectedEmail) && $selectedEmail === $thread->group_email;
             @endphp
+            @php
+                // Urgency color picks the entire row's left border + dot color.
+                // Unread state bolds the row's name. Answered + read = neutral.
+                $hasUnread = $thread->unread_count > 0;
+                $urgencyBorder = match ($thread->urgency) {
+                    'red'    => 'border-l-red-500',
+                    'yellow' => 'border-l-yellow-500',
+                    'green'  => 'border-l-emerald-500',
+                    default  => '',
+                };
+                $urgencyDot = match ($thread->urgency) {
+                    'red'    => 'bg-red-500',
+                    'yellow' => 'bg-yellow-500',
+                    'green'  => 'bg-emerald-500',
+                    default  => '',
+                };
+            @endphp
             <a href="{{ route('outreach.inbox.thread', $encoded) }}"
-               class="block px-4 py-3 border-b border-gray-100 hover:bg-gray-50 {{ $isActive ? 'bg-indigo-50 border-l-4 border-l-indigo-500' : '' }}">
+               class="block px-4 py-3 border-b border-gray-100 hover:bg-gray-50 border-l-4 {{ $isActive ? 'bg-indigo-50 border-l-indigo-500' : ($urgencyBorder ?: 'border-l-transparent') }}">
                 <div class="flex items-start justify-between gap-2">
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2">
-                            @if($thread->is_unanswered)
-                                <span class="w-2 h-2 rounded-full bg-purple-500 shrink-0" title="Vastamata"></span>
+                            @if($thread->urgency)
+                                <span class="w-2 h-2 rounded-full {{ $urgencyDot }} shrink-0"
+                                      title="Vastamata {{ $thread->urgency_hours ?? 0 }}h"></span>
                             @endif
-                            <p class="text-sm font-semibold text-gray-900 truncate">{{ $name }}</p>
+                            <p class="text-sm {{ $hasUnread ? 'font-bold' : 'font-semibold' }} text-gray-900 truncate">{{ $name }}</p>
+                            @if($hasUnread)
+                                <span class="ml-auto inline-block px-1.5 py-0.5 text-[10px] font-semibold bg-indigo-600 text-white rounded">
+                                    {{ $thread->unread_count }} uus
+                                </span>
+                            @endif
                         </div>
                         <p class="text-xs text-gray-500 truncate mt-0.5">{{ $thread->group_email }}</p>
                         @if($thread->latest_subject)
-                            <p class="text-xs text-gray-700 truncate mt-1">{{ $thread->latest_subject }}</p>
+                            <p class="text-xs {{ $hasUnread ? 'text-gray-900 font-medium' : 'text-gray-700' }} truncate mt-1">{{ $thread->latest_subject }}</p>
                         @endif
                         @if($thread->lead_company)
                             <p class="text-xs text-gray-400 truncate mt-0.5">{{ $thread->lead_company }}</p>

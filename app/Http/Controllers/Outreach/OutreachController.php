@@ -30,14 +30,16 @@ class OutreachController extends Controller
     public function dashboard(): View
     {
         $stats = [
-            'campaigns'     => OutreachCampaign::count(),
-            'active_leads'  => OutreachLead::where('status', 'active')->count(),
-            'replied'       => OutreachLead::where('replied', true)->count(),
-            'completed'     => OutreachLead::where('status', 'completed')->count(),
-            'sent_today'    => OutreachSendLog::where('status', 'sent')
+            'campaigns'      => OutreachCampaign::count(),
+            'active_leads'   => OutreachLead::where('status', 'active')->count(),
+            'replied'        => OutreachLead::where('replied', true)->count(),
+            'completed'      => OutreachLead::where('status', 'completed')->count(),
+            'sent_today'     => OutreachSendLog::where('status', 'sent')
                                   ->whereDate('sent_at', today())->count(),
-            'failed_today'  => OutreachSendLog::where('status', 'failed')
+            'failed_today'   => OutreachSendLog::where('status', 'failed')
                                   ->whereDate('created_at', today())->count(),
+            'unread_replies' => OutreachMessage::where('direction', OutreachMessage::DIRECTION_INBOUND)
+                                  ->whereNull('read_at')->count(),
         ];
 
         return view('outreach.dashboard', compact('stats'));
@@ -541,6 +543,7 @@ class OutreachController extends Controller
             ->selectRaw('LOWER(from_email) as group_email')
             ->selectRaw('MAX(received_at) as last_received_at')
             ->selectRaw('COUNT(*) as reply_count')
+            ->selectRaw('SUM(CASE WHEN read_at IS NULL THEN 1 ELSE 0 END) as unread_count')
             ->selectRaw('MAX(from_name) as display_name')
             ->selectRaw('MAX(subject) as latest_subject')
             ->groupBy('group_email')
@@ -614,6 +617,18 @@ class OutreachController extends Controller
             $row->is_unanswered    = $lastOutbound === null
                 || $row->last_received_at > $lastOutbound;
 
+            // Response-time urgency for unanswered threads:
+            //   - green   (< 4h)   fresh, no rush
+            //   - yellow  (4–24h)  reply soon
+            //   - red     (> 24h)  overdue, risk of losing the lead
+            // Answered threads have urgency=null (nothing waiting).
+            $row->urgency = null;
+            if ($row->is_unanswered && $row->last_received_at) {
+                $hours = \Carbon\Carbon::parse($row->last_received_at)->diffInHours(now());
+                $row->urgency = $hours < 4 ? 'green' : ($hours < 24 ? 'yellow' : 'red');
+                $row->urgency_hours = $hours;
+            }
+
             return $row;
         });
 
@@ -658,6 +673,15 @@ class OutreachController extends Controller
         abort_if($leads->isEmpty(), 404);
 
         $crmLink = $lookup->findCrmRecord($email);
+
+        // Mark all inbound messages for this contact as read. Done before
+        // the timeline is built so the rendered list reflects the new state
+        // and the dashboard badge updates on the next page load.
+        $leadIds = $leads->pluck('id');
+        OutreachMessage::whereIn('lead_id', $leadIds)
+            ->where('direction', OutreachMessage::DIRECTION_INBOUND)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
 
         $leadIds = $leads->pluck('id');
 

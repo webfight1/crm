@@ -36,11 +36,13 @@ class OutreachMessage extends Model
         'body_html',
         'has_attachments',
         'received_at',
+        'read_at',
         'imap_uid',
     ];
 
     protected $casts = [
         'received_at'     => 'datetime',
+        'read_at'         => 'datetime',
         'has_attachments' => 'boolean',
         'imap_uid'        => 'integer',
     ];
