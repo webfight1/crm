@@ -421,6 +421,17 @@ class ReplyDetectionService
                 $contacts[$key]['contact'] = $c;
             });
 
+        // Self-loop guard: if a Customer or Contact email is also one of our
+        // outreach mailboxes (e.g. user stored their own veiko@webfight.ee as
+        // a Contact), every "Sent" copy that Gmail loops back to INBOX would
+        // get captured as a fake inbound from "the contact". Drop those keys.
+        $ownMailboxes = OutreachEmailAccount::pluck('email')
+            ->map(fn($e) => strtolower(trim((string) $e)))
+            ->all();
+        foreach ($ownMailboxes as $own) {
+            unset($contacts[$own]);
+        }
+
         if (empty($contacts)) {
             return 0;
         }
