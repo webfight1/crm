@@ -34,6 +34,20 @@
                 </form>
             </div>
 
+            {{-- Search --}}
+            <div class="bg-white shadow-sm rounded-lg p-4">
+                <form method="GET" action="{{ route('outreach.campaigns.leads.index', $campaign) }}" class="flex flex-wrap items-center gap-2">
+                    <input type="text" name="q" value="{{ $q ?? '' }}"
+                        placeholder="Otsi nime, e-maili, ettevõtte või veebilehe järgi…"
+                        class="flex-1 min-w-[260px] border-gray-300 rounded text-sm">
+                    <x-primary-button>Otsi</x-primary-button>
+                    @if(!empty($q))
+                        <a href="{{ route('outreach.campaigns.leads.index', $campaign) }}" class="text-sm text-gray-500 hover:text-gray-700">Tühjenda</a>
+                        <span class="text-xs text-gray-500 ml-auto">{{ $leads->total() }} tulemust</span>
+                    @endif
+                </form>
+            </div>
+
             <div class="bg-white shadow-sm rounded-lg overflow-hidden">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">

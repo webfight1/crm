@@ -337,14 +337,27 @@ class OutreachController extends Controller
 
     // ─── Leads ───────────────────────────────────────────────────────────────
 
-    public function leadsIndex(OutreachCampaign $campaign): View
+    public function leadsIndex(Request $request, OutreachCampaign $campaign): View
     {
+        $q = trim((string) $request->get('q', ''));
+
         $leads = $campaign->leads()
             ->with('assignedEmailAccount')
+            ->when($q !== '', function ($query) use ($q) {
+                $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $q) . '%';
+                $query->where(function ($w) use ($like) {
+                    $w->where('email', 'like', $like)
+                      ->orWhere('first_name', 'like', $like)
+                      ->orWhere('last_name', 'like', $like)
+                      ->orWhere('company', 'like', $like)
+                      ->orWhere('website', 'like', $like);
+                });
+            })
             ->orderByDesc('created_at')
-            ->paginate(50);
+            ->paginate(50)
+            ->withQueryString();
 
-        return view('outreach.leads.index', compact('campaign', 'leads'));
+        return view('outreach.leads.index', compact('campaign', 'leads', 'q'));
     }
 
     public function leadsStore(Request $request, OutreachCampaign $campaign): RedirectResponse
