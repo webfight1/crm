@@ -786,15 +786,27 @@ class OutreachController extends Controller
         $emailLower = strtolower($email);
 
         // A thread can hang off any combination of: outreach leads, a
-        // Customer record, and/or a Contact record. We need at least one
-        // for the URL to resolve — otherwise an unknown email 404s.
+        // Customer record, a Contact record, a Watched-email entry, OR
+        // simply existing inbound messages with this from_email. We need
+        // at least one of those for the URL to resolve — otherwise an
+        // unknown email 404s.
         $leads = OutreachLead::with(['campaign', 'assignedEmailAccount'])
             ->whereRaw('LOWER(email) = ?', [$emailLower])
             ->get();
         $customer = Customer::whereRaw('LOWER(email) = ?', [$emailLower])->first();
         $contact  = Contact::whereRaw('LOWER(email) = ?', [$emailLower])->first();
+        $watched  = OutreachWatchedEmail::where('email', $emailLower)->first();
 
-        abort_if($leads->isEmpty() && ! $customer && ! $contact, 404);
+        // Even without any of the above, the thread is still legitimate if
+        // we have at least one inbound message stored for this address —
+        // e.g. a watched entry was added, mail was imported, then the
+        // watched row was deleted. Don't strand the imported history.
+        $hasStoredMessages = OutreachMessage::whereRaw('LOWER(from_email) = ?', [$emailLower])->exists();
+
+        abort_if(
+            $leads->isEmpty() && ! $customer && ! $contact && ! $watched && ! $hasStoredMessages,
+            404
+        );
 
         $crmLink = ['customer' => $customer, 'contact' => $contact];
 
@@ -802,10 +814,12 @@ class OutreachController extends Controller
 
         // Mark inbound messages read across every attribution channel — a
         // single thread may span lead-replies AND customer-direct mail.
+        // The from_email branch catches watched-only messages where all
+        // attribution FKs are null.
         OutreachMessage::query()
             ->where('direction', OutreachMessage::DIRECTION_INBOUND)
             ->whereNull('read_at')
-            ->where(function ($q) use ($leadIds, $customer, $contact) {
+            ->where(function ($q) use ($leadIds, $customer, $contact, $emailLower) {
                 if ($leadIds->isNotEmpty()) {
                     $q->orWhereIn('lead_id', $leadIds);
                 }
@@ -815,6 +829,7 @@ class OutreachController extends Controller
                 if ($contact) {
                     $q->orWhere('contact_id', $contact->id);
                 }
+                $q->orWhereRaw('LOWER(from_email) = ?', [$emailLower]);
             })
             ->update(['read_at' => now()]);
 
@@ -827,7 +842,7 @@ class OutreachController extends Controller
 
         $messages = OutreachMessage::query()
             ->with(['emailAccount', 'lead.campaign'])
-            ->where(function ($q) use ($leadIds, $customer, $contact) {
+            ->where(function ($q) use ($leadIds, $customer, $contact, $emailLower) {
                 if ($leadIds->isNotEmpty()) {
                     $q->orWhereIn('lead_id', $leadIds);
                 }
@@ -837,6 +852,9 @@ class OutreachController extends Controller
                 if ($contact) {
                     $q->orWhere('contact_id', $contact->id);
                 }
+                // Always include from_email matches so watched-only and
+                // historical zero-attribution inbound rows surface.
+                $q->orWhereRaw('LOWER(from_email) = ?', [$emailLower]);
             })
             ->get();
 
