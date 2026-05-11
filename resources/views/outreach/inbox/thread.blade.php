@@ -133,11 +133,12 @@
         }
 
         function updateEmailOverflowState() {
-            document.querySelectorAll('.email-body-wrapper').forEach(wrapper => {
-                const iframe = wrapper.querySelector('iframe.email-body-iframe');
-                const btn    = wrapper.querySelector('.email-expand-btn');
-                const fade   = wrapper.querySelector('.email-fade');
-                if (! iframe || ! btn || ! fade) return;
+            document.querySelectorAll('.email-body-container').forEach(container => {
+                const wrapper = container.querySelector('.email-body-wrapper');
+                const iframe  = container.querySelector('iframe.email-body-iframe');
+                const btn     = container.querySelector('.email-expand-btn');
+                const fade    = container.querySelector('.email-fade');
+                if (! wrapper || ! iframe || ! btn || ! fade) return;
 
                 const naturalH = parseInt(iframe.style.height || '0', 10) || iframe.offsetHeight;
                 const overflows = naturalH > EMAIL_COLLAPSED_MAX;
@@ -154,10 +155,11 @@
                 if (btn.dataset.bound) return;
                 btn.dataset.bound = '1';
                 btn.addEventListener('click', () => {
-                    const wrapper = btn.closest('.email-body-wrapper');
-                    const expanded = wrapper.classList.toggle('expanded');
+                    const container = btn.closest('.email-body-container');
+                    const wrapper   = container.querySelector('.email-body-wrapper');
+                    const fade      = container.querySelector('.email-fade');
+                    const expanded  = wrapper.classList.toggle('expanded');
                     btn.textContent = expanded ? '↑ Näita vähem' : '↓ Näita kogu kirja';
-                    const fade = wrapper.querySelector('.email-fade');
                     if (fade) fade.classList.toggle('hidden', expanded);
                 });
             });
@@ -313,14 +315,16 @@
                                      "Näita kogu kirja" toggle expands to the full
                                      content. The toggle/fade are hidden until JS
                                      determines the iframe actually overflows. --}}
-                                <div class="email-body-wrapper relative">
-                                    <iframe
-                                        sandbox="allow-same-origin"
-                                        srcdoc="{{ $entry->body_html }}"
-                                        class="w-full border border-gray-200 rounded bg-white email-body-iframe"
-                                        style="height: 60px;"
-                                        title="Email body"></iframe>
-                                    <div class="email-fade hidden absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white via-white/90 to-transparent pointer-events-none rounded-b"></div>
+                                <div class="email-body-container">
+                                    <div class="email-body-wrapper relative">
+                                        <iframe
+                                            sandbox="allow-same-origin"
+                                            srcdoc="{{ $entry->body_html }}"
+                                            class="w-full border border-gray-200 rounded bg-white email-body-iframe"
+                                            style="height: 60px;"
+                                            title="Email body"></iframe>
+                                        <div class="email-fade hidden absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white via-white/90 to-transparent pointer-events-none rounded-b"></div>
+                                    </div>
                                     <button type="button"
                                             class="email-expand-btn hidden mt-2 text-xs font-medium text-indigo-600 hover:text-indigo-800">
                                         ↓ Näita kogu kirja
