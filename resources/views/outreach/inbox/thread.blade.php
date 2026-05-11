@@ -97,7 +97,16 @@
     </x-slot>
 
     @push('scripts')
+    <style>
+        /* Collapsed-by-default email body. The iframe still grows to its
+           natural content height (fitEmailIframes) — the wrapper just
+           clips the visible region until the user clicks expand. */
+        .email-body-wrapper { max-height: 500px; overflow: hidden; transition: max-height .25s ease; }
+        .email-body-wrapper.expanded { max-height: none; }
+    </style>
     <script>
+        const EMAIL_COLLAPSED_MAX = 500; // px — keep in sync with .email-body-wrapper max-height
+
         // Auto-grow email-body iframes to fit their content. We re-measure
         // on resize because the iframe's wrapped text reflows when the parent
         // container changes width.
@@ -118,13 +127,49 @@
                     // leave the placeholder height in that case.
                 }
             });
+            // After heights settle, decide whether each wrapper actually
+            // overflows — short emails should NOT show the toggle.
+            updateEmailOverflowState();
         }
+
+        function updateEmailOverflowState() {
+            document.querySelectorAll('.email-body-wrapper').forEach(wrapper => {
+                const iframe = wrapper.querySelector('iframe.email-body-iframe');
+                const btn    = wrapper.querySelector('.email-expand-btn');
+                const fade   = wrapper.querySelector('.email-fade');
+                if (! iframe || ! btn || ! fade) return;
+
+                const naturalH = parseInt(iframe.style.height || '0', 10) || iframe.offsetHeight;
+                const overflows = naturalH > EMAIL_COLLAPSED_MAX;
+
+                btn.classList.toggle('hidden', ! overflows);
+                // Fade overlay only while collapsed AND overflowing.
+                const expanded = wrapper.classList.contains('expanded');
+                fade.classList.toggle('hidden', ! overflows || expanded);
+            });
+        }
+
+        function bindEmailExpandButtons() {
+            document.querySelectorAll('.email-expand-btn').forEach(btn => {
+                if (btn.dataset.bound) return;
+                btn.dataset.bound = '1';
+                btn.addEventListener('click', () => {
+                    const wrapper = btn.closest('.email-body-wrapper');
+                    const expanded = wrapper.classList.toggle('expanded');
+                    btn.textContent = expanded ? '↑ Näita vähem' : '↓ Näita kogu kirja';
+                    const fade = wrapper.querySelector('.email-fade');
+                    if (fade) fade.classList.toggle('hidden', expanded);
+                });
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             // Iframes may not have loaded yet at DOMContentLoaded — bind onload
             // to each so we resize after their content is parsed.
             document.querySelectorAll('iframe.email-body-iframe').forEach(iframe => {
                 iframe.addEventListener('load', fitEmailIframes);
             });
+            bindEmailExpandButtons();
             // First-pass resize for any iframe already finished loading
             fitEmailIframes();
         });
@@ -261,13 +306,26 @@
                                      scripts INSIDE the iframe stay blocked because
                                      allow-scripts is not granted. Forms, top-nav, plugins
                                      all blocked. A malicious sender cannot run code or
-                                     touch the parent. --}}
-                                <iframe
-                                    sandbox="allow-same-origin"
-                                    srcdoc="{{ $entry->body_html }}"
-                                    class="w-full border border-gray-200 rounded bg-white email-body-iframe"
-                                    style="height: 60px;"
-                                    title="Email body"></iframe>
+                                     touch the parent.
+
+                                     Wrapper enforces a max-height so long marketing
+                                     emails don't push the reply form off-screen; the
+                                     "Näita kogu kirja" toggle expands to the full
+                                     content. The toggle/fade are hidden until JS
+                                     determines the iframe actually overflows. --}}
+                                <div class="email-body-wrapper relative">
+                                    <iframe
+                                        sandbox="allow-same-origin"
+                                        srcdoc="{{ $entry->body_html }}"
+                                        class="w-full border border-gray-200 rounded bg-white email-body-iframe"
+                                        style="height: 60px;"
+                                        title="Email body"></iframe>
+                                    <div class="email-fade hidden absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white via-white/90 to-transparent pointer-events-none rounded-b"></div>
+                                    <button type="button"
+                                            class="email-expand-btn hidden mt-2 text-xs font-medium text-indigo-600 hover:text-indigo-800">
+                                        ↓ Näita kogu kirja
+                                    </button>
+                                </div>
                             @elseif($entry->body_text)
                                 <pre class="whitespace-pre-wrap text-sm text-gray-700 font-sans">{{ $entry->body_text }}</pre>
                             @else
