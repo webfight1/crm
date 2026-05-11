@@ -883,7 +883,9 @@ class OutreachController extends Controller
                     'message_id'   => $m->message_id,
                 ];
             }))
-            ->sortBy(fn($e) => $e->occurred_at?->timestamp ?? 0)
+            // Newest first — operator scans the most recent reply at the top
+            // of the thread; older history scrolls below.
+            ->sortByDesc(fn($e) => $e->occurred_at?->timestamp ?? 0)
             ->values();
 
         // Reuse the index data builder for the left rail, then overlay the
