@@ -433,6 +433,26 @@ class ReplyDetectionService
                 $contacts[$key]['watched'] = $w;
             });
 
+        // If a known sender (Customer/Contact/Watched) is ALSO an outreach
+        // lead, pull the lead in too so persistMessage can attribute correctly
+        // and we can flip replied=true. Without this, replies from leads that
+        // arrived without an In-Reply-To header (fresh-subject replies — the
+        // common case for many real correspondents) get captured by Strategy
+        // C but never linked back to the campaign lead.
+        if (! empty($contacts)) {
+            OutreachLead::with(['sendLogs' => fn($q) => $q->where('status', OutreachSendLog::STATUS_SENT)])
+                ->whereIn(\DB::raw('LOWER(email)'), array_keys($contacts))
+                ->get()
+                ->each(function ($lead) use (&$contacts) {
+                    $key = strtolower(trim($lead->email));
+                    // Prefer the lead that's still active and has a send log;
+                    // otherwise just keep whichever we saw first.
+                    if (! isset($contacts[$key]['lead'])) {
+                        $contacts[$key]['lead'] = $lead;
+                    }
+                });
+        }
+
         // Self-loop guard: if a Customer/Contact/Watched email is also one of
         // our outreach mailboxes (e.g. user stored their own veiko@webfight.ee
         // as a Contact), every "Sent" copy that Gmail loops back to INBOX
@@ -479,19 +499,34 @@ class ReplyDetectionService
                 // For CRM-direct contacts and watched addresses we don't
                 // require a Re:/reply header — they may be writing fresh
                 // business mail. The from-address match is itself the signal.
+                $lead = $links['lead'] ?? null;
+
                 $this->persistMessage(
                     $imap,
                     $msgNum,
                     $rawHeaders,
                     $account,
+                    lead:     $lead,
                     customer: $links['customer'] ?? null,
                     contact:  $links['contact']  ?? null,
                 );
+
+                // If the matched email also belongs to an outreach lead and
+                // the lead hasn't been flagged as replied yet, flip it. The
+                // by-design Strategy B path requires a Re:/reply-header to
+                // trust an address-only match; the Strategy C path doesn't,
+                // because we already trust the address via the CRM/Watched
+                // record.
+                if ($lead && ! $lead->replied) {
+                    $lead->markReplied();
+                    $this->audit->replyDetected($lead->id, 'crm_contact', $email);
+                }
 
                 $detected++;
 
                 $this->logger->info('[Outreach] Inbound captured from known sender', [
                     'email'       => $email,
+                    'lead_id'     => $lead?->id,
                     'customer_id' => isset($links['customer']) ? $links['customer']->id : null,
                     'contact_id'  => isset($links['contact'])  ? $links['contact']->id  : null,
                     'watched_id'  => isset($links['watched'])  ? $links['watched']->id  : null,
@@ -537,6 +572,13 @@ class ReplyDetectionService
             ->whereNotNull('imap_host')
             ->get();
 
+        // Resolve CRM-side attribution once — if this email is also a lead
+        // / customer / contact, persisted messages should link back to them
+        // and any matching lead should be marked replied.
+        $lead     = OutreachLead::whereRaw('LOWER(email) = ?', [$email])->first();
+        $customer = Customer::whereRaw('LOWER(email) = ?', [$email])->first();
+        $contact  = Contact::whereRaw('LOWER(email) = ?', [$email])->first();
+
         $detected = 0;
         $since    = now()->subDays(30)->format('d-M-Y');
         $criteria = sprintf('FROM "%s" SINCE "%s"', $email, $since);
@@ -560,13 +602,24 @@ class ReplyDetectionService
                         if (! $rawHeaders || $this->isAutomatedSender($rawHeaders)) {
                             continue;
                         }
-                        $this->persistMessage($imap, $msgNum, $rawHeaders, $account);
+                        $this->persistMessage(
+                            $imap, $msgNum, $rawHeaders, $account,
+                            lead: $lead, customer: $customer, contact: $contact,
+                        );
                         $detected++;
                     }
                 }
             } finally {
                 imap_close($imap);
             }
+        }
+
+        // If a lead matched and isn't yet flagged replied, flip it. We do
+        // this once after the cross-mailbox scan completes rather than per
+        // persist so a single audit-log entry covers the backfill.
+        if ($lead && ! $lead->fresh()->replied && $detected > 0) {
+            $lead->markReplied();
+            $this->audit->replyDetected($lead->id, 'watched_backfill', $email);
         }
 
         // Stamp last_scanned_at on the watched row.
