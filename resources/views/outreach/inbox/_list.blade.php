@@ -21,6 +21,7 @@
                 'recent'     => 'Viimased 7p',
                 'lead'       => 'Lead',
                 'customer'   => 'Klient',
+                'watched'    => 'Jälgitavad',
                 'archived'   => 'Arhiveeritud',
             ];
         @endphp
@@ -90,6 +91,10 @@
                             @endif
                             @if(! empty($thread->is_lead) && empty($thread->is_customer))
                                 <span class="px-1.5 py-0.5 text-[10px] bg-purple-100 text-purple-800 rounded shrink-0">Lead</span>
+                            @endif
+                            @if(! empty($thread->is_watched) && empty($thread->is_lead) && empty($thread->is_customer))
+                                <span class="px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-800 rounded shrink-0"
+                                      title="{{ $thread->watched_label ?: 'Käsitsi jälgitav' }}">Jälgitav</span>
                             @endif
                         </div>
                         @if($thread->latest_subject)

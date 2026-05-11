@@ -14,7 +14,9 @@ use App\Outreach\Models\OutreachEmailAccount;
 use App\Outreach\Models\OutreachLead;
 use App\Outreach\Models\OutreachMessage;
 use App\Outreach\Models\OutreachSendLog;
+use App\Outreach\Models\OutreachWatchedEmail;
 use App\Outreach\Services\OutreachCsvImportService;
+use App\Outreach\Services\ReplyDetectionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -550,7 +552,7 @@ class OutreachController extends Controller
     {
         $search = trim((string) $request->query('q', ''));
         $filter = $request->query('filter', 'all');
-        if (! in_array($filter, ['all', 'unanswered', 'recent', 'lead', 'customer', 'archived'], true)) {
+        if (! in_array($filter, ['all', 'unanswered', 'recent', 'lead', 'customer', 'watched', 'archived'], true)) {
             $filter = 'all';
         }
 
@@ -589,6 +591,16 @@ class OutreachController extends Controller
         if ($filter === 'customer') {
             $query->having('has_customer', '=', 1);
         }
+        if ($filter === 'watched') {
+            // Match against the (lowercased) watched-email list at the SQL
+            // level so pagination + counts work over the filtered set.
+            $watchedEmails = OutreachWatchedEmail::pluck('email')->all();
+            if (empty($watchedEmails)) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn(\DB::raw('LOWER(from_email)'), $watchedEmails);
+            }
+        }
 
         if ($filter === 'archived') {
             // Show only archived threads.
@@ -623,6 +635,12 @@ class OutreachController extends Controller
         $contactIndex = Contact::whereIn(\DB::raw('LOWER(email)'), $emails)
             ->get()
             ->keyBy(fn($c) => strtolower($c->email));
+
+        // Manually-watched addresses (operator allowlist). Keyed identically
+        // so we can mark threads with the "Jälgitav" chip in the inbox UI.
+        $watchedIndex = OutreachWatchedEmail::whereIn('email', $emails)
+            ->get()
+            ->keyBy('email');
 
         // ── "Last outbound" lookup per email so we can compute is_unanswered.
         // We compare each row's last_received_at against the most recent
@@ -668,10 +686,11 @@ class OutreachController extends Controller
                 ->pluck('last_outbound_at', 'contact_id')
             : collect();
 
-        $threads->getCollection()->transform(function ($row) use ($leadIndex, $customerIndex, $contactIndex, $sendByLead, $outboundByLead, $outboundByCustomer, $outboundByContact) {
+        $threads->getCollection()->transform(function ($row) use ($leadIndex, $customerIndex, $contactIndex, $watchedIndex, $sendByLead, $outboundByLead, $outboundByCustomer, $outboundByContact) {
             $leads    = $leadIndex->get($row->group_email, collect());
             $customer = $customerIndex->get($row->group_email);
             $contact  = $contactIndex->get($row->group_email);
+            $watched  = $watchedIndex->get($row->group_email);
             $first    = $leads->first();
 
             // Display metadata cascades: lead → customer → contact, whichever
@@ -686,6 +705,8 @@ class OutreachController extends Controller
             $row->lead_count      = $leads->count();
             $row->is_customer     = (bool) ($customer || $contact);
             $row->is_lead         = $leads->isNotEmpty();
+            $row->is_watched      = (bool) $watched;
+            $row->watched_label   = $watched?->label;
 
             // Latest outbound timestamp across all attribution channels for
             // this email — leads, customer, contact. Whichever fired most
@@ -731,6 +752,10 @@ class OutreachController extends Controller
             );
         }
 
+        // Full watched list (independent of pagination) for the inbox sidebar
+        // panel — the operator manages the allowlist from the same screen.
+        $watchedAll = OutreachWatchedEmail::orderBy('email')->get();
+
         $data = [
             'threads'        => $threads,
             'search'         => $search,
@@ -739,6 +764,7 @@ class OutreachController extends Controller
             'timeline'       => null,
             'leads'          => null,
             'crmLink'        => null,
+            'watchedAll'     => $watchedAll,
         ];
 
         return $data;
@@ -1111,6 +1137,73 @@ class OutreachController extends Controller
         return redirect()
             ->route('outreach.inbox.thread', $emailEncoded)
             ->with('success', 'Vestlus tagasi inbox-i.');
+    }
+
+    // ─── Watched emails (manual inbox allowlist) ────────────────────────────
+
+    /**
+     * Add an email address to the inbox watch list. The address is then
+     * picked up by ReplyDetectionService::detectCrmContacts() on every
+     * subsequent poll. A 30-day backfill scan runs synchronously here so
+     * the operator sees existing mail immediately.
+     *
+     * Idempotent: a duplicate POST quietly re-uses the existing row.
+     */
+    public function watchedStore(Request $request, ReplyDetectionService $detector): RedirectResponse
+    {
+        $data = $request->validate([
+            'email' => 'required|email|max:255',
+            'label' => 'nullable|string|max:200',
+        ]);
+
+        $email = strtolower(trim($data['email']));
+
+        $watched = OutreachWatchedEmail::firstOrCreate(
+            ['email' => $email],
+            [
+                'label'              => $data['label'] ?? null,
+                'created_by_user_id' => auth()->id(),
+            ],
+        );
+
+        // Allow updating the label on a re-add without forcing the user to
+        // delete + recreate.
+        if (! $watched->wasRecentlyCreated && array_key_exists('label', $data)) {
+            $watched->update(['label' => $data['label']]);
+        }
+
+        // Backfill is best-effort — IMAP can be flaky and we don't want to
+        // present an error page to the user just because one mailbox timed
+        // out. Errors are already logged inside the service.
+        $detected = 0;
+        try {
+            $detected = $detector->scanSingleEmail($email);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        $msg = $watched->wasRecentlyCreated
+            ? "Aadress lisatud jälgimisele." . ($detected > 0 ? " Leitud {$detected} olemasolevat kirja." : "")
+            : "Aadress oli juba jälgimisel — silt uuendatud.";
+
+        return redirect()
+            ->route('outreach.inbox.index', ['filter' => 'watched'])
+            ->with('success', $msg);
+    }
+
+    /**
+     * Remove an email address from the watch list. Already-imported
+     * messages for that address are intentionally preserved — the inbox
+     * thread remains accessible via the regular thread URL and can be
+     * archived if no longer wanted.
+     */
+    public function watchedDestroy(OutreachWatchedEmail $watched): RedirectResponse
+    {
+        $watched->delete();
+
+        return redirect()
+            ->route('outreach.inbox.index')
+            ->with('success', 'Aadress eemaldatud jälgimisest.');
     }
 
     /**

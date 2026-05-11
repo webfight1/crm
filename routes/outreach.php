@@ -50,6 +50,10 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
 
     // ── Inbox (unified replies across mailboxes) ───────────────────────────
     Route::get('/inbox',                          [OutreachController::class, 'inboxIndex'])->name('inbox.index');
+    // Watched emails — operator-curated allowlist. MUST be declared before
+    // the /inbox/{emailEncoded} wildcard or the wildcard swallows "watched".
+    Route::post('/inbox/watched',                 [OutreachController::class, 'watchedStore'])->name('inbox.watched.store');
+    Route::delete('/inbox/watched/{watched}',     [OutreachController::class, 'watchedDestroy'])->name('inbox.watched.destroy');
     Route::get('/inbox/{emailEncoded}',           [OutreachController::class, 'inboxThread'])->name('inbox.thread');
     Route::post('/inbox/{emailEncoded}/reply',    [OutreachController::class, 'inboxReply'])->name('inbox.reply');
     Route::post('/inbox/{emailEncoded}/contact',  [OutreachController::class, 'inboxUpdateContact'])->name('inbox.contact');

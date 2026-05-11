@@ -9,6 +9,7 @@ use App\Outreach\Models\OutreachEmailAccount;
 use App\Outreach\Models\OutreachLead;
 use App\Outreach\Models\OutreachMessage;
 use App\Outreach\Models\OutreachSendLog;
+use App\Outreach\Models\OutreachWatchedEmail;
 use Illuminate\Support\Collection;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -402,8 +403,8 @@ class ReplyDetectionService
      */
     private function detectCrmContacts($imap, OutreachEmailAccount $account): int
     {
-        // Build a single map: lowercased email => ['customer' => ?, 'contact' => ?]
-        // so a single email matching both records picks both up at once.
+        // Build a single map: lowercased email => ['customer' => ?, 'contact' => ?, 'watched' => ?]
+        // so a single email matching multiple records picks them all up at once.
         $contacts = [];
 
         Customer::whereNotNull('email')->where('email', '!=', '')
@@ -422,10 +423,20 @@ class ReplyDetectionService
                 $contacts[$key]['contact'] = $c;
             });
 
-        // Self-loop guard: if a Customer or Contact email is also one of our
-        // outreach mailboxes (e.g. user stored their own veiko@webfight.ee as
-        // a Contact), every "Sent" copy that Gmail loops back to INBOX would
-        // get captured as a fake inbound from "the contact". Drop those keys.
+        // Manually-watched addresses: operator-curated allowlist for senders
+        // who aren't (yet) in the CRM as Customer/Contact but whose mail must
+        // still be surfaced. Same IMAP-search treatment as CRM contacts.
+        OutreachWatchedEmail::select('id', 'email')
+            ->get()
+            ->each(function ($w) use (&$contacts) {
+                $key = strtolower(trim($w->email));
+                $contacts[$key]['watched'] = $w;
+            });
+
+        // Self-loop guard: if a Customer/Contact/Watched email is also one of
+        // our outreach mailboxes (e.g. user stored their own veiko@webfight.ee
+        // as a Contact), every "Sent" copy that Gmail loops back to INBOX
+        // would get captured as a fake inbound from "the contact". Drop those.
         $ownMailboxes = OutreachEmailAccount::pluck('email')
             ->map(fn($e) => strtolower(trim((string) $e)))
             ->all();
@@ -444,6 +455,13 @@ class ReplyDetectionService
             $criteria = sprintf('FROM "%s" SINCE "%s"', $email, $since);
             $results  = @imap_search($imap, $criteria);
 
+            // Stamp last_scanned_at on watched rows regardless of whether
+            // this poll produced any new persists — UI uses this to show
+            // "we are actively monitoring this address".
+            if (isset($links['watched'])) {
+                $links['watched']->forceFill(['last_scanned_at' => now()])->saveQuietly();
+            }
+
             if (! $results) {
                 continue;
             }
@@ -458,9 +476,9 @@ class ReplyDetectionService
                     continue;
                 }
 
-                // For CRM-direct contacts we don't require a Re:/reply header
-                // — they may be writing fresh business mail. The from-address
-                // match against an existing CRM record is itself the signal.
+                // For CRM-direct contacts and watched addresses we don't
+                // require a Re:/reply header — they may be writing fresh
+                // business mail. The from-address match is itself the signal.
                 $this->persistMessage(
                     $imap,
                     $msgNum,
@@ -472,15 +490,93 @@ class ReplyDetectionService
 
                 $detected++;
 
-                $this->logger->info('[Outreach] Inbound captured from CRM contact', [
+                $this->logger->info('[Outreach] Inbound captured from known sender', [
                     'email'       => $email,
                     'customer_id' => isset($links['customer']) ? $links['customer']->id : null,
                     'contact_id'  => isset($links['contact'])  ? $links['contact']->id  : null,
+                    'watched_id'  => isset($links['watched'])  ? $links['watched']->id  : null,
                     'account_id'  => $account->id,
                     'msg_num'     => $msgNum,
                 ]);
             }
         }
+
+        return $detected;
+    }
+
+    /**
+     * Backfill scan for a single email address across every active mailbox.
+     * Invoked right after the operator adds the address to the watch list so
+     * the inbox is populated immediately instead of waiting for the next
+     * 5-minute poll.
+     *
+     * Returns the total number of newly-persisted messages across all
+     * mailboxes. IMAP failures on individual mailboxes are logged and
+     * swallowed so a single broken account doesn't abort the backfill.
+     */
+    public function scanSingleEmail(string $email): int
+    {
+        if (! extension_loaded('imap')) {
+            return 0;
+        }
+
+        $email = strtolower(trim($email));
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return 0;
+        }
+
+        // Skip if this address is one of our own mailboxes — would self-loop.
+        $ownMailboxes = OutreachEmailAccount::pluck('email')
+            ->map(fn($e) => strtolower(trim((string) $e)))
+            ->all();
+        if (in_array($email, $ownMailboxes, true)) {
+            return 0;
+        }
+
+        $accounts = OutreachEmailAccount::where('is_active', true)
+            ->whereNotNull('imap_host')
+            ->get();
+
+        $detected = 0;
+        $since    = now()->subDays(30)->format('d-M-Y');
+        $criteria = sprintf('FROM "%s" SINCE "%s"', $email, $since);
+
+        foreach ($accounts as $account) {
+            try {
+                $imap = $this->openImapConnection($account);
+            } catch (Throwable $e) {
+                $this->logger->error('[Outreach] Watched backfill IMAP connect failed', [
+                    'account' => $account->email,
+                    'error'   => $e->getMessage(),
+                ]);
+                continue;
+            }
+
+            try {
+                $results = @imap_search($imap, $criteria);
+                if ($results) {
+                    foreach ($results as $msgNum) {
+                        $rawHeaders = @imap_fetchheader($imap, $msgNum);
+                        if (! $rawHeaders || $this->isAutomatedSender($rawHeaders)) {
+                            continue;
+                        }
+                        $this->persistMessage($imap, $msgNum, $rawHeaders, $account);
+                        $detected++;
+                    }
+                }
+            } finally {
+                imap_close($imap);
+            }
+        }
+
+        // Stamp last_scanned_at on the watched row.
+        OutreachWatchedEmail::where('email', $email)
+            ->update(['last_scanned_at' => now()]);
+
+        $this->logger->info('[Outreach] Watched email backfill complete', [
+            'email'    => $email,
+            'detected' => $detected,
+        ]);
 
         return $detected;
     }
@@ -493,11 +589,12 @@ class ReplyDetectionService
      * over the unique index.
      *
      * The attribution arguments — $lead, $customer, $contact — are all
-     * optional, but at least one must be supplied (caller's responsibility).
-     * A message linked only to a Customer represents direct correspondence
-     * outside the outreach pipeline (Strategy C). When both a Lead and a
-     * Customer match the same email, callers should pass both so the message
-     * appears in either context.
+     * optional. Strategy A/B always supply a Lead; Strategy C supplies a
+     * Customer and/or Contact; the watched-email path supplies none of
+     * them and relies purely on the parsed from_email to land the message
+     * in the inbox view (which groups by LOWER(from_email)). When both a
+     * Lead and a Customer match the same email, callers should pass both
+     * so the message appears in either context.
      *
      * Failures here are logged but never propagated — losing the ability to
      * mark a lead as replied because we couldn't decode a body would be worse
@@ -545,6 +642,19 @@ class ReplyDetectionService
             // Pick a from_email fallback in priority order: the parsed header,
             // then whichever attribution gave us a known address.
             $fallbackEmail = $lead?->email ?? $customer?->email ?? $contact?->email ?? '';
+            $resolvedFromEmail = $fromEmail ?: $fallbackEmail;
+
+            // Watched-email path can produce a no-attribution persist; if the
+            // From header didn't parse cleanly either, we have no grouping
+            // key and the message would never surface in the inbox view.
+            // Skip rather than write a junk row.
+            if ($resolvedFromEmail === '' || $resolvedFromEmail === null) {
+                $this->logger->warning('[Outreach] Skipping persist: no resolvable from_email', [
+                    'account_id' => $account->id,
+                    'msg_num'    => $msgNum,
+                ]);
+                return;
+            }
 
             $msg = OutreachMessage::firstOrCreate(
                 [
@@ -559,7 +669,7 @@ class ReplyDetectionService
                     'message_id'        => $messageId ?: null,
                     'in_reply_to'       => $inReplyTo ?: null,
                     'references_header' => $refs,
-                    'from_email'        => $fromEmail ?? $fallbackEmail,
+                    'from_email'        => $resolvedFromEmail,
                     'from_name'         => $fromName,
                     'subject'           => $subject ?: null,
                     'body_text'         => $bodyText,

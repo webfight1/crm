@@ -22,7 +22,8 @@
             @endif
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div class="lg:col-span-1">
+                <div class="lg:col-span-1 space-y-4">
+                    @include('outreach.inbox._watched_panel')
                     @include('outreach.inbox._list')
                 </div>
 
