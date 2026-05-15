@@ -125,6 +125,7 @@ class OutreachLead extends Model
     {
         $justSentOrder = $this->current_step + 1; // step_order we just delivered
         $nextStepOrder = $this->current_step + 2; // step_order to send next
+        $justSentStep  = $campaign->getStepAt($justSentOrder);
         $nextStep      = $campaign->getStepAt($nextStepOrder);
 
         if (! $nextStep) {
@@ -137,9 +138,18 @@ class OutreachLead extends Model
             return false;
         }
 
+        // Gap between the step we just sent and the next one. day_offset is
+        // "days since enrollment", so the inter-step gap is the difference.
+        // Anchoring on now() instead of enrolled_at is critical: if the lead
+        // sat in queue past its scheduled window (e.g. missing PageSpeed
+        // data delayed step 1), anchoring on enrolled_at would back-date
+        // every remaining next_send_at into the past and the entire
+        // sequence would fire in a single cron burst.
+        $gapDays = max(1, (int) $nextStep->day_offset - (int) ($justSentStep?->day_offset ?? 0));
+
         $this->update([
             'current_step' => $justSentOrder,
-            'next_send_at' => $this->enrolled_at->copy()->addDays($nextStep->day_offset),
+            'next_send_at' => now()->addDays($gapDays),
             'last_sent_at' => now(),
         ]);
 
