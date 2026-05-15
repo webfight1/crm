@@ -812,6 +812,38 @@ class OutreachController extends Controller
 
         $leadIds = $leads->pluck('id');
 
+        // Derive additional attribution from inbound messages with this
+        // from_email. Covers the case where a reply arrives from a different
+        // address than the lead's primary (e.g. forwarded mail) — the lead
+        // is then linked via OutreachMessage.lead_id rather than the email
+        // string. Without this, outbound replies persisted with that lead_id
+        // wouldn't surface in the thread view.
+        $msgAttribution = OutreachMessage::whereRaw('LOWER(from_email) = ?', [$emailLower])
+            ->where('direction', OutreachMessage::DIRECTION_INBOUND)
+            ->selectRaw('DISTINCT lead_id, customer_id, contact_id')
+            ->get();
+
+        $extraLeadIds = $msgAttribution->pluck('lead_id')->filter()->unique();
+        if ($extraLeadIds->isNotEmpty()) {
+            $leadIds = $leadIds->concat($extraLeadIds)->unique()->values();
+            // Make sure the eager-loaded leads collection covers these too,
+            // so any downstream rendering can read campaign/inbox metadata.
+            $missingIds = $extraLeadIds->diff($leads->pluck('id'));
+            if ($missingIds->isNotEmpty()) {
+                $leads = $leads->concat(
+                    OutreachLead::with(['campaign', 'assignedEmailAccount'])->whereIn('id', $missingIds)->get()
+                );
+            }
+        }
+        if (! $customer && ($cid = $msgAttribution->pluck('customer_id')->filter()->first())) {
+            $customer = Customer::find($cid);
+            $crmLink['customer'] = $customer;
+        }
+        if (! $contact && ($coid = $msgAttribution->pluck('contact_id')->filter()->first())) {
+            $contact = Contact::find($coid);
+            $crmLink['contact'] = $contact;
+        }
+
         // Mark inbound messages read across every attribution channel — a
         // single thread may span lead-replies AND customer-direct mail.
         // The from_email branch catches watched-only messages where all
