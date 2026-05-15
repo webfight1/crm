@@ -968,7 +968,32 @@ class OutreachController extends Controller
         $customer = Customer::whereRaw('LOWER(email) = ?', [$emailLower])->first();
         $contact  = Contact::whereRaw('LOWER(email) = ?', [$emailLower])->first();
 
-        abort_if(! $lead && ! $customer && ! $contact, 404);
+        // Fallback: if direct email-based lookup found nothing, look at any
+        // inbound OutreachMessage row whose from_email matches. This covers
+        // forwarded replies (sender address ≠ lead's original address) and
+        // watched-only threads where attribution was set on a message even
+        // though the email isn't the lead's primary one.
+        if (! $lead && ! $customer && ! $contact) {
+            $derived = OutreachMessage::whereRaw('LOWER(from_email) = ?', [$emailLower])
+                ->where('direction', OutreachMessage::DIRECTION_INBOUND)
+                ->whereNotNull('id')
+                ->orderByDesc('received_at')
+                ->first();
+            if ($derived) {
+                if ($derived->lead_id)     $lead     = OutreachLead::find($derived->lead_id);
+                if ($derived->customer_id) $customer = Customer::find($derived->customer_id);
+                if ($derived->contact_id)  $contact  = Contact::find($derived->contact_id);
+            }
+        }
+
+        // Allow the reply to proceed even when no CRM attribution exists at
+        // all (pure watched-email thread). The OutreachMessage row keyed by
+        // from_email still anchors the thread; abort only when there's no
+        // inbound history whatsoever for this address.
+        $hasInboundHistory = OutreachMessage::whereRaw('LOWER(from_email) = ?', [$emailLower])
+            ->where('direction', OutreachMessage::DIRECTION_INBOUND)
+            ->exists();
+        abort_if(! $lead && ! $customer && ! $contact && ! $hasInboundHistory, 404);
 
         // Build the In-Reply-To / References chain across all attribution
         // channels. Pick the newest prior message (lead inbound, lead outbound,
@@ -1000,6 +1025,21 @@ class OutreachController extends Controller
         }
         if ($contact) {
             if ($m = OutreachMessage::where('contact_id', $contact->id)->whereNotNull('message_id')->orderByDesc('received_at')->first()) {
+                $pushCandidate($m->received_at, $m->message_id, $m->references_header);
+            }
+        }
+
+        // from_email fallback for threading: if the prior lookups produced no
+        // message_id (e.g. the inbound was forwarded from an address that has
+        // no Lead/Customer/Contact match), anchor on the latest inbound that
+        // matches the thread's address directly.
+        if ($candidates->isEmpty()) {
+            if ($m = OutreachMessage::whereRaw('LOWER(from_email) = ?', [$emailLower])
+                ->where('direction', OutreachMessage::DIRECTION_INBOUND)
+                ->whereNotNull('message_id')
+                ->orderByDesc('received_at')
+                ->first()
+            ) {
                 $pushCandidate($m->received_at, $m->message_id, $m->references_header);
             }
         }
