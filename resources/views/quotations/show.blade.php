@@ -12,6 +12,11 @@
                     {{ __('PDF') }}
                 </a>
                 @if($quotation->status === 'draft')
+                    @php
+                        $recipientEmail = $quotation->deal->customer?->email
+                            ?? $quotation->deal->contact?->email
+                            ?? null;
+                    @endphp
                     <x-modal name="confirm-send" :show="$errors->sendQuotation->isNotEmpty()" focusable>
                         <form method="POST" action="{{ route('quotations.send', $quotation) }}" class="p-6">
                             @csrf
@@ -21,7 +26,11 @@
                             </h2>
 
                             <p class="mt-1 text-sm text-gray-600">
-                                {{ __('Pakkumine saadetakse aadressile:') }} <strong>{{ $quotation->deal->customer->email }}</strong>
+                                @if($recipientEmail)
+                                    {{ __('Pakkumine saadetakse aadressile:') }} <strong>{{ $recipientEmail }}</strong>
+                                @else
+                                    <span class="text-red-600">{{ __('Saaja e-mail puudub — lisa kontaktile või kliendile e-post enne saatmist.') }}</span>
+                                @endif
                             </p>
 
                             <div class="mt-6 flex justify-end">
