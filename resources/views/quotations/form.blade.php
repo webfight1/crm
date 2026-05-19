@@ -199,16 +199,16 @@
         document.getElementById('totals-grand').textContent     = fmt(grand);
     }
     function bindTotals() {
-        const form = document.querySelector('form');
-        if (! form) return;
-        // Recompute on ANY input/change inside the form. Cheap and resilient
-        // against selector mismatches (Blade components, custom inputs, etc.).
-        form.addEventListener('input',  recomputeTotals);
-        form.addEventListener('change', recomputeTotals);
+        // Bind on document, not on the form: layout includes the navigation
+        // logout form earlier in the DOM so querySelector('form') would
+        // return that instead of the quotation form. Document-level capture
+        // is robust and trivially cheap.
+        document.addEventListener('input',  recomputeTotals);
+        document.addEventListener('change', recomputeTotals);
         // Row removal goes through onclick handlers that don't dispatch
         // 'input'; use a click delegate plus a microtask to recompute AFTER
         // the .item-row has been detached.
-        form.addEventListener('click', (e) => {
+        document.addEventListener('click', (e) => {
             if (e.target.closest('.item-row button[type="button"]')) {
                 queueMicrotask(recomputeTotals);
             }
