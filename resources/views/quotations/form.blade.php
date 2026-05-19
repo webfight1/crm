@@ -77,6 +77,26 @@
         </div>
     </div>
 
+    {{-- Live totals — recomputed in JS on every input change. Server is the
+         source of truth on save; this panel exists only to give the operator
+         immediate visual feedback while editing rows. --}}
+    <div id="totals-panel" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <div class="grid grid-cols-3 gap-4 text-sm">
+            <div>
+                <div class="text-gray-500">{{ __('Vahesumma') }}</div>
+                <div class="text-lg font-semibold text-gray-900"><span id="totals-subtotal">0.00</span> €</div>
+            </div>
+            <div>
+                <div class="text-gray-500">{{ __('Käibemaks') }} (<span id="totals-vat-rate">0</span>%)</div>
+                <div class="text-lg font-semibold text-gray-900"><span id="totals-vat">0.00</span> €</div>
+            </div>
+            <div>
+                <div class="text-gray-500">{{ __('Kokku') }}</div>
+                <div class="text-xl font-bold text-indigo-700"><span id="totals-grand">0.00</span> €</div>
+            </div>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
             <x-input-label for="vat_rate" :value="__('Käibemaksu määr (%)')" />
@@ -148,11 +168,54 @@
         `;
         
         container.insertAdjacentHTML('beforeend', template);
+        recomputeTotals();
     }
 
     // Lisa esimene rida, kui pole ühtegi rida
     if (document.querySelectorAll('.item-row').length === 0) {
         addItem();
     }
+
+    // ─── Live totals ────────────────────────────────────────────────────────
+    // Listens at the form level so dynamically-added rows are covered without
+    // re-binding. Recomputes on every input change (quantity, unit_price,
+    // vat_rate). Server still recalculates on save — this is preview only.
+    function fmt(n) {
+        return (Math.round(n * 100) / 100).toFixed(2);
+    }
+    function recomputeTotals() {
+        let subtotal = 0;
+        document.querySelectorAll('.item-row').forEach(row => {
+            const qty   = parseFloat(row.querySelector('[name*="[quantity]"]')?.value)   || 0;
+            const price = parseFloat(row.querySelector('[name*="[unit_price]"]')?.value) || 0;
+            subtotal += qty * price;
+        });
+        const vatRate = parseFloat(document.getElementById('vat_rate')?.value) || 0;
+        const vat     = subtotal * vatRate / 100;
+        const grand   = subtotal + vat;
+        document.getElementById('totals-subtotal').textContent = fmt(subtotal);
+        document.getElementById('totals-vat-rate').textContent  = vatRate;
+        document.getElementById('totals-vat').textContent       = fmt(vat);
+        document.getElementById('totals-grand').textContent     = fmt(grand);
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+        const form = document.querySelector('form');
+        if (! form) return;
+        // Delegated listeners — single binding covers all current + future rows.
+        form.addEventListener('input', (e) => {
+            if (e.target.matches('[name*="[quantity]"], [name*="[unit_price]"], #vat_rate')) {
+                recomputeTotals();
+            }
+        });
+        // Row removal goes through onclick handlers that don't dispatch
+        // 'input'; use a click delegate plus a microtask to recompute AFTER
+        // the .item-row has been detached.
+        form.addEventListener('click', (e) => {
+            if (e.target.closest('.item-row button[type="button"]')) {
+                queueMicrotask(recomputeTotals);
+            }
+        });
+        recomputeTotals();
+    });
 </script>
 @endpush
