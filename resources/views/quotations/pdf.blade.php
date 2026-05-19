@@ -134,20 +134,33 @@
             </td>
             <td style="width: 4%; border: none;"></td>
             <td style="width: 48%; border: none; padding: 0; vertical-align: top;">
+                @php
+                    // Prefer the deal's Customer; fall back to Contact when no
+                    // Customer is attached (e.g. contact-only deals).
+                    $party = $quotation->deal->customer ?? $quotation->deal->contact;
+                    $partyName  = $party->full_name
+                        ?? trim(($party->first_name ?? '') . ' ' . ($party->last_name ?? ''));
+                    $partyEmail = $party->email ?? null;
+                    $partyPhone = $party->phone ?? null;
+                @endphp
                 <div style="font-size: 10px; line-height: 1.3;">
                     <strong style="color: #666; font-size: 11px;">{{ __('Klient:') }}</strong><br>
-                    <strong>{{ $quotation->deal->customer->full_name }}</strong><br>
+                    @if($party)
+                        <strong>{{ $partyName }}</strong><br>
+                    @else
+                        <strong style="color: #999;">{{ __('— pole määratud —') }}</strong><br>
+                    @endif
                     @if($quotation->deal->company)
                         {{ $quotation->deal->company->name }}<br>
                         @if($quotation->deal->company->registrikood)
                             {{ __('Reg. nr:') }} {{ $quotation->deal->company->registrikood }}<br>
                         @endif
                     @endif
-                    @if($quotation->deal->customer->email)
-                        {{ __('E-post:') }} {{ $quotation->deal->customer->email }}<br>
+                    @if($partyEmail)
+                        {{ __('E-post:') }} {{ $partyEmail }}<br>
                     @endif
-                    @if($quotation->deal->customer->phone)
-                        {{ __('Tel:') }} {{ $quotation->deal->customer->phone }}
+                    @if($partyPhone)
+                        {{ __('Tel:') }} {{ $partyPhone }}
                     @endif
                 </div>
             </td>
