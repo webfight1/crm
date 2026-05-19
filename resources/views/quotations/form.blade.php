@@ -198,20 +198,13 @@
         document.getElementById('totals-vat').textContent       = fmt(vat);
         document.getElementById('totals-grand').textContent     = fmt(grand);
     }
-    document.addEventListener('DOMContentLoaded', () => {
+    function bindTotals() {
         const form = document.querySelector('form');
         if (! form) return;
-        // Delegated listeners — single binding covers all current + future rows.
-        // 'input' fires on every keystroke + spinner click; 'change' covers
-        // blur after paste / autofill / native step buttons on some browsers.
-        const triggerSelectors = '[name*="[quantity]"], [name*="[unit]"], [name*="[unit_price]"], #vat_rate';
-        const onAnyChange = (e) => {
-            if (e.target.matches(triggerSelectors)) {
-                recomputeTotals();
-            }
-        };
-        form.addEventListener('input', onAnyChange);
-        form.addEventListener('change', onAnyChange);
+        // Recompute on ANY input/change inside the form. Cheap and resilient
+        // against selector mismatches (Blade components, custom inputs, etc.).
+        form.addEventListener('input',  recomputeTotals);
+        form.addEventListener('change', recomputeTotals);
         // Row removal goes through onclick handlers that don't dispatch
         // 'input'; use a click delegate plus a microtask to recompute AFTER
         // the .item-row has been detached.
@@ -221,6 +214,11 @@
             }
         });
         recomputeTotals();
-    });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bindTotals);
+    } else {
+        bindTotals();
+    }
 </script>
 @endpush
