@@ -96,9 +96,17 @@
                                 <div>
                                     <dt class="text-sm font-medium text-gray-500">{{ __('Klient') }}</dt>
                                     <dd class="mt-1">
-                                        <a href="{{ route('customers.show', $quotation->deal->customer) }}" class="text-blue-600 hover:text-blue-900">
-                                            {{ $quotation->deal->customer->full_name }}
-                                        </a>
+                                        @if($quotation->deal->customer)
+                                            <a href="{{ route('customers.show', $quotation->deal->customer) }}" class="text-blue-600 hover:text-blue-900">
+                                                {{ $quotation->deal->customer->full_name }}
+                                            </a>
+                                        @elseif($quotation->deal->contact)
+                                            <a href="{{ route('contacts.show', $quotation->deal->contact) }}" class="text-blue-600 hover:text-blue-900">
+                                                {{ $quotation->deal->contact->full_name ?? ($quotation->deal->contact->first_name . ' ' . $quotation->deal->contact->last_name) }}
+                                            </a>
+                                        @else
+                                            <span class="text-gray-400">{{ __('— pole määratud —') }}</span>
+                                        @endif
                                     </dd>
                                 </div>
                                 @if($quotation->deal->company)
