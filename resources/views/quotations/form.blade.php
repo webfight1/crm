@@ -202,11 +202,16 @@
         const form = document.querySelector('form');
         if (! form) return;
         // Delegated listeners — single binding covers all current + future rows.
-        form.addEventListener('input', (e) => {
-            if (e.target.matches('[name*="[quantity]"], [name*="[unit_price]"], #vat_rate')) {
+        // 'input' fires on every keystroke + spinner click; 'change' covers
+        // blur after paste / autofill / native step buttons on some browsers.
+        const triggerSelectors = '[name*="[quantity]"], [name*="[unit]"], [name*="[unit_price]"], #vat_rate';
+        const onAnyChange = (e) => {
+            if (e.target.matches(triggerSelectors)) {
                 recomputeTotals();
             }
-        });
+        };
+        form.addEventListener('input', onAnyChange);
+        form.addEventListener('change', onAnyChange);
         // Row removal goes through onclick handlers that don't dispatch
         // 'input'; use a click delegate plus a microtask to recompute AFTER
         // the .item-row has been detached.
