@@ -123,6 +123,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/time-entries/current', [TimeEntryController::class, 'current'])->name('time-entries.current');
     Route::get('/time-entries/{timeEntry}/edit', [TimeEntryController::class, 'edit'])->name('time-entries.edit');
     Route::put('/time-entries/{timeEntry}', [TimeEntryController::class, 'update'])->name('time-entries.update');
+    Route::patch('/time-entries/{timeEntry}/notes', [TimeEntryController::class, 'updateNotes'])->name('time-entries.notes');
     Route::delete('/time-entries/{timeEntry}', [TimeEntryController::class, 'destroy'])->name('time-entries.destroy');
     
     // Comments

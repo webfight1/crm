@@ -26,8 +26,9 @@ class TimeEntryController extends Controller
         }
 
         $validated = $request->validate([
-            'hours' => 'required|integer|min:0',
+            'hours'   => 'required|integer|min:0',
             'minutes' => 'required|integer|min:0|max:59',
+            'notes'   => 'nullable|string|max:2000',
         ]);
 
         $hours = intval($validated['hours']);
@@ -37,11 +38,34 @@ class TimeEntryController extends Controller
 
         $timeEntry->update([
             'end_time' => $endTime,
-            'duration' => $duration
+            'duration' => $duration,
+            'notes'    => $validated['notes'] ?? null,
         ]);
 
         return redirect()->route('tasks.show', $timeEntry->task_id)
             ->with('success', 'Ajakanne uuendatud');
+    }
+
+    /**
+     * Lightweight endpoint for editing just the notes on a time entry,
+     * without re-entering hours/minutes. Used by the inline note form on
+     * the task show page so the operator can drop a quick description of
+     * what they did without leaving the task view.
+     */
+    public function updateNotes(Request $request, TimeEntry $timeEntry)
+    {
+        if ($timeEntry->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
+
+        $validated = $request->validate([
+            'notes' => 'nullable|string|max:2000',
+        ]);
+
+        $timeEntry->update(['notes' => $validated['notes'] ?? null]);
+
+        return redirect()->route('tasks.show', $timeEntry->task_id)
+            ->with('success', 'Kommentaar salvestatud');
     }
 
     public function start(Task $task)

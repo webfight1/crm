@@ -59,6 +59,15 @@
                                 <x-input-error :messages="$errors->get('hours')" class="mt-2" />
                                 <x-input-error :messages="$errors->get('minutes')" class="mt-2" />
                             </div>
+
+                            <!-- Notes -->
+                            <div>
+                                <x-input-label for="notes" :value="__('Kommentaar')" />
+                                <textarea id="notes" name="notes" rows="3"
+                                          placeholder="Mida sa selle aja jooksul tegid?"
+                                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">{{ old('notes', $timeEntry->notes) }}</textarea>
+                                <x-input-error :messages="$errors->get('notes')" class="mt-2" />
+                            </div>
                         </div>
 
                         <div class="flex items-center justify-end mt-6 space-x-4">
