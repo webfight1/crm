@@ -28,9 +28,19 @@
                     <p class="text-sm text-gray-500">E-posti aadress: <strong>{{ $account->email }}</strong> (ei saa muuta)</p>
 
                     {{-- HTML signature. Appended automatically to every send
-                         (cold campaigns AND manual replies) by OutreachMailer. --}}
-                    <div x-data="{ html: @js(old('signature_html', $account->signature_html ?? '')) }">
-                        <x-input-label for="signature_html" value="HTML jalus (lisatakse iga saadetava kirja lõppu)" />
+                         (cold campaigns AND manual replies) by OutreachMailer.
+                         "Eelvaade kirjas" opens a modal that shows the signature
+                         in the context of a realistic sample email body, so the
+                         operator sees exactly how it will land in the recipient
+                         inbox. --}}
+                    <div x-data="{ html: @js(old('signature_html', $account->signature_html ?? '')), showModal: false }">
+                        <div class="flex items-center justify-between">
+                            <x-input-label for="signature_html" value="HTML jalus (lisatakse iga saadetava kirja lõppu)" />
+                            <button type="button" @click="showModal = true"
+                                    class="text-xs text-indigo-600 hover:text-indigo-800">
+                                Eelvaade kirjas →
+                            </button>
+                        </div>
                         <textarea id="signature_html" name="signature_html" rows="6"
                                   x-model="html"
                                   placeholder='Näiteks: &lt;br&gt;--&lt;br&gt;&lt;strong&gt;Veiko Teekel&lt;/strong&gt;&lt;br&gt;Web Fight OÜ&lt;br&gt;&lt;a href="https://webfight.ee"&gt;webfight.ee&lt;/a&gt;'
@@ -38,11 +48,49 @@
                         <x-input-error :messages="$errors->get('signature_html')" class="mt-1" />
                         <p class="text-xs text-gray-500 mt-1">Lubatud on HTML — <code>&lt;br&gt;</code>, <code>&lt;a href&gt;</code>, <code>&lt;strong&gt;</code> jms. Jäta tühjaks, kui jalust ei taha.</p>
 
-                        {{-- Live preview so the operator sees rendered HTML
-                             without sending a test email first. --}}
+                        {{-- Compact inline preview — quick sanity check while
+                             typing. The full email-style preview lives in the
+                             modal below. --}}
                         <div class="mt-2">
-                            <p class="text-xs font-medium text-gray-600 mb-1">Eelvaade:</p>
+                            <p class="text-xs font-medium text-gray-600 mb-1">Eelvaade (ainult jalus):</p>
                             <div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm" x-html="html || '<span class=&quot;text-gray-400&quot;>(tühi)</span>'"></div>
+                        </div>
+
+                        {{-- Modal: signature rendered inside a sample email
+                             body so the operator sees the visual context — how
+                             the separator looks, whether colours/fonts collide
+                             with normal copy, etc. Backdrop click closes. --}}
+                        <div x-show="showModal" x-cloak
+                             @keydown.escape.window="showModal = false"
+                             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+                             @click.self="showModal = false">
+                            <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+                                <div class="px-5 py-3 border-b border-gray-200 flex items-center justify-between">
+                                    <h3 class="font-semibold text-gray-900">Jaluse eelvaade kirjas</h3>
+                                    <button type="button" @click="showModal = false" class="text-gray-400 hover:text-gray-700 text-xl leading-none">×</button>
+                                </div>
+                                <div class="overflow-y-auto p-5 bg-gray-50">
+                                    {{-- Mimic an email-client message bubble so the
+                                         operator gets a visual frame around the
+                                         signature instead of judging it in vacuum. --}}
+                                    <div class="bg-white rounded shadow-sm p-5 text-sm text-gray-800" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.5;">
+                                        <div class="text-xs text-gray-500 mb-3 pb-3 border-b border-gray-100">
+                                            <strong>{{ $account->name ?: $account->email }}</strong>
+                                            &lt;{{ $account->email }}&gt;<br>
+                                            <span class="text-gray-400">Teemarida: Näidiskirja teema</span>
+                                        </div>
+                                        <p>Tere [eesnimi],</p>
+                                        <p class="mt-3">See on näidiskiri, et näidata, kuidas teie jalus välja näeb pärast tegelikku kirja sisu. Tavaliselt on siia kohta paigutatud paar lõiku tekstist.</p>
+                                        <p class="mt-3">Aitäh teie aja eest!</p>
+                                        <br><br>
+                                        <div x-html="html || '<span class=&quot;text-gray-400&quot;>(jalus tühi)</span>'"></div>
+                                    </div>
+                                </div>
+                                <div class="px-5 py-3 border-t border-gray-200 flex justify-end">
+                                    <button type="button" @click="showModal = false"
+                                            class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm rounded">Sulge</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
