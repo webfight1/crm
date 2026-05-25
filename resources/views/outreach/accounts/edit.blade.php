@@ -27,6 +27,25 @@
 
                     <p class="text-sm text-gray-500">E-posti aadress: <strong>{{ $account->email }}</strong> (ei saa muuta)</p>
 
+                    {{-- HTML signature. Appended automatically to every send
+                         (cold campaigns AND manual replies) by OutreachMailer. --}}
+                    <div x-data="{ html: @js(old('signature_html', $account->signature_html ?? '')) }">
+                        <x-input-label for="signature_html" value="HTML jalus (lisatakse iga saadetava kirja lõppu)" />
+                        <textarea id="signature_html" name="signature_html" rows="6"
+                                  x-model="html"
+                                  placeholder='Näiteks: &lt;br&gt;--&lt;br&gt;&lt;strong&gt;Veiko Teekel&lt;/strong&gt;&lt;br&gt;Web Fight OÜ&lt;br&gt;&lt;a href="https://webfight.ee"&gt;webfight.ee&lt;/a&gt;'
+                                  class="mt-1 block w-full font-mono text-xs border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ old('signature_html', $account->signature_html) }}</textarea>
+                        <x-input-error :messages="$errors->get('signature_html')" class="mt-1" />
+                        <p class="text-xs text-gray-500 mt-1">Lubatud on HTML — <code>&lt;br&gt;</code>, <code>&lt;a href&gt;</code>, <code>&lt;strong&gt;</code> jms. Jäta tühjaks, kui jalust ei taha.</p>
+
+                        {{-- Live preview so the operator sees rendered HTML
+                             without sending a test email first. --}}
+                        <div class="mt-2">
+                            <p class="text-xs font-medium text-gray-600 mb-1">Eelvaade:</p>
+                            <div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm" x-html="html || '<span class=&quot;text-gray-400&quot;>(tühi)</span>'"></div>
+                        </div>
+                    </div>
+
                     <div>
                         <x-input-label for="provider" value="Teenusepakkuja" />
                         <select id="provider" name="provider" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" onchange="toggleRelayFields(this.value)">

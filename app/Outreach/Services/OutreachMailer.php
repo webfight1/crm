@@ -44,6 +44,12 @@ class OutreachMailer
         ?string              $inReplyTo = null,
         ?string              $references = null,
     ): string {
+        // Append the account-level HTML signature (if set) before any branch.
+        // Both the SMTP path and the Zone Relay path use the same body, so
+        // doing it once here guarantees consistency across all send routes
+        // and across all callers (campaign sends + manual CRM replies).
+        $htmlBody = $this->withSignature($htmlBody, $account);
+
         // Branch on provider — Zone Relay accounts cannot reach SMTP from a
         // remote VPS, so route through an HMAC-authenticated HTTP endpoint
         // that lives on the host's web server (e.g. webfight.ee/mail-relay.php).
@@ -237,5 +243,21 @@ class OutreachMailer
         $domain = preg_replace('/[^a-zA-Z0-9.\-]/', '', $domain) ?: 'outreach';
 
         return sprintf('%s.%s@%s', now()->format('YmdHis'), Str::random(12), $domain);
+    }
+
+    /**
+     * Append the account's HTML signature to the message body. Skipped
+     * silently when no signature is configured so existing campaign sends
+     * stay byte-identical. The double-<br> separator keeps the signature
+     * visually distinct from the body without forcing the caller to mind
+     * trailing whitespace.
+     */
+    private function withSignature(string $htmlBody, OutreachEmailAccount $account): string
+    {
+        $sig = trim((string) ($account->signature_html ?? ''));
+        if ($sig === '') {
+            return $htmlBody;
+        }
+        return rtrim($htmlBody) . '<br><br>' . $sig;
     }
 }

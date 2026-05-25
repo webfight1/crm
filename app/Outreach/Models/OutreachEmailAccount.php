@@ -20,6 +20,7 @@ class OutreachEmailAccount extends Model
     protected $fillable = [
         'name',
         'email',
+        'signature_html',
         'provider',
         'smtp_host',
         'smtp_port',

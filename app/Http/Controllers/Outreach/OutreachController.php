@@ -119,6 +119,7 @@ class OutreachController extends Controller
 
         $data = $request->validate([
             'name'                     => 'required|string|max:100',
+            'signature_html'           => 'nullable|string|max:5000',
             'provider'                 => 'nullable|in:gmail,smtp,outlook,zone_relay',
             'smtp_host'                => 'nullable|string',
             'smtp_port'                => 'nullable|integer|between:1,65535',
