@@ -13,6 +13,7 @@ use App\Outreach\Models\OutreachArchivedThread;
 use App\Outreach\Models\OutreachEmailAccount;
 use App\Outreach\Models\OutreachLead;
 use App\Outreach\Models\OutreachMessage;
+use App\Outreach\Models\OutreachReplyTemplate;
 use App\Outreach\Models\OutreachSendLog;
 use App\Outreach\Models\OutreachWatchedEmail;
 use App\Outreach\Services\OutreachCsvImportService;
@@ -944,12 +945,21 @@ class OutreachController extends Controller
 
         $isArchived = OutreachArchivedThread::where('email_lower', strtolower($email))->exists();
 
+        // Saved reply templates for the current operator — populates the
+        // dropdown above the reply form so common responses can be picked
+        // with one click instead of retyping.
+        $replyTemplates = OutreachReplyTemplate::where('user_id', auth()->id())
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'subject', 'body']);
+
         return view('outreach.inbox.thread', array_merge($shared, [
-            'email'      => $email,
-            'leads'      => $leads,
-            'timeline'   => $timeline,
-            'crmLink'    => $crmLink,
-            'isArchived' => $isArchived,
+            'email'          => $email,
+            'leads'          => $leads,
+            'timeline'       => $timeline,
+            'crmLink'        => $crmLink,
+            'isArchived'     => $isArchived,
+            'replyTemplates' => $replyTemplates,
         ]));
     }
 
@@ -1296,6 +1306,75 @@ class OutreachController extends Controller
         return redirect()
             ->route('outreach.inbox.index')
             ->with('success', 'Aadress eemaldatud jälgimisest.');
+    }
+
+    // ─── Reply templates (saved snippets) ───────────────────────────────────
+
+    /**
+     * Manage saved reply snippets. Per-user list — each operator sees and
+     * edits only their own. The thread page reads from the same set when
+     * building the "Vali mall" dropdown above the reply form.
+     */
+    public function replyTemplatesIndex(): View
+    {
+        $templates = OutreachReplyTemplate::where('user_id', auth()->id())
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        return view('outreach.reply-templates.index', compact('templates'));
+    }
+
+    public function replyTemplatesStore(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'name'       => 'required|string|max:120',
+            'subject'    => 'nullable|string|max:500',
+            'body'       => 'required|string|max:10000',
+            'sort_order' => 'nullable|integer',
+        ]);
+
+        OutreachReplyTemplate::create([
+            'user_id'    => auth()->id(),
+            'name'       => $data['name'],
+            'subject'    => $data['subject'] ?? null,
+            'body'       => $data['body'],
+            'sort_order' => (int) ($data['sort_order'] ?? 0),
+        ]);
+
+        return redirect()->route('outreach.reply-templates.index')
+            ->with('success', 'Mall salvestatud.');
+    }
+
+    public function replyTemplatesUpdate(Request $request, OutreachReplyTemplate $template): RedirectResponse
+    {
+        abort_if($template->user_id !== auth()->id(), 403);
+
+        $data = $request->validate([
+            'name'       => 'required|string|max:120',
+            'subject'    => 'nullable|string|max:500',
+            'body'       => 'required|string|max:10000',
+            'sort_order' => 'nullable|integer',
+        ]);
+
+        $template->update([
+            'name'       => $data['name'],
+            'subject'    => $data['subject'] ?? null,
+            'body'       => $data['body'],
+            'sort_order' => (int) ($data['sort_order'] ?? 0),
+        ]);
+
+        return redirect()->route('outreach.reply-templates.index')
+            ->with('success', 'Mall uuendatud.');
+    }
+
+    public function replyTemplatesDestroy(OutreachReplyTemplate $template): RedirectResponse
+    {
+        abort_if($template->user_id !== auth()->id(), 403);
+        $template->delete();
+
+        return redirect()->route('outreach.reply-templates.index')
+            ->with('success', 'Mall kustutatud.');
     }
 
     /**

@@ -176,6 +176,30 @@
             fitEmailIframes();
         });
         window.addEventListener('resize', fitEmailIframes);
+
+        // ─── Reply-template picker ─────────────────────────────────────────
+        // Body is replaced entirely; subject only when currently empty, so
+        // half-typed work isn't lost. Reset the select after applying so the
+        // operator can pick the same template again later.
+        document.addEventListener('DOMContentLoaded', () => {
+            const sel = document.getElementById('reply-template');
+            if (! sel) return;
+            sel.addEventListener('change', (e) => {
+                const opt = e.target.selectedOptions[0];
+                if (! opt || ! opt.value) return;
+                const tplSubject = opt.dataset.subject || '';
+                const tplBody    = opt.dataset.body    || '';
+                const bodyEl     = document.getElementById('body');
+                const subjEl     = document.getElementById('subject');
+                if (bodyEl) bodyEl.value = tplBody;
+                if (subjEl && tplSubject && subjEl.value.trim() === '') {
+                    subjEl.value = tplSubject;
+                }
+                // Reset picker so the same option can be re-selected later.
+                sel.value = '';
+                if (bodyEl) bodyEl.focus();
+            });
+        });
     </script>
     @endpush
 
@@ -366,6 +390,35 @@
                 @else
                     <form method="POST" action="{{ route('outreach.inbox.reply', rtrim(strtr(base64_encode($email), '+/', '-_'), '=')) }}" class="p-4 space-y-3">
                         @csrf
+
+                        {{-- Saved-reply picker. Selecting a template fills body
+                             (replaces entirely) and subject (only if empty),
+                             so a half-typed reply isn't accidentally wiped.
+                             "Halda malle" link opens the management page. --}}
+                        @if(($replyTemplates ?? collect())->isNotEmpty())
+                            <div class="flex items-end gap-2">
+                                <div class="flex-1">
+                                    <x-input-label for="reply-template" value="Vali vastuse mall" />
+                                    <select id="reply-template"
+                                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                                        <option value="">— vali mall, et täita allolev sisu —</option>
+                                        @foreach($replyTemplates as $tpl)
+                                            <option value="{{ $tpl->id }}"
+                                                    data-subject="{{ $tpl->subject }}"
+                                                    data-body="{{ $tpl->body }}">{{ $tpl->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <a href="{{ route('outreach.reply-templates.index') }}"
+                                   class="text-xs text-indigo-600 hover:text-indigo-800 whitespace-nowrap pb-2">Halda malle →</a>
+                            </div>
+                        @else
+                            <p class="text-xs text-gray-500">
+                                Sa pole veel ühtegi vastuse-malli salvestanud.
+                                <a href="{{ route('outreach.reply-templates.index') }}" class="text-indigo-600 hover:text-indigo-800">Lisa esimene →</a>
+                            </p>
+                        @endif
+
                         <div>
                             <x-input-label for="subject" value="Subjekt" />
                             <x-text-input id="subject" name="subject" class="mt-1 block w-full"

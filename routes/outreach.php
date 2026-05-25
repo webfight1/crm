@@ -60,6 +60,12 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
     Route::post('/inbox/{emailEncoded}/archive',  [OutreachController::class, 'inboxArchive'])->name('inbox.archive');
     Route::post('/inbox/{emailEncoded}/unarchive',[OutreachController::class, 'inboxUnarchive'])->name('inbox.unarchive');
 
+    // ── Reply templates (saved snippets for inbox replies) ─────────────────
+    Route::get   ('/reply-templates',             [OutreachController::class, 'replyTemplatesIndex'])->name('reply-templates.index');
+    Route::post  ('/reply-templates',             [OutreachController::class, 'replyTemplatesStore'])->name('reply-templates.store');
+    Route::patch ('/reply-templates/{template}',  [OutreachController::class, 'replyTemplatesUpdate'])->name('reply-templates.update');
+    Route::delete('/reply-templates/{template}',  [OutreachController::class, 'replyTemplatesDestroy'])->name('reply-templates.destroy');
+
     // ── Logs ────────────────────────────────────────────────────────────────
     Route::get('/logs/{campaign}', [OutreachController::class, 'logsIndex'])->name('logs.index');
 
