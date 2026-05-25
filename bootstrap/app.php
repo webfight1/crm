@@ -15,6 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'api.token' => \App\Http\Middleware\CheckApiToken::class,
         ]);
+        // Global gate enforcing OUTREACH_ONLY_MODE — no-op when the env
+        // flag is false, redirects non-outreach paths otherwise.
+        $middleware->web(append: [
+            \App\Http\Middleware\EnforceOutreachOnly::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -29,7 +29,12 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
 
         // Always go to dashboard after login to avoid being redirected to
-        // previously attempted JSON endpoints (e.g., /time-entries/current)
+        // previously attempted JSON endpoints (e.g., /time-entries/current).
+        // Outreach-only mode (set via OUTREACH_ONLY_MODE) lands users on the
+        // outreach dashboard instead — they shouldn't see the rest of the CRM.
+        if (config('app.outreach_only')) {
+            return redirect()->route('outreach.dashboard');
+        }
         return redirect()->route('dashboard');
     }
 

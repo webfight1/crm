@@ -5,66 +5,89 @@
             <div class="flex">
                 <!-- Logo -->
                 <div class="shrink-0 flex items-center">
-                    <a href="{{ route('dashboard') }}">
+                    @php $logoTarget = config('app.outreach_only') ? route('outreach.dashboard') : route('dashboard'); @endphp
+                    <a href="{{ $logoTarget }}">
                         <img src="{{ asset('images/logo.svg') }}" class="block h-8 w-8" alt="Logo" />
                     </a>
                 </div>
 
                 <!-- Navigation Links -->
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                        {{ __('Töölaud') }}
-                    </x-nav-link>
-
-                    <x-nav-dropdown :active="request()->routeIs(['companies.*', 'customers.*', 'client-attributes.*'])" :label="__('Ettevõtted')">
-                        <x-nav-dropdown-link :href="route('companies.index')" :active="request()->routeIs('companies.*')">
-                            {{ __('Ettevõtted') }}
-                        </x-nav-dropdown-link>
-                        <x-nav-dropdown-link :href="route('customers.index')" :active="request()->routeIs('customers.*')">
-                            {{ __('Kliendid') }}
-                        </x-nav-dropdown-link>
-                        <x-nav-dropdown-link :href="route('client-attributes.index')" :active="request()->routeIs('client-attributes.*')">
-                            {{ __('Kliendi kategooriad') }}
-                        </x-nav-dropdown-link>
-                    </x-nav-dropdown>
-
-                    <x-nav-dropdown :active="request()->routeIs(['deals.*', 'quotations.*']) || request()->routeIs('deals.report')" :label="__('Tehingud')">
-                        <x-nav-dropdown-link :href="route('deals.index')" :active="request()->routeIs('deals.*') && !request()->routeIs('deals.report')">
-                            {{ __('Tehingud') }}
-                        </x-nav-dropdown-link>
-                        <x-nav-dropdown-link :href="route('deals.report')" :active="request()->routeIs('deals.report')">
-                            {{ __('Töötundide raport') }}
-                        </x-nav-dropdown-link>
-                        <x-nav-dropdown-link :href="route('quotations.index')" :active="request()->routeIs('quotations.*')">
-                            {{ __('Pakkumised') }}
-                        </x-nav-dropdown-link>
-                    </x-nav-dropdown>
-
-                    <x-nav-link :href="route('contacts.index')" :active="request()->routeIs('contacts.*')">
-                        {{ __('Kontaktid') }}
-                    </x-nav-link>
-
-                    <x-nav-dropdown :active="request()->routeIs('tasks.*')" :label="__('Ülesanded')">
-                        <x-nav-dropdown-link :href="route('tasks.index')" :active="request()->routeIs('tasks.index') && !request()->has('favorite')">
-                            {{ __('Kõik ülesanded') }}
-                        </x-nav-dropdown-link>
-                        <x-nav-dropdown-link :href="route('tasks.index', ['favorite' => 1])" :active="request()->has('favorite')">
-                            {{ __('Tärniga ülesanded') }}
-                        </x-nav-dropdown-link>
-                    </x-nav-dropdown>
-
-                    <x-nav-link :href="route('calendar.index')" :active="request()->routeIs('calendar.*')">
-                        {{ __('Kalender') }}
-                    </x-nav-link>
-
-                    <x-nav-dropdown :active="request()->routeIs(['email-campaigns.*', 'email-logs.*'])" :label="__('E-post')">
-                        <x-nav-dropdown-link :href="route('email-campaigns.index')" :active="request()->routeIs('email-campaigns.*')">
+                    @if(config('app.outreach_only'))
+                        {{-- Outreach-only nav: just the cold-email tooling. --}}
+                        <x-nav-link :href="route('outreach.dashboard')" :active="request()->routeIs('outreach.dashboard')">
+                            {{ __('Töölaud') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('outreach.inbox.index')" :active="request()->routeIs('outreach.inbox.*')">
+                            {{ __('Inbox') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('outreach.campaigns.index')" :active="request()->routeIs('outreach.campaigns.*')">
                             {{ __('Kampaaniad') }}
-                        </x-nav-dropdown-link>
-                        <x-nav-dropdown-link :href="route('email-logs.index')" :active="request()->routeIs('email-logs.*')">
-                            {{ __('Logid') }}
-                        </x-nav-dropdown-link>
-                    </x-nav-dropdown>
+                        </x-nav-link>
+                        <x-nav-link :href="route('outreach.accounts.index')" :active="request()->routeIs('outreach.accounts.*')">
+                            {{ __('Postkastid') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('outreach.reply-templates.index')" :active="request()->routeIs('outreach.reply-templates.*')">
+                            {{ __('Vastuste mallid') }}
+                        </x-nav-link>
+                    @else
+                        <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+                            {{ __('Töölaud') }}
+                        </x-nav-link>
+
+                        <x-nav-dropdown :active="request()->routeIs(['companies.*', 'customers.*', 'client-attributes.*'])" :label="__('Ettevõtted')">
+                            <x-nav-dropdown-link :href="route('companies.index')" :active="request()->routeIs('companies.*')">
+                                {{ __('Ettevõtted') }}
+                            </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="route('customers.index')" :active="request()->routeIs('customers.*')">
+                                {{ __('Kliendid') }}
+                            </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="route('client-attributes.index')" :active="request()->routeIs('client-attributes.*')">
+                                {{ __('Kliendi kategooriad') }}
+                            </x-nav-dropdown-link>
+                        </x-nav-dropdown>
+
+                        <x-nav-dropdown :active="request()->routeIs(['deals.*', 'quotations.*']) || request()->routeIs('deals.report')" :label="__('Tehingud')">
+                            <x-nav-dropdown-link :href="route('deals.index')" :active="request()->routeIs('deals.*') && !request()->routeIs('deals.report')">
+                                {{ __('Tehingud') }}
+                            </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="route('deals.report')" :active="request()->routeIs('deals.report')">
+                                {{ __('Töötundide raport') }}
+                            </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="route('quotations.index')" :active="request()->routeIs('quotations.*')">
+                                {{ __('Pakkumised') }}
+                            </x-nav-dropdown-link>
+                        </x-nav-dropdown>
+
+                        <x-nav-link :href="route('contacts.index')" :active="request()->routeIs('contacts.*')">
+                            {{ __('Kontaktid') }}
+                        </x-nav-link>
+
+                        <x-nav-dropdown :active="request()->routeIs('tasks.*')" :label="__('Ülesanded')">
+                            <x-nav-dropdown-link :href="route('tasks.index')" :active="request()->routeIs('tasks.index') && !request()->has('favorite')">
+                                {{ __('Kõik ülesanded') }}
+                            </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="route('tasks.index', ['favorite' => 1])" :active="request()->has('favorite')">
+                                {{ __('Tärniga ülesanded') }}
+                            </x-nav-dropdown-link>
+                        </x-nav-dropdown>
+
+                        <x-nav-link :href="route('calendar.index')" :active="request()->routeIs('calendar.*')">
+                            {{ __('Kalender') }}
+                        </x-nav-link>
+
+                        <x-nav-dropdown :active="request()->routeIs(['email-campaigns.*', 'email-logs.*', 'outreach.*'])" :label="__('E-post')">
+                            <x-nav-dropdown-link :href="route('email-campaigns.index')" :active="request()->routeIs('email-campaigns.*')">
+                                {{ __('Kampaaniad') }}
+                            </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="route('email-logs.index')" :active="request()->routeIs('email-logs.*')">
+                                {{ __('Logid') }}
+                            </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="route('outreach.dashboard')" :active="request()->routeIs('outreach.*')">
+                                {{ __('Outreach') }}
+                            </x-nav-dropdown-link>
+                        </x-nav-dropdown>
+                    @endif
                 </div>
             </div>
 
@@ -154,63 +177,81 @@
     <!-- Responsive Navigation Menu -->
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
-            <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                {{ __('Dashboard') }}
-            </x-responsive-nav-link>
-
-            <!-- Ettevõtted -->
-            <div class="pl-3">
-                <div class="font-medium text-base text-gray-800 mb-1">{{ __('Ettevõtted') }}</div>
-                <x-responsive-nav-link :href="route('companies.index')" :active="request()->routeIs('companies.*')">
-                    {{ __('Ettevõtted') }}
+            @if(config('app.outreach_only'))
+                <x-responsive-nav-link :href="route('outreach.dashboard')" :active="request()->routeIs('outreach.dashboard')">
+                    {{ __('Töölaud') }}
                 </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('customers.index')" :active="request()->routeIs('customers.*')">
-                    {{ __('Kliendid') }}
+                <x-responsive-nav-link :href="route('outreach.inbox.index')" :active="request()->routeIs('outreach.inbox.*')">
+                    {{ __('Inbox') }}
                 </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('client-attributes.index')" :active="request()->routeIs('client-attributes.*')">
-                    {{ __('Kliendi kategooriad') }}
-                </x-responsive-nav-link>
-            </div>
-
-            <!-- Tehingud -->
-            <div class="pl-3">
-                <div class="font-medium text-base text-gray-800 mb-1">{{ __('Tehingud') }}</div>
-                <x-responsive-nav-link :href="route('deals.index')" :active="request()->routeIs('deals.*') && !request()->routeIs('deals.report')">
-                    {{ __('Tehingud') }}
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('deals.report')" :active="request()->routeIs('deals.report')">
-                    {{ __('Töötundide raport') }}
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('quotations.index')" :active="request()->routeIs('quotations.*')">
-                    {{ __('Pakkumised') }}
-                </x-responsive-nav-link>
-            </div>
-
-            <x-responsive-nav-link :href="route('contacts.index')" :active="request()->routeIs('contacts.*')">
-                {{ __('Kontaktid') }}
-            </x-responsive-nav-link>
-
-            <!-- Ülesanded -->
-            <div class="pl-3">
-                <div class="font-medium text-base text-gray-800 mb-1">{{ __('Ülesanded') }}</div>
-                <x-responsive-nav-link :href="route('tasks.index')" :active="request()->routeIs('tasks.index') && !request()->has('favorite')">
-                    {{ __('Kõik ülesanded') }}
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('tasks.index', ['favorite' => 1])" :active="request()->has('favorite')">
-                    {{ __('Tärniga ülesanded') }}
-                </x-responsive-nav-link>
-            </div>
-
-            <!-- E-post -->
-            <div class="pl-3">
-                <div class="font-medium text-base text-gray-800 mb-1">{{ __('E-post') }}</div>
-                <x-responsive-nav-link :href="route('email-campaigns.index')" :active="request()->routeIs('email-campaigns.*')">
+                <x-responsive-nav-link :href="route('outreach.campaigns.index')" :active="request()->routeIs('outreach.campaigns.*')">
                     {{ __('Kampaaniad') }}
                 </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('email-logs.index')" :active="request()->routeIs('email-logs.*')">
-                    {{ __('Logid') }}
+                <x-responsive-nav-link :href="route('outreach.accounts.index')" :active="request()->routeIs('outreach.accounts.*')">
+                    {{ __('Postkastid') }}
                 </x-responsive-nav-link>
-            </div>
+                <x-responsive-nav-link :href="route('outreach.reply-templates.index')" :active="request()->routeIs('outreach.reply-templates.*')">
+                    {{ __('Vastuste mallid') }}
+                </x-responsive-nav-link>
+            @else
+                <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+                    {{ __('Dashboard') }}
+                </x-responsive-nav-link>
+
+                <!-- Ettevõtted -->
+                <div class="pl-3">
+                    <div class="font-medium text-base text-gray-800 mb-1">{{ __('Ettevõtted') }}</div>
+                    <x-responsive-nav-link :href="route('companies.index')" :active="request()->routeIs('companies.*')">
+                        {{ __('Ettevõtted') }}
+                    </x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('customers.index')" :active="request()->routeIs('customers.*')">
+                        {{ __('Kliendid') }}
+                    </x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('client-attributes.index')" :active="request()->routeIs('client-attributes.*')">
+                        {{ __('Kliendi kategooriad') }}
+                    </x-responsive-nav-link>
+                </div>
+
+                <!-- Tehingud -->
+                <div class="pl-3">
+                    <div class="font-medium text-base text-gray-800 mb-1">{{ __('Tehingud') }}</div>
+                    <x-responsive-nav-link :href="route('deals.index')" :active="request()->routeIs('deals.*') && !request()->routeIs('deals.report')">
+                        {{ __('Tehingud') }}
+                    </x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('deals.report')" :active="request()->routeIs('deals.report')">
+                        {{ __('Töötundide raport') }}
+                    </x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('quotations.index')" :active="request()->routeIs('quotations.*')">
+                        {{ __('Pakkumised') }}
+                    </x-responsive-nav-link>
+                </div>
+
+                <x-responsive-nav-link :href="route('contacts.index')" :active="request()->routeIs('contacts.*')">
+                    {{ __('Kontaktid') }}
+                </x-responsive-nav-link>
+
+                <!-- Ülesanded -->
+                <div class="pl-3">
+                    <div class="font-medium text-base text-gray-800 mb-1">{{ __('Ülesanded') }}</div>
+                    <x-responsive-nav-link :href="route('tasks.index')" :active="request()->routeIs('tasks.index') && !request()->has('favorite')">
+                        {{ __('Kõik ülesanded') }}
+                    </x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('tasks.index', ['favorite' => 1])" :active="request()->has('favorite')">
+                        {{ __('Tärniga ülesanded') }}
+                    </x-responsive-nav-link>
+                </div>
+
+                <!-- E-post -->
+                <div class="pl-3">
+                    <div class="font-medium text-base text-gray-800 mb-1">{{ __('E-post') }}</div>
+                    <x-responsive-nav-link :href="route('email-campaigns.index')" :active="request()->routeIs('email-campaigns.*')">
+                        {{ __('Kampaaniad') }}
+                    </x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('email-logs.index')" :active="request()->routeIs('email-logs.*')">
+                        {{ __('Logid') }}
+                    </x-responsive-nav-link>
+                </div>
+            @endif
         </div>
 
         <!-- Responsive Settings Options -->

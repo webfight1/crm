@@ -17,6 +17,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Outreach-Only Mode
+    |--------------------------------------------------------------------------
+    |
+    | When OUTREACH_ONLY_MODE=true in .env the navigation hides every non-
+    | outreach module, login lands on /outreach (not /dashboard), and a
+    | route-level middleware blocks direct access to other URLs. Used for
+    | tenants/clients that should only see the cold-email tooling and not
+    | the full CRM. Default false — full CRM exposed.
+    |
+    */
+
+    'outreach_only' => env('OUTREACH_ONLY_MODE', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |
