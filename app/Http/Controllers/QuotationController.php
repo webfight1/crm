@@ -211,10 +211,9 @@ class QuotationController extends Controller
      */
     public function composeEmail(Quotation $quotation)
     {
-        if ($quotation->status !== 'draft') {
-            return redirect()->route('quotations.show', $quotation)
-                ->with('error', __('Pakkumine on juba saadetud!'));
-        }
+        // Re-sends are allowed: operator may want to send to a corrected
+        // recipient, send themselves a test copy, or forward to a second
+        // contact. Status stays "sent" after the first successful send.
 
         $quotation->load(['deal.customer', 'deal.contact', 'deal.company', 'user']);
         $settings = Setting::getSettings();
@@ -266,10 +265,9 @@ class QuotationController extends Controller
 
     public function sendByEmail(Request $request, Quotation $quotation, OutreachMailer $mailer)
     {
-        if ($quotation->status !== 'draft') {
-            return redirect()->route('quotations.show', $quotation)
-                ->with('error', __('Pakkumine on juba saadetud!'));
-        }
+        // Re-sends are allowed: operator may want to send to a corrected
+        // recipient, send themselves a test copy, or forward to a second
+        // contact. Status stays "sent" after the first successful send.
 
         $data = $request->validate([
             'to'         => 'required|email',
