@@ -98,7 +98,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('tasks', TaskController::class);
     Route::post('/tasks/{task}/toggle-favorite', [TaskController::class, 'toggleFavorite'])->name('tasks.toggle-favorite');
     Route::resource('quotations', QuotationController::class);
-    Route::post('/quotations/{quotation}/send', [QuotationController::class, 'sendByEmail'])->name('quotations.send');
+    Route::get ('/quotations/{quotation}/email', [QuotationController::class, 'composeEmail'])->name('quotations.email');
+    Route::post('/quotations/{quotation}/send',  [QuotationController::class, 'sendByEmail'])->name('quotations.send');
     Route::get('/quotations/{quotation}/pdf', [QuotationController::class, 'downloadPdf'])->name('quotations.pdf');
     
     // Email routes

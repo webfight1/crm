@@ -6,6 +6,8 @@ use App\Models\Deal;
 use App\Models\Setting;
 use App\Models\Quotation;
 use App\Mail\QuotationMail;
+use App\Outreach\Models\OutreachEmailAccount;
+use App\Outreach\Services\OutreachMailer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -197,33 +199,148 @@ class QuotationController extends Controller
         return $pdf->download("pakkumine_{$quotation->number}.pdf");
     }
 
-    public function sendByEmail(Quotation $quotation)
+    /**
+     * Pre-send composer: lets the operator inspect/edit every part of the
+     * outgoing email before it actually leaves the server. Prefills:
+     *   - to     = customer email (fallback to contact email)
+     *   - subject = "Pakkumine #Q...."
+     *   - body    = a sane default Estonian template
+     *   - sender  = primary OutreachEmailAccount (signature_html shown)
+     *   - PDF    = generated at send time, name shown here as preview
+     * The actual send happens in sendByEmail() once the form is submitted.
+     */
+    public function composeEmail(Quotation $quotation)
     {
         if ($quotation->status !== 'draft') {
-            return back()->with('error', __('Pakkumine on juba saadetud!'));
+            return redirect()->route('quotations.show', $quotation)
+                ->with('error', __('Pakkumine on juba saadetud!'));
         }
 
-        $quotation->load(['deal', 'deal.customer']);
+        $quotation->load(['deal.customer', 'deal.contact', 'deal.company', 'user']);
         $settings = Setting::getSettings();
 
-        // Genereeri PDF
-        $pdf = PDF::loadView('quotations.pdf', compact('quotation', 'settings'));
-        $pdfPath = storage_path("app/temp/pakkumine_{$quotation->number}.pdf");
+        // Only SMTP-capable accounts — Zone Relay can't carry PDF attachments
+        // with the current relay endpoint schema, so we exclude those here.
+        $accounts = OutreachEmailAccount::where('is_active', true)
+            ->where(function ($q) {
+                $q->where('provider', '!=', 'zone_relay')
+                  ->orWhereNull('provider');
+            })
+            ->whereNotNull('smtp_host')
+            ->orderByDesc('is_primary_reply_account')
+            ->orderBy('name')
+            ->get();
+
+        $sender = $accounts->first();
+
+        // Pick the first non-empty contact among the deal's links.
+        $recipientEmail = $quotation->deal->customer?->email
+            ?? $quotation->deal->contact?->email;
+        $recipientName  = $quotation->deal->customer?->full_name
+            ?? trim(($quotation->deal->contact?->first_name ?? '') . ' ' . ($quotation->deal->contact?->last_name ?? ''));
+
+        // Default subject + body. The user can edit before sending so this
+        // is just a sane starting point — Estonian B2B tone.
+        $defaultSubject = __('Pakkumine') . ' #' . $quotation->number;
+
+        $defaultBody = "Tere" . ($recipientName ? " {$recipientName}" : "") . ",\n\n"
+            . "Saadan teile lubatud pakkumise: {$quotation->title}.\n\n"
+            . ($quotation->description ? $quotation->description . "\n\n" : "")
+            . "PDF on lisatud kirja manusena. Pakkumine kehtib "
+            . ($quotation->valid_until ? "kuni " . $quotation->valid_until->format('d.m.Y') : "30 päeva") . ".\n\n"
+            . "Annan hea meelega teada, kui on küsimusi või soovid täpsustusi.\n\n"
+            . "Lugupidamisega,\n"
+            . ($quotation->user?->name ?? '');
+
+        return view('quotations.email-compose', [
+            'quotation'      => $quotation,
+            'settings'       => $settings,
+            'sender'         => $sender,
+            'accounts'       => $accounts,
+            'recipientEmail' => $recipientEmail,
+            'defaultSubject' => $defaultSubject,
+            'defaultBody'    => $defaultBody,
+            'pdfFilename'    => "pakkumine_{$quotation->number}.pdf",
+        ]);
+    }
+
+    public function sendByEmail(Request $request, Quotation $quotation, OutreachMailer $mailer)
+    {
+        if ($quotation->status !== 'draft') {
+            return redirect()->route('quotations.show', $quotation)
+                ->with('error', __('Pakkumine on juba saadetud!'));
+        }
+
+        $data = $request->validate([
+            'to'         => 'required|email',
+            'subject'    => 'required|string|max:500',
+            'body'       => 'required|string|max:20000',
+            'account_id' => 'required|integer|exists:outreach_email_accounts,id',
+        ]);
+
+        // Use the operator-selected outreach account. We route through
+        // OutreachMailer because Laravel's default MAIL_MAILER on this VPS
+        // is "log" — it would write to laravel.log instead of delivering.
+        // The compose form only offers SMTP-capable accounts; defend against
+        // a tampered form by re-checking here.
+        $sender = OutreachEmailAccount::where('id', $data['account_id'])
+            ->where('is_active', true)
+            ->whereNotNull('smtp_host')
+            ->first();
+
+        if (! $sender) {
+            return back()->withInput()
+                ->with('error', __('Valitud saatja konto pole aktiivne või ei toeta manuseid.'));
+        }
+
+        $quotation->load(['deal.customer', 'deal.contact', 'deal.company']);
+        $settings = Setting::getSettings();
+
+        // Render and save the PDF temporarily so it can be attached.
+        @mkdir(storage_path('app/temp'), 0775, true);
+        $pdf     = Pdf::loadView('quotations.pdf', compact('quotation', 'settings'));
+        $pdfPath = storage_path("app/temp/pakkumine_{$quotation->number}_" . time() . ".pdf");
         $pdf->save($pdfPath);
 
         try {
-            // Saada e-kiri
-            Mail::to($quotation->deal->customer->email)
-                ->send(new QuotationMail($quotation, $pdfPath));
+            // Convert plain-text body to HTML for the email — keep linebreaks,
+            // escape user input so a stray < doesn't break the layout. The
+            // mailer separately appends the account signature_html.
+            $htmlBody = nl2br(e($data['body']));
 
-            // Uuenda staatus
+            $recipientName = $quotation->deal->customer?->full_name
+                ?? trim(($quotation->deal->contact?->first_name ?? '') . ' ' . ($quotation->deal->contact?->last_name ?? ''))
+                ?: $data['to'];
+
+            $mailer->send(
+                account:   $sender,
+                toEmail:   $data['to'],
+                toName:    $recipientName,
+                subject:   $data['subject'],
+                htmlBody:  $htmlBody,
+                attachments: [
+                    [
+                        'path' => $pdfPath,
+                        'name' => "pakkumine_{$quotation->number}.pdf",
+                        'mime' => 'application/pdf',
+                    ],
+                ],
+            );
+
             $quotation->update(['status' => 'sent']);
 
-            return back()->with('success', __('Pakkumine on saadetud!'));
-        } catch (\Exception $e) {
-            return back()->with('error', __('Pakkumise saatmine ebaõnnestus!'));
+            return redirect()->route('quotations.show', $quotation)
+                ->with('success', __('Pakkumine saadetud aadressile') . ' ' . $data['to']);
+        } catch (\Throwable $e) {
+            \Log::error('[Quotation] send failed', [
+                'quotation_id' => $quotation->id,
+                'to'           => $data['to'],
+                'error'        => $e->getMessage(),
+            ]);
+            return back()
+                ->withInput()
+                ->with('error', __('Pakkumise saatmine ebaõnnestus') . ': ' . $e->getMessage());
         } finally {
-            // Kustuta ajutine PDF
             if (file_exists($pdfPath)) {
                 unlink($pdfPath);
             }

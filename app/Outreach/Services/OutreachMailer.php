@@ -43,6 +43,7 @@ class OutreachMailer
         string               $htmlBody,
         ?string              $inReplyTo = null,
         ?string              $references = null,
+        array                $attachments = [],
     ): string {
         // Append the account-level HTML signature (if set) before any branch.
         // Both the SMTP path and the Zone Relay path use the same body, so
@@ -62,6 +63,7 @@ class OutreachMailer
                 $htmlBody,
                 $inReplyTo,
                 $references,
+                $attachments,
             );
         }
 
@@ -72,6 +74,17 @@ class OutreachMailer
             ->to(new Address($toEmail, $toName))
             ->subject($subject)
             ->html($htmlBody);
+
+        // Attach files. Each attachment is [path, name, mime].
+        foreach ($attachments as $a) {
+            if (! empty($a['path']) && is_file($a['path'])) {
+                $email->attachFromPath(
+                    $a['path'],
+                    $a['name'] ?? basename($a['path']),
+                    $a['mime'] ?? null,
+                );
+            }
+        }
 
         $headers = $email->getHeaders();
         $headers->addIdHeader('Message-ID', $messageId);
