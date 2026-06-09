@@ -182,6 +182,51 @@
                     </div>
                 </div>
             </div>
+
+            {{-- Saatmise logi: kõik "Saada e-postiga" katsed, uusim üleval. --}}
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mt-6">
+                <div class="p-6">
+                    <h3 class="text-lg font-medium mb-4 flex items-center gap-2">
+                        <span>📨</span> {{ __('Saatmise logi') }}
+                        @if($quotation->emailSends->isNotEmpty())
+                            <span class="text-sm font-normal text-gray-500">({{ $quotation->emailSends->count() }} {{ __('katset') }})</span>
+                        @endif
+                    </h3>
+
+                    @forelse($quotation->emailSends as $send)
+                        <div class="border-b border-gray-100 last:border-b-0 py-3 flex items-start gap-3">
+                            <div class="shrink-0 mt-1">
+                                @if($send->status === 'sent')
+                                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-500" title="Õnnestus"></span>
+                                @else
+                                    <span class="inline-block w-2 h-2 rounded-full bg-red-500" title="Ebaõnnestus"></span>
+                                @endif
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 text-sm">
+                                    <span class="font-medium text-gray-900">{{ $send->to_email }}</span>
+                                    @if($send->status === 'sent')
+                                        <span class="px-1.5 py-0.5 text-[10px] bg-emerald-50 text-emerald-700 rounded">Saadetud</span>
+                                    @else
+                                        <span class="px-1.5 py-0.5 text-[10px] bg-red-50 text-red-700 rounded">Ebaõnnestus</span>
+                                    @endif
+                                    <span class="ml-auto text-xs text-gray-400">{{ $send->sent_at->format('d.m.Y H:i:s') }}</span>
+                                </div>
+                                <p class="text-xs text-gray-600 mt-0.5 truncate">"{{ $send->subject }}"</p>
+                                <p class="text-xs text-gray-400 mt-0.5">
+                                    {{ __('Saatja') }}:
+                                    <span class="font-mono">{{ $send->senderAccount?->email ?? '—' }}</span>
+                                </p>
+                                @if($send->error_message)
+                                    <p class="text-xs text-red-600 mt-1 font-mono">{{ $send->error_message }}</p>
+                                @endif
+                            </div>
+                        </div>
+                    @empty
+                        <p class="text-sm text-gray-500">{{ __('Ühtegi kirja pole veel saadetud.') }}</p>
+                    @endforelse
+                </div>
+            </div>
         </div>
     </div>
 </x-app-layout>

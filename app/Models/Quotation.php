@@ -48,6 +48,11 @@ class Quotation extends Model
         return $this->hasMany(QuotationItem::class)->orderBy('sort_order');
     }
 
+    public function emailSends()
+    {
+        return $this->hasMany(QuotationEmailSend::class)->orderByDesc('sent_at');
+    }
+
     public function calculateTotals()
     {
         $this->subtotal = $this->items->sum('subtotal');

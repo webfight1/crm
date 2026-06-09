@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Deal;
+use App\Models\QuotationEmailSend;
 use App\Models\Setting;
 use App\Models\Quotation;
 use App\Mail\QuotationMail;
@@ -110,8 +111,8 @@ class QuotationController extends Controller
 
     public function show(Quotation $quotation)
     {
-        $quotation->load(['deal', 'deal.customer', 'deal.company', 'items']);
-        
+        $quotation->load(['deal', 'deal.customer', 'deal.company', 'items', 'emailSends.senderAccount']);
+
         return view('quotations.show', compact('quotation'));
     }
 
@@ -325,6 +326,16 @@ class QuotationController extends Controller
                 ],
             );
 
+            // Audit row — one entry per successful send shown on /quotations/{id}.
+            QuotationEmailSend::create([
+                'quotation_id'      => $quotation->id,
+                'sender_account_id' => $sender->id,
+                'to_email'          => $data['to'],
+                'subject'           => $data['subject'],
+                'status'            => 'sent',
+                'sent_at'           => now(),
+            ]);
+
             $quotation->update(['status' => 'sent']);
 
             return redirect()->route('quotations.show', $quotation)
@@ -335,6 +346,19 @@ class QuotationController extends Controller
                 'to'           => $data['to'],
                 'error'        => $e->getMessage(),
             ]);
+
+            // Audit the failure too so the operator sees attempts that didn't
+            // make it out, with the error reason for debugging.
+            QuotationEmailSend::create([
+                'quotation_id'      => $quotation->id,
+                'sender_account_id' => $sender->id,
+                'to_email'          => $data['to'],
+                'subject'           => $data['subject'],
+                'status'            => 'failed',
+                'error_message'     => $e->getMessage(),
+                'sent_at'           => now(),
+            ]);
+
             return back()
                 ->withInput()
                 ->with('error', __('Pakkumise saatmine ebaõnnestus') . ': ' . $e->getMessage());
