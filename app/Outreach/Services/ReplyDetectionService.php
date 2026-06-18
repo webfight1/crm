@@ -198,24 +198,30 @@ class ReplyDetectionService
 
         $leads = $leadQuery->get();
 
-        if ($leads->isEmpty()) {
-            return 0;
+        // Strategy A + B are lead-scoped — only run them when there's at
+        // least one matching lead, otherwise they'd build empty index maps
+        // and exit anyway. Strategy C is independent (CRM Customers /
+        // Contacts + watched-email allowlist) and MUST run on every poll
+        // regardless of lead state — otherwise a CRM where every campaign
+        // is paused stops listening for direct client mail entirely.
+        if ($leads->isNotEmpty()) {
+            // Strategy A: header-based Message-ID matching (lead-only —
+            // Customers and Contacts have no outbound message_ids to
+            // match against).
+            $detected += $this->detectByMessageId($imap, $leads, $account);
+
+            // Strategy B: sender-address search runs against every lead in
+            // scope. The "always-listening" extension means qualified leads
+            // are deliberately kept in scope on cold mailboxes too, so any
+            // fresh inbound from them (including stand-alone messages with
+            // no In-Reply-To) is captured.
+            $detected += $this->detectBySenderAddress($imap, $leads, $account);
         }
 
-        // Strategy A: header-based Message-ID matching (lead-only — Customers
-        // and Contacts have no outbound message_ids to match against).
-        $detected += $this->detectByMessageId($imap, $leads, $account);
-
-        // Strategy B: sender-address search runs against every lead in scope.
-        // The "always-listening" extension means qualified leads are deliberately
-        // kept in scope on cold mailboxes too, so any fresh inbound from them
-        // (including stand-alone messages with no In-Reply-To) is captured.
-        $detected += $this->detectBySenderAddress($imap, $leads, $account);
-
         // Strategy C: scan for inbound from any Customer or Contact whose
-        // email is registered in the main CRM tables, even if they were never
-        // an outreach lead. Captures direct business correspondence into the
-        // unified inbox.
+        // email is registered in the main CRM tables, even if they were
+        // never an outreach lead. Captures direct business correspondence
+        // into the unified inbox. Always runs.
         $detected += $this->detectCrmContacts($imap, $account);
 
         return $detected;
