@@ -256,10 +256,15 @@
                 // task show page so an <a> tag becomes a real clickable link.
                 // The URL comes from route() which respects APP_URL — currently
                 // https://crm.webfight.shop — so the link survives the IP →
-                // domain transition cleanly.
-                $taskDesc = '<a href="' . e($threadUrl) . '" target="_blank">📬 Vaata kirja inboxis</a>'
-                    . "\n\nKlient kirjutas (" . ($latestInbound ? e($latestInbound->subject ?? '—') : '—') . "):\n"
-                    . ($latestInbound ? \Illuminate\Support\Str::limit(strip_tags($latestInbound->body_text ?? $latestInbound->body_html ?? ''), 400) : '');
+                // domain transition cleanly. Inline color so it visibly reads
+                // as a link without depending on the host page's prose theme,
+                // and <br> tags so the prefill's line breaks render in HTML.
+                $snippet = $latestInbound
+                    ? \Illuminate\Support\Str::limit(strip_tags($latestInbound->body_text ?? $latestInbound->body_html ?? ''), 400)
+                    : '';
+                $taskDesc = '<a href="' . e($threadUrl) . '" target="_blank" style="color:#4f46e5; text-decoration:underline;">📬 Vaata kirja inboxis</a>'
+                    . '<br><br>Klient kirjutas (' . ($latestInbound ? e($latestInbound->subject ?? '—') : '—') . '):<br>'
+                    . nl2br(e($snippet));
             @endphp
             <div x-data="{
                     open: false,
