@@ -954,15 +954,16 @@ class OutreachController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'subject', 'body']);
 
-        // Deal list for the "Loo ülesanne" modal — narrowed to the matched
-        // customer's deals when there is one. If no customer match, we still
-        // show a small selection of the most-recent open deals so the
-        // operator can attach the task to any deal manually.
+        // Full customer + deal lists for the "Loo ülesanne" modal. The view
+        // narrows the deal dropdown in the browser based on the selected
+        // customer (Alpine-side filter), so we ship everything once and
+        // avoid a second round-trip when the operator picks a different
+        // customer than the auto-detected one.
         $customerForTask = $crmLink['customer'] ?? null;
-        $taskDeals = $customerForTask
-            ? \App\Models\Deal::where('customer_id', $customerForTask->id)
-                ->orderByDesc('created_at')->get(['id', 'title', 'stage'])
-            : \App\Models\Deal::orderByDesc('created_at')->limit(15)->get(['id', 'title', 'stage']);
+        $allCustomers = \App\Models\Customer::orderBy('first_name')->orderBy('last_name')
+            ->get(['id', 'first_name', 'last_name', 'email', 'company_id']);
+        $allDeals = \App\Models\Deal::orderByDesc('created_at')
+            ->get(['id', 'title', 'stage', 'customer_id']);
 
         return view('outreach.inbox.thread', array_merge($shared, [
             'email'           => $email,
@@ -971,7 +972,8 @@ class OutreachController extends Controller
             'crmLink'         => $crmLink,
             'isArchived'      => $isArchived,
             'replyTemplates'  => $replyTemplates,
-            'taskDeals'       => $taskDeals,
+            'allCustomers'    => $allCustomers,
+            'allDeals'        => $allDeals,
             'customerForTask' => $customerForTask,
         ]));
     }
@@ -1338,24 +1340,35 @@ class OutreachController extends Controller
             'description'    => 'nullable|string|max:5000',
             'priority'       => 'required|in:low,medium,high,urgent',
             'due_date'       => 'nullable|date',
+            'customer_id'    => 'nullable|integer|exists:customers,id',
             'deal_id'        => 'nullable',          // 'new', existing id, or empty
             'new_deal_title' => 'nullable|string|max:255',
         ]);
 
-        // Resolve attribution from the thread — same lookup the reply form
-        // uses so the task lands on the matching CRM record(s).
-        $emailLower = strtolower($email);
-        $customer = Customer::whereRaw('LOWER(email) = ?', [$emailLower])->first();
-        $contact  = Contact::whereRaw('LOWER(email) = ?', [$emailLower])->first();
-        if (! $customer && ! $contact) {
-            // Pull attribution from any inbound message with this from_email
-            // (covers forwarded-reply threads where addresses don't match).
-            $derived = OutreachMessage::whereRaw('LOWER(from_email) = ?', [$emailLower])
-                ->where('direction', OutreachMessage::DIRECTION_INBOUND)
-                ->orderByDesc('received_at')->first();
-            if ($derived) {
-                if ($derived->customer_id) $customer = Customer::find($derived->customer_id);
-                if ($derived->contact_id)  $contact  = Contact::find($derived->contact_id);
+        // Manual customer pick (from the modal's dropdown) wins over the
+        // auto-detection — operator may know better when the email-based
+        // match was wrong or absent (watched-only thread).
+        $customer = null;
+        if (! empty($data['customer_id'])) {
+            $customer = Customer::find($data['customer_id']);
+        }
+        $contact = null;
+
+        // Fall back to email-derived attribution if no manual pick.
+        if (! $customer) {
+            $emailLower = strtolower($email);
+            $customer = Customer::whereRaw('LOWER(email) = ?', [$emailLower])->first();
+            $contact  = Contact::whereRaw('LOWER(email) = ?', [$emailLower])->first();
+            if (! $customer && ! $contact) {
+                // Pull attribution from any inbound message with this from_email
+                // (covers forwarded-reply threads where addresses don't match).
+                $derived = OutreachMessage::whereRaw('LOWER(from_email) = ?', [$emailLower])
+                    ->where('direction', OutreachMessage::DIRECTION_INBOUND)
+                    ->orderByDesc('received_at')->first();
+                if ($derived) {
+                    if ($derived->customer_id) $customer = Customer::find($derived->customer_id);
+                    if ($derived->contact_id)  $contact  = Contact::find($derived->contact_id);
+                }
             }
         }
 

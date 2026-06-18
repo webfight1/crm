@@ -256,8 +256,24 @@
             @endphp
             <div x-data="{
                     open: false,
+                    customerId: '{{ $customerForTask?->id }}',
+                    customers: @js($allCustomers->map(fn($c) => [
+                        'id'      => $c->id,
+                        'label'   => trim($c->first_name . ' ' . $c->last_name) . ($c->email ? ' — ' . $c->email : ''),
+                    ])->all()),
+                    deals: @js($allDeals->map(fn($d) => [
+                        'id'          => $d->id,
+                        'title'       => $d->title,
+                        'stage'       => $d->stage,
+                        'customer_id' => $d->customer_id,
+                    ])->all()),
                     dealChoice: '',
                     showNewDealTitle: false,
+                    get filteredDeals() {
+                        return this.customerId
+                            ? this.deals.filter(d => String(d.customer_id) === String(this.customerId))
+                            : this.deals.slice(0, 15);
+                    },
                  }"
                  @keydown.escape.window="open = false">
                 <div class="flex justify-end">
@@ -279,19 +295,21 @@
                             </div>
 
                             <div class="p-5 space-y-4">
-                                @if($customerForTask)
-                                    <div class="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
-                                        <span class="text-gray-600">{{ __('Klient (tuvastatud)') }}:</span>
-                                        <strong>{{ $customerForTask->full_name }}</strong>
-                                        @if($customerForTask->company)
-                                            · <span class="text-gray-600">{{ $customerForTask->company->name }}</span>
-                                        @endif
-                                    </div>
-                                @else
-                                    <div class="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm text-yellow-800">
-                                        {{ __('Klient ei ole CRM-is tuvastatud — ülesanne luuakse ilma kliendiseoseta. Tehingu valikuga saad ikka seose lisada.') }}
-                                    </div>
-                                @endif
+                                <div>
+                                    <x-input-label value="Klient" />
+                                    <select name="customer_id" x-model="customerId"
+                                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                                        <option value="">— {{ __('vali klient (valikuline)') }} —</option>
+                                        <template x-for="c in customers" :key="c.id">
+                                            <option :value="c.id" x-text="c.label"></option>
+                                        </template>
+                                    </select>
+                                    @if($customerForTask)
+                                        <p class="text-xs text-blue-700 mt-1">✓ {{ __('Auto-tuvastatud thread\'i e-mailist') }} — saad muuta.</p>
+                                    @else
+                                        <p class="text-xs text-yellow-700 mt-1">{{ __('Klient ei ole automaatselt tuvastatud — vali käsitsi või jäta tühjaks.') }}</p>
+                                    @endif
+                                </div>
 
                                 <div>
                                     <x-input-label value="Pealkiri" />
@@ -327,15 +345,16 @@
                                             @change="showNewDealTitle = (dealChoice === 'new')"
                                             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
                                         <option value="">{{ __('— jäta tühjaks (saab hiljem lisada) —') }}</option>
-                                        @if($taskDeals->isNotEmpty())
-                                            <optgroup label="{{ $customerForTask ? __('Selle kliendi tehingud') : __('Hiljutised tehingud') }}">
-                                                @foreach($taskDeals as $d)
-                                                    <option value="{{ $d->id }}">#{{ $d->id }} — {{ $d->title }} ({{ $d->stage }})</option>
-                                                @endforeach
-                                            </optgroup>
-                                        @endif
+                                        <optgroup :label="customerId ? 'Valitud kliendi tehingud' : 'Hiljutised tehingud'">
+                                            <template x-for="d in filteredDeals" :key="d.id">
+                                                <option :value="d.id" x-text="'#' + d.id + ' — ' + d.title + ' (' + d.stage + ')'"></option>
+                                            </template>
+                                        </optgroup>
                                         <option value="new">+ {{ __('Loo uus tehing') }}</option>
                                     </select>
+                                    <p x-show="customerId && filteredDeals.length === 0" x-cloak class="text-xs text-gray-500 mt-1">
+                                        {{ __('Sellel kliendil pole veel ühtegi tehingut — loo uus või jäta tühjaks.') }}
+                                    </p>
                                 </div>
 
                                 <div x-show="showNewDealTitle" x-cloak>
