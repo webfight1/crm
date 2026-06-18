@@ -954,13 +954,25 @@ class OutreachController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'subject', 'body']);
 
+        // Deal list for the "Loo ülesanne" modal — narrowed to the matched
+        // customer's deals when there is one. If no customer match, we still
+        // show a small selection of the most-recent open deals so the
+        // operator can attach the task to any deal manually.
+        $customerForTask = $crmLink['customer'] ?? null;
+        $taskDeals = $customerForTask
+            ? \App\Models\Deal::where('customer_id', $customerForTask->id)
+                ->orderByDesc('created_at')->get(['id', 'title', 'stage'])
+            : \App\Models\Deal::orderByDesc('created_at')->limit(15)->get(['id', 'title', 'stage']);
+
         return view('outreach.inbox.thread', array_merge($shared, [
-            'email'          => $email,
-            'leads'          => $leads,
-            'timeline'       => $timeline,
-            'crmLink'        => $crmLink,
-            'isArchived'     => $isArchived,
-            'replyTemplates' => $replyTemplates,
+            'email'           => $email,
+            'leads'           => $leads,
+            'timeline'        => $timeline,
+            'crmLink'         => $crmLink,
+            'isArchived'      => $isArchived,
+            'replyTemplates'  => $replyTemplates,
+            'taskDeals'       => $taskDeals,
+            'customerForTask' => $customerForTask,
         ]));
     }
 
@@ -1307,6 +1319,86 @@ class OutreachController extends Controller
         return redirect()
             ->route('outreach.inbox.index')
             ->with('success', 'Aadress eemaldatud jälgimisest.');
+    }
+
+    /**
+     * Create a Task from an inbox thread in one shot. Optional inline
+     * deal creation: if deal_id == 'new', use new_deal_title to spin up
+     * a fresh deal linked to the matched customer, then attach the task
+     * to it. Otherwise deal_id may be an existing deal id or empty (task
+     * stays standalone — allowed by the schema).
+     */
+    public function inboxCreateTask(Request $request, string $emailEncoded): RedirectResponse
+    {
+        $email = $this->decodeEmail($emailEncoded);
+        abort_if($email === null, 404);
+
+        $data = $request->validate([
+            'title'          => 'required|string|max:255',
+            'description'    => 'nullable|string|max:5000',
+            'priority'       => 'required|in:low,medium,high,urgent',
+            'due_date'       => 'nullable|date',
+            'deal_id'        => 'nullable',          // 'new', existing id, or empty
+            'new_deal_title' => 'nullable|string|max:255',
+        ]);
+
+        // Resolve attribution from the thread — same lookup the reply form
+        // uses so the task lands on the matching CRM record(s).
+        $emailLower = strtolower($email);
+        $customer = Customer::whereRaw('LOWER(email) = ?', [$emailLower])->first();
+        $contact  = Contact::whereRaw('LOWER(email) = ?', [$emailLower])->first();
+        if (! $customer && ! $contact) {
+            // Pull attribution from any inbound message with this from_email
+            // (covers forwarded-reply threads where addresses don't match).
+            $derived = OutreachMessage::whereRaw('LOWER(from_email) = ?', [$emailLower])
+                ->where('direction', OutreachMessage::DIRECTION_INBOUND)
+                ->orderByDesc('received_at')->first();
+            if ($derived) {
+                if ($derived->customer_id) $customer = Customer::find($derived->customer_id);
+                if ($derived->contact_id)  $contact  = Contact::find($derived->contact_id);
+            }
+        }
+
+        // Deal handling — three branches:
+        $dealId = null;
+        if (($data['deal_id'] ?? '') === 'new') {
+            $title = trim((string) ($data['new_deal_title'] ?? ''));
+            if ($title === '') {
+                return back()->withInput()
+                    ->with('error', 'Uue tehingu pealkiri on tühi.');
+            }
+            $deal = \App\Models\Deal::create([
+                'title'       => $title,
+                'stage'       => 'new',
+                'customer_id' => $customer?->id,
+                'company_id'  => $customer?->company_id,
+                'contact_id'  => $contact?->id,
+                'user_id'     => auth()->id(),
+            ]);
+            $dealId = $deal->id;
+        } elseif (! empty($data['deal_id']) && ctype_digit((string) $data['deal_id'])) {
+            $dealId = (int) $data['deal_id'];
+        }
+
+        \App\Models\Task::create([
+            'title'       => $data['title'],
+            'description' => $data['description'] ?? null,
+            'type'        => 'follow_up',
+            'priority'    => $data['priority'],
+            'status'      => 'pending',
+            'due_date'    => $data['due_date'] ?? null,
+            'customer_id' => $customer?->id,
+            'company_id'  => $customer?->company_id,
+            'contact_id'  => $contact?->id,
+            'deal_id'     => $dealId,
+            'user_id'     => auth()->id(),
+            'assignee_id' => auth()->id(),
+            'price'       => 0,
+        ]);
+
+        return redirect()
+            ->route('outreach.inbox.thread', $emailEncoded)
+            ->with('success', 'Ülesanne loodud.');
     }
 
     // ─── Reply templates (saved snippets) ───────────────────────────────────

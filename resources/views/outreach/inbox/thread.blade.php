@@ -245,6 +245,116 @@
                 </div>
             @endif
 
+            {{-- "Loo ülesanne" — modal pre-filled from the latest inbox
+                 message. Customer auto-detected from the thread; deal is
+                 optional (existing dropdown, inline-new option, or empty). --}}
+            @php
+                $latestInbound = $timeline->firstWhere('kind', 'received');
+                $taskTitle = 'Vastus: ' . ($latestInbound->subject ?? $email);
+                $taskDesc  = "Inbox thread: " . url(route('outreach.inbox.thread', rtrim(strtr(base64_encode($email), '+/', '-_'), '=')))
+                    . "\n\nKlient kirjutas:\n" . ($latestInbound ? \Illuminate\Support\Str::limit(strip_tags($latestInbound->body_text ?? $latestInbound->body_html ?? ''), 400) : '');
+            @endphp
+            <div x-data="{
+                    open: false,
+                    dealChoice: '',
+                    showNewDealTitle: false,
+                 }"
+                 @keydown.escape.window="open = false">
+                <div class="flex justify-end">
+                    <button type="button" @click="open = true"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 text-sm font-medium rounded">
+                        📝 {{ __('Loo ülesanne') }}
+                    </button>
+                </div>
+
+                <div x-show="open" x-cloak
+                     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+                     @click.self="open = false">
+                    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <form method="POST" action="{{ route('outreach.inbox.task', rtrim(strtr(base64_encode($email), '+/', '-_'), '=')) }}">
+                            @csrf
+                            <div class="px-5 py-3 border-b border-gray-200 flex items-center justify-between">
+                                <h3 class="font-semibold text-gray-900">{{ __('Uus ülesanne sellest threadist') }}</h3>
+                                <button type="button" @click="open = false" class="text-gray-400 hover:text-gray-700 text-xl leading-none">×</button>
+                            </div>
+
+                            <div class="p-5 space-y-4">
+                                @if($customerForTask)
+                                    <div class="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
+                                        <span class="text-gray-600">{{ __('Klient (tuvastatud)') }}:</span>
+                                        <strong>{{ $customerForTask->full_name }}</strong>
+                                        @if($customerForTask->company)
+                                            · <span class="text-gray-600">{{ $customerForTask->company->name }}</span>
+                                        @endif
+                                    </div>
+                                @else
+                                    <div class="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm text-yellow-800">
+                                        {{ __('Klient ei ole CRM-is tuvastatud — ülesanne luuakse ilma kliendiseoseta. Tehingu valikuga saad ikka seose lisada.') }}
+                                    </div>
+                                @endif
+
+                                <div>
+                                    <x-input-label value="Pealkiri" />
+                                    <x-text-input name="title" required class="mt-1 block w-full"
+                                                  :value="old('title', $taskTitle)" />
+                                </div>
+
+                                <div>
+                                    <x-input-label value="Kirjeldus" />
+                                    <textarea name="description" rows="6"
+                                              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">{{ old('description', $taskDesc) }}</textarea>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <x-input-label value="Prioriteet" />
+                                        <select name="priority" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                                            @foreach(['low'=>'Madal','medium'=>'Keskmine','high'=>'Kõrge','urgent'=>'Kiireloomuline'] as $v=>$l)
+                                                <option value="{{ $v }}" @selected(old('priority','medium')===$v)>{{ $l }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <x-input-label value="Tähtaeg (valikuline)" />
+                                        <x-text-input type="date" name="due_date" class="mt-1 block w-full"
+                                                      :value="old('due_date', now()->addDays(3)->format('Y-m-d'))" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <x-input-label value="Tehing" />
+                                    <select name="deal_id" x-model="dealChoice"
+                                            @change="showNewDealTitle = (dealChoice === 'new')"
+                                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                                        <option value="">{{ __('— jäta tühjaks (saab hiljem lisada) —') }}</option>
+                                        @if($taskDeals->isNotEmpty())
+                                            <optgroup label="{{ $customerForTask ? __('Selle kliendi tehingud') : __('Hiljutised tehingud') }}">
+                                                @foreach($taskDeals as $d)
+                                                    <option value="{{ $d->id }}">#{{ $d->id }} — {{ $d->title }} ({{ $d->stage }})</option>
+                                                @endforeach
+                                            </optgroup>
+                                        @endif
+                                        <option value="new">+ {{ __('Loo uus tehing') }}</option>
+                                    </select>
+                                </div>
+
+                                <div x-show="showNewDealTitle" x-cloak>
+                                    <x-input-label value="Uue tehingu pealkiri" />
+                                    <x-text-input name="new_deal_title" class="mt-1 block w-full"
+                                                  placeholder="nt: Uus pakkumine — Kliendi nimi" />
+                                </div>
+                            </div>
+
+                            <div class="px-5 py-3 border-t border-gray-200 flex items-center justify-end gap-2">
+                                <button type="button" @click="open = false"
+                                        class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm rounded">{{ __('Tühista') }}</button>
+                                <x-primary-button>{{ __('Loo ülesanne') }}</x-primary-button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             @if($leads->isNotEmpty())
                 <div class="bg-white shadow-sm rounded-lg p-4">
                     <h3 class="text-sm font-semibold text-gray-700 mb-2">Lead'id ({{ $leads->count() }})</h3>
