@@ -13,6 +13,10 @@
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+        {{-- Alpine.js x-cloak: hides elements that have the attribute until
+             Alpine has booted, preventing modals (and other x-show / x-data
+             blocks) from briefly flashing on initial page load. --}}
+        <style>[x-cloak] { display: none !important; }</style>
         @stack('styles')
     </head>
     <body class="font-sans antialiased">
