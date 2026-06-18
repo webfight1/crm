@@ -250,9 +250,16 @@
                  optional (existing dropdown, inline-new option, or empty). --}}
             @php
                 $latestInbound = $timeline->firstWhere('kind', 'received');
-                $taskTitle = 'Vastus: ' . ($latestInbound->subject ?? $email);
-                $taskDesc  = "Inbox thread: " . url(route('outreach.inbox.thread', rtrim(strtr(base64_encode($email), '+/', '-_'), '=')))
-                    . "\n\nKlient kirjutas:\n" . ($latestInbound ? \Illuminate\Support\Str::limit(strip_tags($latestInbound->body_text ?? $latestInbound->body_html ?? ''), 400) : '');
+                $threadUrl     = route('outreach.inbox.thread', rtrim(strtr(base64_encode($email), '+/', '-_'), '='));
+                $taskTitle     = 'Vastus: ' . ($latestInbound->subject ?? $email);
+                // Description is rendered via {!! $task->description !!} on the
+                // task show page so an <a> tag becomes a real clickable link.
+                // The URL comes from route() which respects APP_URL — currently
+                // https://crm.webfight.shop — so the link survives the IP →
+                // domain transition cleanly.
+                $taskDesc = '<a href="' . e($threadUrl) . '" target="_blank">📬 Vaata kirja inboxis</a>'
+                    . "\n\nKlient kirjutas (" . ($latestInbound ? e($latestInbound->subject ?? '—') : '—') . "):\n"
+                    . ($latestInbound ? \Illuminate\Support\Str::limit(strip_tags($latestInbound->body_text ?? $latestInbound->body_html ?? ''), 400) : '');
             @endphp
             <div x-data="{
                     open: false,
