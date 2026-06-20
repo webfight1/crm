@@ -9,6 +9,17 @@
         <div class="max-w-6xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
+                    @if($errors->any())
+                        <div class="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
+                            <p class="font-medium mb-1">{{ __('Salvestamine ebaõnnestus') }}:</p>
+                            <ul class="list-disc list-inside text-sm">
+                                @foreach($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
                     <form method="POST" action="{{ route('companies.update', $company) }}">
                         @csrf
                         @method('PUT')
@@ -19,6 +30,24 @@
                                 <x-input-label for="name" :value="__('Ettevõtte nimi')" />
                                 <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" :value="old('name', $company->name)" required />
                                 <x-input-error :messages="$errors->get('name')" class="mt-2" />
+                            </div>
+
+                            <!-- Registrikood -->
+                            <div>
+                                <x-input-label for="registrikood" :value="__('Registrikood')" />
+                                <x-text-input id="registrikood" name="registrikood" type="text" class="mt-1 block w-full" :value="old('registrikood', $company->registrikood)" />
+                                <x-input-error :messages="$errors->get('registrikood')" class="mt-2" />
+                            </div>
+
+                            <!-- Status -->
+                            <div>
+                                <x-input-label for="status" :value="__('Staatus')" />
+                                <select id="status" name="status" required class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    @foreach(['prospect'=>'Prospekt','active'=>'Aktiivne','inactive'=>'Mitteaktiivne'] as $v=>$label)
+                                        <option value="{{ $v }}" @selected(old('status', $company->status) === $v)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('status')" class="mt-2" />
                             </div>
 
                             <!-- Email -->
