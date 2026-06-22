@@ -874,9 +874,21 @@ class OutreachController extends Controller
                 ->get()
             : collect();
 
+        // Outbound CRM replies need an extra hook: their from_email is the
+        // sender mailbox (e.g. veiko@webfight.ee) and they may have no
+        // attribution FKs at all when the thread is watched-only. The link
+        // back to the thread is via the In-Reply-To header. Collect every
+        // inbound message_id keyed to this thread's address so the query
+        // below can include outbound rows that quoted any of them.
+        $threadInboundMessageIds = OutreachMessage::whereRaw('LOWER(from_email) = ?', [$emailLower])
+            ->where('direction', OutreachMessage::DIRECTION_INBOUND)
+            ->whereNotNull('message_id')
+            ->pluck('message_id')
+            ->all();
+
         $messages = OutreachMessage::query()
             ->with(['emailAccount', 'lead.campaign'])
-            ->where(function ($q) use ($leadIds, $customer, $contact, $emailLower) {
+            ->where(function ($q) use ($leadIds, $customer, $contact, $emailLower, $threadInboundMessageIds) {
                 if ($leadIds->isNotEmpty()) {
                     $q->orWhereIn('lead_id', $leadIds);
                 }
@@ -889,6 +901,14 @@ class OutreachController extends Controller
                 // Always include from_email matches so watched-only and
                 // historical zero-attribution inbound rows surface.
                 $q->orWhereRaw('LOWER(from_email) = ?', [$emailLower]);
+
+                // Outbound replies for watched-only threads have no
+                // attribution and from_email points to our sending mailbox
+                // — pull them in via the In-Reply-To header pointing to a
+                // known inbound message_id of this thread.
+                if (! empty($threadInboundMessageIds)) {
+                    $q->orWhereIn('in_reply_to', $threadInboundMessageIds);
+                }
             })
             ->get();
 
