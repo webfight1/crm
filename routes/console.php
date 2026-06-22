@@ -48,3 +48,13 @@ Schedule::job(new ResetOutreachDailyLimitsJob, 'outreach')
     ->onFailure(function () {
         \Illuminate\Support\Facades\Log::error('[Outreach] ResetOutreachDailyLimitsJob scheduled run failed.');
     });
+
+// Every minute: dispatch any inbox replies that the operator scheduled
+// for a future send time and whose moment has now arrived.
+Schedule::command('outreach:send-scheduled-replies')
+    ->everyMinute()
+    ->name('outreach:send-scheduled-replies')
+    ->withoutOverlapping()
+    ->onFailure(function () {
+        \Illuminate\Support\Facades\Log::error('[Outreach] send-scheduled-replies run failed.');
+    });

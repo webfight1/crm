@@ -14,6 +14,7 @@ use App\Outreach\Models\OutreachEmailAccount;
 use App\Outreach\Models\OutreachLead;
 use App\Outreach\Models\OutreachMessage;
 use App\Outreach\Models\OutreachReplyTemplate;
+use App\Outreach\Models\OutreachScheduledReply;
 use App\Outreach\Models\OutreachSendLog;
 use App\Outreach\Models\OutreachWatchedEmail;
 use App\Outreach\Services\OutreachCsvImportService;
@@ -995,6 +996,11 @@ class OutreachController extends Controller
             'allCustomers'    => $allCustomers,
             'allDeals'        => $allDeals,
             'customerForTask' => $customerForTask,
+            'pendingScheduledReplies' => OutreachScheduledReply::with('account')
+                ->where('email_lower', strtolower($email))
+                ->where('status', OutreachScheduledReply::STATUS_PENDING)
+                ->orderBy('scheduled_at')
+                ->get(),
         ]));
     }
 
@@ -1021,8 +1027,9 @@ class OutreachController extends Controller
         abort_if($email === null, 404);
 
         $data = $request->validate([
-            'subject' => 'required|string|max:500',
-            'body'    => 'required|string',
+            'subject'      => 'required|string|max:500',
+            'body'         => 'required|string',
+            'scheduled_at' => 'nullable|date',
         ]);
 
         $primary = OutreachEmailAccount::primaryReplyAccount();
@@ -1131,6 +1138,32 @@ class OutreachController extends Controller
             ($lead?->first_name ?? $customer?->first_name ?? $contact?->first_name ?? '') . ' ' .
             ($lead?->last_name  ?? $customer?->last_name  ?? $contact?->last_name  ?? '')
         );
+
+        // Future-scheduled reply: store and return immediately. The
+        // outreach:send-scheduled-replies command picks it up at the
+        // chosen moment and runs the same OutreachMailer path. We
+        // accept "now or past" as immediate-send too — no point in
+        // queueing something with a stale timestamp.
+        $scheduledAt = ! empty($data['scheduled_at']) ? \Carbon\Carbon::parse($data['scheduled_at']) : null;
+        if ($scheduledAt && $scheduledAt->isFuture()) {
+            OutreachScheduledReply::create([
+                'email_lower'        => $emailLower,
+                'to_email'           => $email,
+                'to_name'            => $contactName !== '' ? $contactName : null,
+                'subject'            => $data['subject'],
+                'body'               => $data['body'],
+                'in_reply_to'        => $inReplyTo,
+                'references_header'  => $references !== '' ? $references : null,
+                'account_id'         => $primary->id,
+                'scheduled_at'       => $scheduledAt,
+                'status'             => OutreachScheduledReply::STATUS_PENDING,
+                'created_by_user_id' => auth()->id(),
+            ]);
+
+            return redirect()
+                ->route('outreach.inbox.thread', $emailEncoded)
+                ->with('success', 'Vastus salvestatud, saadetakse ' . $scheduledAt->format('d.m.Y H:i') . '.');
+        }
 
         try {
             $sentMessageId = $mailer->send(
@@ -1432,6 +1465,25 @@ class OutreachController extends Controller
         return redirect()
             ->route('outreach.inbox.thread', $emailEncoded)
             ->with('success', 'Ülesanne loodud.');
+    }
+
+    /**
+     * Cancel a still-pending scheduled reply. Sent / failed rows are
+     * left untouched (no value in "cancelling" something already
+     * delivered). The row stays in the table marked cancelled for
+     * audit; it just never fires.
+     */
+    public function cancelScheduledReply(OutreachScheduledReply $scheduled): RedirectResponse
+    {
+        if ($scheduled->status !== OutreachScheduledReply::STATUS_PENDING) {
+            return back()->with('error', 'Saab tühistada ainult ootel olevaid saatmisi.');
+        }
+
+        $scheduled->update(['status' => OutreachScheduledReply::STATUS_CANCELLED]);
+
+        $encoded = rtrim(strtr(base64_encode($scheduled->email_lower), '+/', '-_'), '=');
+        return redirect()->route('outreach.inbox.thread', $encoded)
+            ->with('success', 'Ajastatud vastus tühistatud.');
     }
 
     // ─── Reply templates (saved snippets) ───────────────────────────────────

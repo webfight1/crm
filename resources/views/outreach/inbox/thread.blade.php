@@ -573,11 +573,58 @@
                             <x-input-error :messages="$errors->get('body')" class="mt-1" />
                             <p class="text-xs text-gray-500 mt-1">Saadetakse tavalise tekstina (rida-vahetused säilivad).</p>
                         </div>
+                        {{-- Optional schedule: leave empty to send now,
+                             pick a future datetime to queue the send for
+                             that exact time. Cron picks it up every minute. --}}
+                        <div x-data="{ schedule: false }" class="border-t border-gray-100 pt-3">
+                            <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                                <input type="checkbox" x-model="schedule"
+                                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                ⏰ Saada hiljem (vali kellaaeg)
+                            </label>
+                            <div x-show="schedule" x-cloak class="mt-2 flex items-center gap-2">
+                                <input type="datetime-local" name="scheduled_at"
+                                       :required="schedule"
+                                       :min="(new Date(Date.now() - new Date().getTimezoneOffset()*60000)).toISOString().slice(0,16)"
+                                       class="text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <span class="text-xs text-gray-500">
+                                    Kui tühjaks jätta või kontroll alla võtta — saadetakse kohe.
+                                </span>
+                            </div>
+                            <x-input-error :messages="$errors->get('scheduled_at')" class="mt-1" />
+                        </div>
+
                         <div class="flex items-center justify-between">
                             <p class="text-xs text-gray-400">Vastus säilitab Gmaili threadi (In-Reply-To + References headerid).</p>
                             <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700">Saada vastus</button>
                         </div>
                     </form>
+
+                    {{-- Pending scheduled replies for this thread — operator
+                         can see what's queued and cancel before it fires. --}}
+                    @if(($pendingScheduledReplies ?? collect())->isNotEmpty())
+                        <div class="border-t border-gray-200 px-4 py-3 bg-amber-50">
+                            <p class="text-xs font-semibold text-amber-900 mb-2">⏰ Ootel ajastatud vastused ({{ $pendingScheduledReplies->count() }})</p>
+                            <div class="space-y-2">
+                                @foreach($pendingScheduledReplies as $sr)
+                                    <div class="flex items-start gap-3 text-sm bg-white border border-amber-200 rounded p-2">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="font-medium text-gray-900 truncate">{{ $sr->subject }}</p>
+                                            <p class="text-xs text-gray-500">
+                                                Saadetakse <strong>{{ $sr->scheduled_at->format('d.m.Y H:i') }}</strong>
+                                                · konto <span class="font-mono">{{ $sr->account?->email ?? '—' }}</span>
+                                            </p>
+                                        </div>
+                                        <form method="POST" action="{{ route('outreach.inbox.scheduled.cancel', $sr) }}"
+                                              onsubmit="return confirm('Tühista ajastatud vastus?')">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="text-xs text-red-600 hover:text-red-800">Tühista</button>
+                                        </form>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                 @endif
             </div>
                 </div> {{-- /lg:col-span-2 --}}

@@ -60,6 +60,7 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
     Route::post('/inbox/{emailEncoded}/archive',  [OutreachController::class, 'inboxArchive'])->name('inbox.archive');
     Route::post('/inbox/{emailEncoded}/unarchive',[OutreachController::class, 'inboxUnarchive'])->name('inbox.unarchive');
     Route::post('/inbox/{emailEncoded}/task',     [OutreachController::class, 'inboxCreateTask'])->name('inbox.task');
+    Route::delete('/inbox/scheduled-replies/{scheduled}', [OutreachController::class, 'cancelScheduledReply'])->name('inbox.scheduled.cancel');
 
     // ── Reply templates (saved snippets for inbox replies) ─────────────────
     Route::get   ('/reply-templates',             [OutreachController::class, 'replyTemplatesIndex'])->name('reply-templates.index');
