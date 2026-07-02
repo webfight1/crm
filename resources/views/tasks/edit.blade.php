@@ -150,21 +150,40 @@
                                 <x-input-error :messages="$errors->get('notes')" class="mt-2" />
                             </div>
 
-                            <!-- Work Type -->
-                            <div>
-                                <x-input-label for="work_type" :value="__('Töö tüüp')" />
-                                <select id="work_type" name="work_type" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
-                                    <option value="">Vali...</option>
-                                    <option value="technical" {{ old('work_type', $task->work_type) == 'technical' ? 'selected' : '' }}>Tehniline</option>
-                                    <option value="design" {{ old('work_type', $task->work_type) == 'design' ? 'selected' : '' }}>Disain</option>
-                                    <option value="copywriting" {{ old('work_type', $task->work_type) == 'copywriting' ? 'selected' : '' }}>Tekstid</option>
-                                    <option value="marketing" {{ old('work_type', $task->work_type) == 'marketing' ? 'selected' : '' }}>Turundus</option>
-                                    <option value="ecommerce" {{ old('work_type', $task->work_type) == 'ecommerce' ? 'selected' : '' }}>E-kaubandus</option>
-                                    <option value="website" {{ old('work_type', $task->work_type) == 'website' ? 'selected' : '' }}>Veebileht</option>
-                                    <option value="project" {{ old('work_type', $task->work_type) == 'project' ? 'selected' : '' }}>Projekt</option>
-                                    <option value="maintenance" {{ old('work_type', $task->work_type) == 'maintenance' ? 'selected' : '' }}>Hooldus</option>
-                                    <option value="other" {{ old('work_type', $task->work_type) == 'other' ? 'selected' : '' }}>Muu</option>
-                                </select>
+                            <!-- Work Type — radios for one-click choice while
+                                 retrospectively classifying tasks. -->
+                            <div class="md:col-span-4">
+                                <x-input-label :value="__('Töö tüüp')" />
+                                @php
+                                    $workTypes = [
+                                        ''            => '— määramata —',
+                                        'technical'   => 'Tehniline',
+                                        'design'      => 'Disain',
+                                        'copywriting' => 'Tekstid',
+                                        'marketing'   => 'Turundus',
+                                        'ecommerce'   => 'E-kaubandus',
+                                        'website'     => 'Veebileht',
+                                        'project'     => 'Projekt',
+                                        'maintenance' => 'Hooldus',
+                                        'other'       => 'Muu',
+                                    ];
+                                    $currentWorkType = old('work_type', $task->work_type) ?? '';
+                                @endphp
+                                <div class="mt-2 flex flex-wrap gap-2">
+                                    @foreach($workTypes as $val => $label)
+                                        <label class="cursor-pointer">
+                                            <input type="radio" name="work_type" value="{{ $val }}"
+                                                   class="peer sr-only"
+                                                   @checked($currentWorkType === $val)>
+                                            <span class="inline-block px-3 py-1.5 text-sm rounded-full border border-gray-300 bg-white text-gray-700
+                                                         hover:border-indigo-400 hover:bg-indigo-50
+                                                         peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:border-indigo-600
+                                                         transition-colors">
+                                                {{ $label }}
+                                            </span>
+                                        </label>
+                                    @endforeach
+                                </div>
                                 <x-input-error :messages="$errors->get('work_type')" class="mt-2" />
                             </div>
 
