@@ -150,38 +150,37 @@
                                 <x-input-error :messages="$errors->get('notes')" class="mt-2" />
                             </div>
 
-                            <!-- Work Type — radios for one-click choice while
-                                 retrospectively classifying tasks. -->
-                            <div class="md:col-span-4">
+                            <!-- Work Type — pill radios for one-click choice
+                                 while retrospectively classifying tasks. -->
+                            @php
+                                $workTypes = [
+                                    ''            => '— määramata —',
+                                    'technical'   => 'Tehniline',
+                                    'design'      => 'Disain',
+                                    'copywriting' => 'Tekstid',
+                                    'marketing'   => 'Turundus',
+                                    'ecommerce'   => 'E-kaubandus',
+                                    'website'     => 'Veebileht',
+                                    'project'     => 'Projekt',
+                                    'maintenance' => 'Hooldus',
+                                    'other'       => 'Muu',
+                                ];
+                                $currentWorkType = old('work_type', $task->work_type) ?? '';
+                            @endphp
+                            <div class="md:col-span-4"
+                                 x-data="{ selected: @js($currentWorkType) }">
                                 <x-input-label :value="__('Töö tüüp')" />
-                                @php
-                                    $workTypes = [
-                                        ''            => '— määramata —',
-                                        'technical'   => 'Tehniline',
-                                        'design'      => 'Disain',
-                                        'copywriting' => 'Tekstid',
-                                        'marketing'   => 'Turundus',
-                                        'ecommerce'   => 'E-kaubandus',
-                                        'website'     => 'Veebileht',
-                                        'project'     => 'Projekt',
-                                        'maintenance' => 'Hooldus',
-                                        'other'       => 'Muu',
-                                    ];
-                                    $currentWorkType = old('work_type', $task->work_type) ?? '';
-                                @endphp
+                                <input type="hidden" name="work_type" :value="selected">
                                 <div class="mt-2 flex flex-wrap gap-2">
                                     @foreach($workTypes as $val => $label)
-                                        <label class="cursor-pointer">
-                                            <input type="radio" name="work_type" value="{{ $val }}"
-                                                   class="peer sr-only"
-                                                   @checked($currentWorkType === $val)>
-                                            <span class="inline-block px-3 py-1.5 text-sm rounded-full border border-gray-300 bg-white text-gray-700
-                                                         hover:border-indigo-400 hover:bg-indigo-50
-                                                         peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:border-indigo-600
-                                                         transition-colors">
-                                                {{ $label }}
-                                            </span>
-                                        </label>
+                                        <button type="button"
+                                                @click="selected = @js((string) $val)"
+                                                :class="selected === @js((string) $val)
+                                                    ? 'bg-indigo-600 text-white border-indigo-600'
+                                                    : 'bg-white text-gray-700 border-gray-300 hover:border-indigo-400 hover:bg-indigo-50'"
+                                                class="px-3 py-1.5 text-sm rounded-full border transition-colors">
+                                            {{ $label }}
+                                        </button>
                                     @endforeach
                                 </div>
                                 <x-input-error :messages="$errors->get('work_type')" class="mt-2" />
