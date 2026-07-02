@@ -81,16 +81,20 @@ class TaskController extends Controller
      */
     public function create()
     {
-        $customers = Customer::all();
-        $companies = Company::all();
-        $contacts = Contact::all();
-        $deals = Deal::all();
-        
-        // Get the first admin user to set as default assignee
-        $users = User::all();
-        $defaultAssignee = User::where('is_admin', true)->first();
-        
-        return view('tasks.create', compact('customers', 'companies', 'contacts', 'deals', 'users', 'defaultAssignee'));
+        $customers = Customer::orderBy('first_name')->orderBy('last_name')->get();
+        $companies = Company::orderBy('name')->get();
+        $users     = User::orderBy('name')->get();
+
+        // Defaults for the simplified create form: internal work by
+        // default (Webfight self-customer + Webfight OÜ), assigned to
+        // whoever is currently logged in.
+        $defaultCustomer = Customer::where('first_name', 'Webfight')->first();
+        $defaultCompany  = Company::where('name', 'Webfight OÜ')->first();
+
+        return view('tasks.create', compact(
+            'customers', 'companies', 'users',
+            'defaultCustomer', 'defaultCompany',
+        ));
     }
 
     /**
@@ -99,38 +103,37 @@ class TaskController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'type' => 'required|in:call,email,meeting,follow_up,development,bug_fix,content_creation,proposal_creation,testing,other',
-            'priority' => 'required|in:low,medium,high,urgent',
-            'status' => 'required|in:pending,in_progress,needs_testing,needs_clarification,completed,cancelled',
-            'due_date' => 'nullable|date|after:now',
-            'notes' => 'nullable|string',
-            'work_type' => 'nullable|in:technical,design,copywriting,marketing,ecommerce,website,project,maintenance,other',
-            'clarity_level' => 'nullable|in:clear,medium,vague',
-            'revenue_model' => 'nullable|in:hourly_partner,fixed_project,retainer,internal,uncertain',
-            'cashflow_speed' => 'nullable|in:fast,medium,slow',
-            'risk_level' => 'nullable|in:low,medium,high',
-            'estimated_hours' => 'nullable|integer|min:0',
-            'value_score' => 'nullable|integer|min:1|max:10',
-            'cashflow_score' => 'nullable|integer|min:1|max:10',
-            'is_quick_win' => 'boolean',
-            'is_blocking' => 'boolean',
-            'recommended_next_step' => 'nullable|string|max:255',
-            'customer_id' => 'nullable|exists:customers,id',
-            'company_id' => 'nullable|exists:companies,id',
-            'contact_id' => 'nullable|exists:contacts,id',
-            'deal_id' => 'nullable|exists:deals,id',
-            'assignee_id' => 'nullable|exists:users,id',
-            'price' => 'required|numeric|min:0'
+            'title'                 => 'required|string|max:255',
+            'description'           => 'nullable|string',
+            'type'                  => 'nullable|in:call,email,meeting,follow_up,development,bug_fix,content_creation,proposal_creation,testing,other',
+            'priority'              => 'nullable|in:low,medium,high,urgent',
+            'status'                => 'nullable|in:pending,in_progress,needs_testing,needs_clarification,completed,cancelled',
+            'due_date'              => 'nullable|date',
+            'notes'                 => 'nullable|string',
+            // Analytics fields are optional and only edited from the task
+            // edit view — kept nullable so old workflows still work.
+            'work_type'             => 'nullable|in:technical,design,copywriting,marketing,ecommerce,website,project,maintenance,other',
+            'customer_id'           => 'nullable|exists:customers,id',
+            'company_id'            => 'nullable|exists:companies,id',
+            'contact_id'            => 'nullable|exists:contacts,id',
+            'deal_id'               => 'nullable|exists:deals,id',
+            'assignee_id'           => 'nullable|exists:users,id',
+            'price'                 => 'nullable|numeric|min:0',
         ]);
 
-        $validated['user_id'] = Auth::id();
+        // Apply sensible defaults so the caller can send a minimal payload
+        // from the simplified create form.
+        $validated['type']        = $validated['type']     ?? 'other';
+        $validated['priority']    = $validated['priority'] ?? 'low';
+        $validated['status']      = $validated['status']   ?? 'pending';
+        $validated['price']       = $validated['price']    ?? 0;
+        $validated['assignee_id'] = $validated['assignee_id'] ?? Auth::id();
+        $validated['user_id']     = Auth::id();
 
         Task::create($validated);
 
         return redirect()->route('tasks.index')
-            ->with('success', 'Task created successfully.');
+            ->with('success', 'Ülesanne loodud.');
     }
 
     /**
@@ -184,31 +187,28 @@ class TaskController extends Controller
         }
 
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
+            'title'       => 'required|string|max:255',
             'description' => 'nullable|string',
-            'type' => 'required|in:call,email,meeting,follow_up,development,bug_fix,content_creation,proposal_creation,testing,other',
-            'priority' => 'required|in:low,medium,high,urgent',
-            'status' => 'required|in:pending,in_progress,needs_testing,needs_clarification,completed,cancelled',
-            'due_date' => 'nullable|date|after:now',
-            'notes' => 'nullable|string',
-            'work_type' => 'nullable|in:technical,design,copywriting,marketing,ecommerce,website,project,maintenance,other',
-            'clarity_level' => 'nullable|in:clear,medium,vague',
-            'revenue_model' => 'nullable|in:hourly_partner,fixed_project,retainer,internal,uncertain',
-            'cashflow_speed' => 'nullable|in:fast,medium,slow',
-            'risk_level' => 'nullable|in:low,medium,high',
-            'estimated_hours' => 'nullable|integer|min:0',
-            'value_score' => 'nullable|integer|min:1|max:10',
-            'cashflow_score' => 'nullable|integer|min:1|max:10',
-            'is_quick_win' => 'boolean',
-            'is_blocking' => 'boolean',
-            'recommended_next_step' => 'nullable|string|max:255',
+            'type'        => 'nullable|in:call,email,meeting,follow_up,development,bug_fix,content_creation,proposal_creation,testing,other',
+            'priority'    => 'nullable|in:low,medium,high,urgent',
+            'status'      => 'nullable|in:pending,in_progress,needs_testing,needs_clarification,completed,cancelled',
+            'due_date'    => 'nullable|date',
+            'notes'       => 'nullable|string',
+            'work_type'   => 'nullable|in:technical,design,copywriting,marketing,ecommerce,website,project,maintenance,other',
             'customer_id' => 'nullable|exists:customers,id',
-            'company_id' => 'nullable|exists:companies,id',
-            'contact_id' => 'nullable|exists:contacts,id',
-            'deal_id' => 'nullable|exists:deals,id',
+            'company_id'  => 'nullable|exists:companies,id',
+            'contact_id'  => 'nullable|exists:contacts,id',
+            'deal_id'     => 'nullable|exists:deals,id',
             'assignee_id' => 'nullable|exists:users,id',
-            'price' => 'required|numeric|min:0'
+            'price'       => 'nullable|numeric|min:0',
         ]);
+
+        // Apply the same defaults the store method uses so an edit that
+        // omits an optional field doesn't wipe it back to null.
+        $validated['type']     = $validated['type']     ?? $task->type     ?? 'other';
+        $validated['priority'] = $validated['priority'] ?? $task->priority ?? 'low';
+        $validated['status']   = $validated['status']   ?? $task->status   ?? 'pending';
+        $validated['price']    = $validated['price']    ?? $task->price    ?? 0;
 
         // Set completed_at if status is completed
         if ($validated['status'] === 'completed' && $task->status !== 'completed') {
