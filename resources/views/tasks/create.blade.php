@@ -154,12 +154,15 @@
     </div>
 
     @push('scripts')
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            if (! window.TomSelect) return;
             const opts = { create: false, sortField: { field: 'text', direction: 'asc' } };
             ['customer_id','company_id','assignee_id'].forEach(id => {
                 const el = document.getElementById(id);
-                if (el && window.TomSelect) new TomSelect(el, opts);
+                if (el && ! el.tomselect) new TomSelect(el, opts);
             });
         });
     </script>
