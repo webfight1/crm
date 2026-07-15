@@ -379,6 +379,7 @@
 
             document.querySelectorAll('.preview-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
+                    if (window.tinymce) tinymce.triggerSave();
                     const form = btn.closest('form');
                     if (!form) return;
                     const subjectEl = form.querySelector('[name="subject"]');
@@ -424,4 +425,37 @@
         })();
     </script>
     @endverbatim
+
+    {{-- WYSIWYG-redaktor kirja sisule. "<>" (Source code) nupp toolbaris
+         avab toore HTML-i, nii saab klient nii visuaalselt ehitada kui ka
+         HTML-i käsitsi muuta. Sama TinyMCE CDN, mida ülesannete moodul juba kasutab. --}}
+    @push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script>
+        window.addEventListener('load', function () {
+            if (!window.tinymce) return;
+            tinymce.init({
+                selector: 'textarea[name="body_template"]',
+                plugins: 'lists link image code fullscreen table',
+                toolbar: 'undo redo | blocks | bold italic underline forecolor backcolor | bullist numlist | link image table | code | fullscreen',
+                // Wrap teeb kõik nupud (sh "<>" HTML-vaate) alati nähtavaks,
+                // mitte "..." menüüsse peidetuks.
+                toolbar_mode: 'wrap',
+                menubar: false,
+                branding: false,
+                promotion: false,
+                license_key: 'gpl',
+                statusbar: true,
+                height: 280,
+                convert_urls: false,
+                // E-kirja HTML tuleb sailitada nii nagu on (tabelid, inline-stiilid,
+                // muutuja-kohatäited) — ära lase TinyMCE-l seda ümber kirjutada.
+                valid_elements: '*[*]',
+                extended_valid_elements: '*[*]',
+                verify_html: false,
+                content_style: 'body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;}',
+            });
+        });
+    </script>
+    @endpush
 </x-app-layout>
