@@ -52,6 +52,64 @@ class OutreachController extends Controller
         return view('outreach.dashboard', compact('stats'));
     }
 
+    // ─── Hosted files ─────────────────────────────────────────────────────────
+    // Upload a file to public storage and get a stable public URL to paste into
+    // campaign emails as a link — instead of a heavy inline attachment.
+
+    public function filesIndex(): View
+    {
+        $disk = Storage::disk('public');
+
+        $files = collect($disk->files('outreach-files'))
+            ->map(fn ($path) => [
+                'name' => basename($path),
+                'url'  => $disk->url($path),
+                'size' => $disk->size($path),
+                'time' => $disk->lastModified($path),
+            ])
+            ->sortByDesc('time')
+            ->values();
+
+        return view('outreach.files.index', compact('files'));
+    }
+
+    public function filesStore(Request $request): RedirectResponse
+    {
+        $request->validate([
+            // 20 MB ceiling — these are hosted, not emailed, so they can be a
+            // bit larger than inline attachments.
+            'file' => [
+                'required', 'file', 'max:20480',
+                'mimes:pdf,png,jpg,jpeg,gif,webp,doc,docx,xls,xlsx,ppt,pptx,csv,txt,zip',
+            ],
+        ]);
+
+        $file = $request->file('file');
+
+        // Keep a readable, URL-safe name and prefix a short random token so two
+        // uploads of the same name never collide.
+        $base = \Illuminate\Support\Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'fail';
+        $name = \Illuminate\Support\Str::random(6) . '-' . $base . '.' . strtolower($file->getClientOriginalExtension());
+
+        $file->storeAs('outreach-files', $name, 'public');
+
+        return back()
+            ->with('success', 'Fail üles laetud — link on nimekirjas.')
+            ->with('uploaded_url', Storage::disk('public')->url('outreach-files/' . $name));
+    }
+
+    public function filesDestroy(Request $request): RedirectResponse
+    {
+        // basename() strips any path component, guarding against traversal.
+        $name = basename((string) $request->input('name'));
+
+        if ($name !== '' && $name !== '.') {
+            Storage::disk('public')->delete('outreach-files/' . $name);
+        }
+
+        return back()->with('success', 'Fail kustutatud.');
+    }
+
     // ─── Email Accounts ──────────────────────────────────────────────────────
 
     public function accountsIndex(): View

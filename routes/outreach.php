@@ -16,6 +16,13 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
     // Dashboard
     Route::get('/', [OutreachController::class, 'dashboard'])->name('dashboard');
 
+    // ── Hosted files (public links to paste into campaign emails) ───────────
+    Route::prefix('files')->name('files.')->group(function () {
+        Route::get('/',    [OutreachController::class, 'filesIndex'])->name('index');
+        Route::post('/',   [OutreachController::class, 'filesStore'])->name('store');
+        Route::delete('/', [OutreachController::class, 'filesDestroy'])->name('destroy');
+    });
+
     // ── Email Accounts ──────────────────────────────────────────────────────
     Route::prefix('accounts')->name('accounts.')->group(function () {
         Route::get('/',              [OutreachController::class, 'accountsIndex'])->name('index');
