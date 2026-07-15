@@ -193,11 +193,12 @@ class OutreachEmailService
         // ── SEND ─────────────────────────────────────────────────────────────
         try {
             $messageId = $this->mailer->send(
-                account:  $account,
-                toEmail:  $lead->email,
-                toName:   trim("{$lead->first_name} " . ($lead->last_name ?? '')),
-                subject:  $renderedSubject,
-                htmlBody: $renderedBody,
+                account:     $account,
+                toEmail:     $lead->email,
+                toName:      trim("{$lead->first_name} " . ($lead->last_name ?? '')),
+                subject:     $renderedSubject,
+                htmlBody:    $renderedBody,
+                attachments: $step->attachmentsForMailer(),
             );
 
             $log->markSent($messageId);

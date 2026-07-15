@@ -140,6 +140,37 @@
                                     " class="text-red-600 hover:text-red-900 text-sm">Kustuta</button>
                                 </div>
                             </form>
+
+                            {{-- Manused: eraldi vormid, sest HTML ei luba vorme pesastada --}}
+                            <div class="mt-3 pt-3 border-t border-gray-100">
+                                <p class="text-xs font-medium text-gray-600 mb-2">Manused (lisatakse igasse selle sammu kirja)</p>
+                                @if(!empty($step->attachments))
+                                    <ul class="mb-2 space-y-1">
+                                        @foreach($step->attachments as $i => $att)
+                                            <li class="flex items-center justify-between text-sm bg-gray-50 border border-gray-200 rounded px-2 py-1">
+                                                <span class="truncate">📎 {{ $att['name'] ?? 'fail' }}
+                                                    <span class="text-gray-400 text-xs">({{ number_format(($att['size'] ?? 0) / 1024, 0) }} KB)</span>
+                                                </span>
+                                                <form method="POST" action="{{ route('outreach.campaigns.steps.attachments.destroy', [$campaign, $step, $i]) }}"
+                                                      onsubmit="return confirm('Eemalda manus?')" class="ml-2 shrink-0">
+                                                    @csrf @method('DELETE')
+                                                    <button class="text-red-600 hover:text-red-800 text-xs">Eemalda</button>
+                                                </form>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                @endif
+                                <form method="POST" action="{{ route('outreach.campaigns.steps.attachments.store', [$campaign, $step]) }}"
+                                      enctype="multipart/form-data" class="flex items-center gap-2">
+                                    @csrf
+                                    <input type="file" name="attachment" required
+                                           class="text-xs text-gray-600 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-indigo-50 file:text-indigo-700 file:cursor-pointer">
+                                    <x-input-error :messages="$errors->get('attachment')" class="mt-0" />
+                                    <button class="text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 whitespace-nowrap">Lae manus</button>
+                                </form>
+                                <p class="text-xs text-gray-400 mt-1">Lubatud: PDF, pildid, Word/Excel/PPT, CSV, TXT, ZIP · max 10 MB</p>
+                            </div>
+
                             <form id="delete-step-{{ $step->id }}" method="POST" action="{{ route('outreach.campaigns.steps.destroy', [$campaign, $step]) }}" class="hidden">
                                 @csrf @method('DELETE')
                             </form>

@@ -278,8 +278,71 @@ class OutreachController extends Controller
 
     public function stepsDestroy(OutreachCampaign $campaign, OutreachCampaignStep $step): RedirectResponse
     {
+        // Remove any attachment files this step owns before deleting the row.
+        foreach ($step->attachments ?? [] as $a) {
+            if (! empty($a['path'])) {
+                Storage::disk('local')->delete($a['path']);
+            }
+        }
+
         $step->delete();
         return back()->with('success', 'Step removed.');
+    }
+
+    /**
+     * Upload one attachment file for a campaign step. The file is stored on the
+     * local disk under outreach/attachments/{campaign} and appended to the
+     * step's attachments JSON. OutreachMailer already knows how to attach it.
+     */
+    public function stepAttachmentsStore(Request $request, OutreachCampaign $campaign, OutreachCampaignStep $step): RedirectResponse
+    {
+        $request->validate([
+            // 10 MB ceiling keeps total message size well under Gmail's 25 MB
+            // limit even with several attachments plus the encoded body.
+            'attachment' => [
+                'required', 'file', 'max:10240',
+                'mimes:pdf,png,jpg,jpeg,gif,webp,doc,docx,xls,xlsx,ppt,pptx,csv,txt,zip',
+            ],
+        ]);
+
+        $file = $request->file('attachment');
+        $path = $file->store("outreach/attachments/{$campaign->id}", 'local');
+
+        $attachments   = $step->attachments ?? [];
+        $attachments[] = [
+            'path' => $path,
+            'name' => $file->getClientOriginalName(),
+            'mime' => $file->getClientMimeType(),
+            'size' => $file->getSize(),
+        ];
+
+        $step->update(['attachments' => $attachments]);
+
+        return back()->with('success', "Manus lisatud: {$file->getClientOriginalName()}");
+    }
+
+    /**
+     * Remove a single attachment (by its index in the step's attachments list)
+     * and delete the underlying file.
+     */
+    public function stepAttachmentsDestroy(OutreachCampaign $campaign, OutreachCampaignStep $step, int $index): RedirectResponse
+    {
+        $attachments = $step->attachments ?? [];
+
+        if (! array_key_exists($index, $attachments)) {
+            return back()->with('error', 'Manust ei leitud.');
+        }
+
+        if (! empty($attachments[$index]['path'])) {
+            Storage::disk('local')->delete($attachments[$index]['path']);
+        }
+
+        $name = $attachments[$index]['name'] ?? 'fail';
+        unset($attachments[$index]);
+        // Re-index so the JSON stays a clean list (indices used by the delete route).
+        $step->update(['attachments' => array_values($attachments)]);
+
+        return back()->with('success', "Manus eemaldatud: {$name}");
     }
 
     /**
@@ -326,6 +389,7 @@ class OutreachController extends Controller
                 'Test Recipient',
                 $subject,
                 $body,
+                attachments: $step->attachmentsForMailer(),
             );
         } catch (\Throwable $e) {
             \Log::error('[Outreach] Test send failed', [

@@ -5,6 +5,7 @@ namespace App\Outreach\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class OutreachCampaignStep extends Model
 {
@@ -16,11 +17,13 @@ class OutreachCampaignStep extends Model
         'day_offset',
         'subject',
         'body_template',
+        'attachments',
     ];
 
     protected $casts = [
-        'step_order' => 'integer',
-        'day_offset' => 'integer',
+        'step_order'  => 'integer',
+        'day_offset'  => 'integer',
+        'attachments' => 'array',
     ];
 
     // ─── Relationships ──────────────────────────────────────────────────────
@@ -57,6 +60,39 @@ class OutreachCampaignStep extends Model
     public function renderBody(OutreachLead $lead): string
     {
         return $this->replaceVariables($this->body_template, $lead);
+    }
+
+    /**
+     * Build the attachment array in the shape OutreachMailer::send() expects:
+     * a list of ['path' => <absolute>, 'name' => <display>, 'mime' => <type>].
+     *
+     * Stored `path` values are relative to the `local` disk; they are resolved
+     * to absolute filesystem paths here. Entries whose file no longer exists
+     * are skipped so a deleted file never breaks a send.
+     */
+    public function attachmentsForMailer(): array
+    {
+        $out = [];
+
+        foreach ($this->attachments ?? [] as $a) {
+            if (empty($a['path'])) {
+                continue;
+            }
+
+            $absolute = Storage::disk('local')->path($a['path']);
+
+            if (! is_file($absolute)) {
+                continue;
+            }
+
+            $out[] = [
+                'path' => $absolute,
+                'name' => $a['name'] ?? basename($absolute),
+                'mime' => $a['mime'] ?? null,
+            ];
+        }
+
+        return $out;
     }
 
     private function replaceVariables(string $template, OutreachLead $lead): string
