@@ -90,17 +90,30 @@ class InboxRotationService
             // competing for this row — whichever worker gets here first wins.
             $cooldownCutoff = now()->subSeconds(self::INBOX_COOLDOWN_SECONDS);
 
-            $candidate = OutreachEmailAccount::where('is_active', true)
-                ->where('is_primary_reply_account', false)
-                ->where('consecutive_failures', '<', \App\Outreach\Models\OutreachEmailAccount::FAILURE_THRESHOLD)
-                ->whereColumn('sent_today', '<', 'daily_limit')
-                ->where(function ($q) use ($cooldownCutoff) {
-                    $q->whereNull('last_sent_at')
-                      ->orWhere('last_sent_at', '<=', $cooldownCutoff);
-                })
-                ->orderByRaw('COALESCE(last_sent_at, "1970-01-01") ASC')
-                ->lockForUpdate()
-                ->first();
+            $candidateQuery = fn (bool $includePrimary) =>
+                OutreachEmailAccount::where('is_active', true)
+                    ->where('consecutive_failures', '<', \App\Outreach\Models\OutreachEmailAccount::FAILURE_THRESHOLD)
+                    ->whereColumn('sent_today', '<', 'daily_limit')
+                    ->where(function ($q) use ($cooldownCutoff) {
+                        $q->whereNull('last_sent_at')
+                          ->orWhere('last_sent_at', '<=', $cooldownCutoff);
+                    })
+                    ->when(! $includePrimary, fn ($q) => $q->where('is_primary_reply_account', false))
+                    // Prefer dedicated senders first even when the primary is eligible.
+                    ->orderByRaw('is_primary_reply_account ASC, COALESCE(last_sent_at, "1970-01-01") ASC')
+                    ->lockForUpdate();
+
+            // Prefer a dedicated (non-primary) sending inbox.
+            $candidate = $candidateQuery(false)->first();
+
+            // Single-mailbox fallback: when NO dedicated sending inbox exists at
+            // all, allow the primary reply account to send too — otherwise a
+            // one-mailbox deployment could never send. Multi-inbox deployments
+            // keep the primary reply-only (this branch never runs while any
+            // non-primary sender is configured).
+            if (! $candidate && ! $this->hasDedicatedSender()) {
+                $candidate = $candidateQuery(true)->first();
+            }
 
             if (! $candidate) {
                 $this->logger->warning('[Outreach] No inbox has remaining capacity', [
@@ -147,7 +160,7 @@ class InboxRotationService
     public function nextAvailabilityAt(): ?CarbonInterface
     {
         $earliestCooldownExit = OutreachEmailAccount::where('is_active', true)
-            ->where('is_primary_reply_account', false)
+            ->when($this->hasDedicatedSender(), fn ($q) => $q->where('is_primary_reply_account', false))
             ->where('consecutive_failures', '<', OutreachEmailAccount::FAILURE_THRESHOLD)
             ->whereColumn('sent_today', '<', 'daily_limit')
             ->whereNotNull('last_sent_at')
@@ -160,6 +173,19 @@ class InboxRotationService
 
         // Case (A): soonest cooldown expiry among inboxes with remaining capacity
         return Carbon::parse($earliestCooldownExit)->addSeconds(self::INBOX_COOLDOWN_SECONDS);
+    }
+
+    /**
+     * Whether at least one active inbox is dedicated to sending (i.e. not the
+     * primary reply account). When false, the deployment runs on a single
+     * mailbox that must both send and receive, so the primary reply account is
+     * allowed into the sending rotation as a fallback.
+     */
+    private function hasDedicatedSender(): bool
+    {
+        return OutreachEmailAccount::where('is_active', true)
+            ->where('is_primary_reply_account', false)
+            ->exists();
     }
 
     // ─── Private ────────────────────────────────────────────────────────────
