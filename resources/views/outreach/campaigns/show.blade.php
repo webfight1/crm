@@ -206,8 +206,11 @@
                                             Eelvaade
                                         </button>
                                     </div>
+                                    {{-- NB: ilma HTML5 `required`-ita, sest TinyMCE peidab textarea
+                                         (display:none) → peidetud kohustuslikku välja ei saa fookustada
+                                         ja vorm ei salvestu. Kohustuslikkust valideerib server (stepsStore). --}}
                                     <textarea name="body_template" rows="4"
-                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm font-mono text-sm focus:ring-indigo-500 focus:border-indigo-500" required></textarea>
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm font-mono text-sm focus:ring-indigo-500 focus:border-indigo-500"></textarea>
                                 </div>
                                 <x-primary-button>Lisa samm</x-primary-button>
                             </form>
