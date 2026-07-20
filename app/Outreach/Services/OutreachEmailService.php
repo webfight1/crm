@@ -196,11 +196,22 @@ class OutreachEmailService
         }
 
         // ── SEND ─────────────────────────────────────────────────────────────
+        // Build recipient name — skip the "Friend" placeholder that CSV
+        // import inserts when a lead has no real name. Sending
+        //   To: Friend <paul@fin-tek.com>
+        // makes Gmail show "to Friend" to the recipient, which reads as a
+        // clumsy mass-mail signal. Empty toName lets Gmail display just
+        // the address (or the recipient's own contact name).
+        $toName = trim(($lead->first_name ?? '') . ' ' . ($lead->last_name ?? ''));
+        if (strcasecmp($toName, 'Friend') === 0) {
+            $toName = '';
+        }
+
         try {
             $messageId = $this->mailer->send(
                 account:  $account,
                 toEmail:  $lead->email,
-                toName:   trim("{$lead->first_name} " . ($lead->last_name ?? '')),
+                toName:   $toName,
                 subject:  $renderedSubject,
                 htmlBody: $renderedBody,
                 footer:   $unsubscribeFooter,
