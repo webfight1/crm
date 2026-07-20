@@ -321,6 +321,14 @@ class OutreachController extends Controller
         $subject = '[TEST] ' . $step->renderSubject($sampleLead);
         $body    = $step->renderBody($sampleLead);
 
+        // Mirror the live cold-send path: append the campaign-level
+        // unsubscribe block so the test preview shows the same body the
+        // real recipients will see.
+        $unsubscribe = trim((string) ($campaign->unsubscribe_html ?? ''));
+        if ($unsubscribe !== '') {
+            $body = rtrim($body) . "\n" . $unsubscribe;
+        }
+
         try {
             $mailer->send(
                 $account,
