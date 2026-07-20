@@ -168,6 +168,15 @@ class OutreachEmailService
         $renderedSubject = $step->renderSubject($lead);
         $renderedBody    = $step->renderBody($lead);
 
+        // Campaign-level opt-out HTML appended to the cold-send body only
+        // (not inbox replies or quotations — 1-1 conversation mail should
+        // not carry a "click here to unsubscribe" line). Skipped silently
+        // when unset so existing campaigns without the field send as before.
+        $unsubscribe = trim((string) ($campaign->unsubscribe_html ?? ''));
+        if ($unsubscribe !== '') {
+            $renderedBody = rtrim($renderedBody) . "\n" . $unsubscribe;
+        }
+
         try {
             $log = OutreachSendLog::create([
                 'lead_id'          => $lead->id,

@@ -86,6 +86,21 @@
                                     <code class="bg-gray-100 px-1 rounded">&#123;&#123;email&#125;&#125;</code>
                                 </p>
                             </div>
+
+                            {{-- Unsubscribe / opt-out block appended to every
+                                 cold-send from this campaign. Inbox replies
+                                 and quotation emails NEVER include it — 1-1
+                                 conversation mail stays clean. --}}
+                            <div>
+                                <x-input-label for="unsubscribe_html" value="Kirjast loobumise ala (lisatakse kampaania kirja lõppu)" />
+                                <textarea id="unsubscribe_html" name="unsubscribe_html" rows="5"
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 font-mono text-xs"
+                                    placeholder='Näiteks: &lt;p style="color:#999;font-size:11px;text-align:center;margin-top:30px;"&gt;Ei soovi enam kirju? &lt;a href="mailto:veiko@webfight.ee?subject=Unsubscribe"&gt;Andke teada&lt;/a&gt; — eemaldan kohe.&lt;/p&gt;'>{{ old('unsubscribe_html', $campaign->unsubscribe_html) }}</textarea>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Lubatud HTML. Lisatakse <strong>ainult</strong> selle kampaania cold-saadetise lõppu, mitte inboxi vastustele ega pakkumiste kirjadele.
+                                </p>
+                            </div>
+
                             <x-primary-button>Salvesta</x-primary-button>
                         </form>
                     </div>
