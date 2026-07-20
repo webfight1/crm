@@ -308,6 +308,22 @@ class OutreachEmailService
             return false;
         }
 
+        // MX guard — mx_ok=false means the domain has no MX record and
+        // the send would 100% bounce. mx_ok=null means never checked;
+        // we let those pass (backwards compat: leads imported before
+        // outreach:check-mx existed shouldn't grind to a halt). Once the
+        // operator runs the check command, flagged leads park here.
+        if ($lead->mx_ok === false) {
+            $this->logger->info('[Outreach] Lead domain has no MX, skipping to avoid bounce', [
+                'lead_id' => $lead->id,
+                'email'   => $lead->email,
+            ]);
+            // Mark completed so the cron stops churning this lead every minute
+            // (mx_ok won't spontaneously flip; needs a re-check to unfreeze).
+            $lead->update(['status' => OutreachLead::STATUS_COMPLETED]);
+            return false;
+        }
+
         if (! $campaign->is_active) {
             $this->logger->info('[Outreach] Campaign inactive, skipping', ['campaign_id' => $campaign->id]);
             return false;

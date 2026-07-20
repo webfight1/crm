@@ -66,7 +66,16 @@
                         <tr>
                             <td class="px-6 py-4">
                                 <p class="font-medium text-gray-900">{{ $lead->first_name }} {{ $lead->last_name }}</p>
-                                <p class="text-sm text-gray-500">{{ $lead->email }}</p>
+                                <p class="text-sm text-gray-500 flex items-center gap-1.5">
+                                    {{ $lead->email }}
+                                    @if($lead->mx_ok === false)
+                                        <span class="inline-block px-1.5 py-0.5 text-[10px] bg-red-100 text-red-700 rounded"
+                                              title="Domeenil pole MX-kirjet — kiri põrkuks. Ei saadeta.">⚠️ MX puudub</span>
+                                    @elseif($lead->mx_ok === null)
+                                        <span class="inline-block px-1.5 py-0.5 text-[10px] bg-gray-100 text-gray-500 rounded"
+                                              title="MX pole veel kontrollitud. Käivita: php artisan outreach:check-mx">? MX</span>
+                                    @endif
+                                </p>
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-600">{{ $lead->company ?? '—' }}</td>
                             <td class="px-6 py-4 text-sm text-gray-900">
