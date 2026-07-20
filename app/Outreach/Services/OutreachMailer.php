@@ -44,12 +44,17 @@ class OutreachMailer
         ?string              $inReplyTo = null,
         ?string              $references = null,
         array                $attachments = [],
+        ?string              $footer = null,
     ): string {
-        // Append the account-level HTML signature (if set) before any branch.
-        // Both the SMTP path and the Zone Relay path use the same body, so
-        // doing it once here guarantees consistency across all send routes
-        // and across all callers (campaign sends + manual CRM replies).
+        // Append the account-level HTML signature (if set), then any caller-
+        // supplied footer BELOW that. Order is: body → signature → footer.
+        // The footer slot is for campaign-level opt-out / unsubscribe blocks
+        // that live at the very bottom of cold-send mail; inbox replies and
+        // quotation sends leave $footer null.
         $htmlBody = $this->withSignature($htmlBody, $account);
+        if ($footer !== null && trim($footer) !== '') {
+            $htmlBody = rtrim($htmlBody) . '<br><br>' . $footer;
+        }
 
         // Branch on provider — Zone Relay accounts cannot reach SMTP from a
         // remote VPS, so route through an HMAC-authenticated HTTP endpoint
