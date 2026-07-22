@@ -101,10 +101,16 @@
          picker → reply send-out as HTML). --}}
     <script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js" referrerpolicy="origin"></script>
     <script>
-        window.addEventListener('load', function () {
-            if (! window.tinymce) return;
+        // TinyMCE renders its iframe by measuring the textarea's container
+        // at init time. If the container is inside a collapsed <details>,
+        // it has 0px height and the editor comes up blank. Solution: init
+        // eagerly for textareas that are visible (the "new" form on top),
+        // and lazily for textareas inside <details> as they open.
+        function initTinymceFor(el) {
+            if (! window.tinymce || el.dataset.tmcInit) return;
+            el.dataset.tmcInit = '1';
             tinymce.init({
-                selector: 'textarea.template-body',
+                target: el,
                 plugins: 'lists link code',
                 toolbar: 'undo redo | bold italic underline | bullist numlist | link | code',
                 menubar: false,
@@ -115,11 +121,27 @@
                 promotion: false,
                 license_key: 'gpl',
                 content_style: 'body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size: 14px; }',
-                // Sync editor → underlying textarea on every keystroke so
-                // form submits never race the auto-sync-on-submit hook.
                 setup: (editor) => {
                     editor.on('change keyup', () => editor.save());
                 },
+            });
+        }
+
+        window.addEventListener('load', function () {
+            // Eager init for visible top-of-page "new template" textarea.
+            document.querySelectorAll('textarea.template-body').forEach(el => {
+                // A textarea inside a collapsed <details> has offsetParent === null.
+                if (el.offsetParent !== null) initTinymceFor(el);
+            });
+
+            // Lazy init on <details> open — re-check every time the accordion
+            // toggles so newly-revealed editors initialize with the right
+            // container height.
+            document.querySelectorAll('details').forEach(d => {
+                d.addEventListener('toggle', () => {
+                    if (! d.open) return;
+                    d.querySelectorAll('textarea.template-body').forEach(initTinymceFor);
+                });
             });
         });
     </script>
