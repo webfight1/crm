@@ -70,8 +70,8 @@ class SendScheduledOutreachRepliesCommand extends Command
                     'from_email'        => $row->account->email,
                     'from_name'         => $row->account->name,
                     'subject'           => $row->subject,
-                    'body_text'         => $row->body,
-                    'body_html'         => null,
+                    'body_html'         => $row->body,
+                    'body_text'         => null,
                     'has_attachments'   => false,
                     'received_at'       => now(),
                 ]);

@@ -1210,8 +1210,12 @@ class OutreachController extends Controller
             'from_email'        => $primary->email,
             'from_name'         => $primary->name,
             'subject'           => $data['subject'],
-            'body_text'         => $data['body'],
-            'body_html'         => null,
+            // Body arrives as HTML from TinyMCE — store on body_html so
+            // the thread view renders it in the sandboxed iframe (same
+            // as inbound HTML mail) instead of showing raw tags in the
+            // plain-text <pre> fallback branch.
+            'body_html'         => $data['body'],
+            'body_text'         => null,
             'has_attachments'   => false,
             'received_at'       => now(),
             'imap_uid'          => null,
