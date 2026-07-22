@@ -29,7 +29,7 @@
                     </div>
                     <div>
                         <x-input-label value="Sisu" />
-                        <textarea name="body" rows="8" required
+                        <textarea name="body" rows="8"
                                   class="template-body mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                   placeholder="Tere,&#10;&#10;Tänan vastuse eest! …"></textarea>
                         <x-input-error :messages="$errors->get('body')" class="mt-1" />
@@ -70,7 +70,7 @@
                             </div>
                             <div>
                                 <x-input-label value="Sisu" />
-                                <textarea name="body" rows="8" required
+                                <textarea name="body" rows="8"
                                           class="template-body mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ $t->body }}</textarea>
                             </div>
                             <div>
@@ -115,6 +115,11 @@
                 promotion: false,
                 license_key: 'gpl',
                 content_style: 'body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size: 14px; }',
+                // Sync editor → underlying textarea on every keystroke so
+                // form submits never race the auto-sync-on-submit hook.
+                setup: (editor) => {
+                    editor.on('change keyup', () => editor.save());
+                },
             });
         });
     </script>

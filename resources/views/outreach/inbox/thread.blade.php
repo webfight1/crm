@@ -230,6 +230,11 @@
                 promotion: false,
                 license_key: 'gpl',
                 content_style: 'body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size: 14px; }',
+                // Sync editor → underlying textarea on every keystroke so
+                // form submits never race the auto-sync-on-submit hook.
+                setup: (editor) => {
+                    editor.on('change keyup', () => editor.save());
+                },
             });
         });
     </script>
@@ -600,7 +605,7 @@
                         </div>
                         <div>
                             <x-input-label for="body" value="Sõnum" />
-                            <textarea id="body" name="body" rows="10" required
+                            <textarea id="body" name="body" rows="10"
                                       class="reply-body mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ old('body') }}</textarea>
                             <x-input-error :messages="$errors->get('body')" class="mt-1" />
                             <p class="text-xs text-gray-500 mt-1">Saadetakse HTML-ina — bold, italic, lingid, loetelud töötavad. Postkasti signatuur lisatakse automaatselt lõppu.</p>
