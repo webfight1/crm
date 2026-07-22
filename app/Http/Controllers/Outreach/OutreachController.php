@@ -1172,13 +1172,16 @@ class OutreachController extends Controller
                 ->with('success', 'Vastus salvestatud, saadetakse ' . $scheduledAt->format('d.m.Y H:i') . '.');
         }
 
+        // Body now arrives as HTML from the TinyMCE editor — pass through
+        // as-is instead of nl2br+escape. The template-picker also stores
+        // HTML, so this path preserves formatting end-to-end.
         try {
             $sentMessageId = $mailer->send(
                 account:    $primary,
                 toEmail:    $email,
                 toName:     $contactName !== '' ? $contactName : $email,
                 subject:    $data['subject'],
-                htmlBody:   nl2br(e($data['body'])),
+                htmlBody:   $data['body'],
                 inReplyTo:  $inReplyTo,
                 references: $references !== '' ? $references : null,
             );

@@ -180,7 +180,9 @@
         // ─── Reply-template picker ─────────────────────────────────────────
         // Body is replaced entirely; subject only when currently empty, so
         // half-typed work isn't lost. Reset the select after applying so the
-        // operator can pick the same template again later.
+        // operator can pick the same template again later. Uses the TinyMCE
+        // API when the editor is attached, otherwise falls back to setting
+        // the raw textarea value (before init or if TinyMCE fails to load).
         document.addEventListener('DOMContentLoaded', () => {
             const sel = document.getElementById('reply-template');
             if (! sel) return;
@@ -191,13 +193,43 @@
                 const tplBody    = opt.dataset.body    || '';
                 const bodyEl     = document.getElementById('body');
                 const subjEl     = document.getElementById('subject');
-                if (bodyEl) bodyEl.value = tplBody;
+
+                const editor = window.tinymce && tinymce.get('body');
+                if (editor) {
+                    editor.setContent(tplBody);
+                    editor.focus();
+                } else if (bodyEl) {
+                    bodyEl.value = tplBody;
+                    bodyEl.focus();
+                }
                 if (subjEl && tplSubject && subjEl.value.trim() === '') {
                     subjEl.value = tplSubject;
                 }
-                // Reset picker so the same option can be re-selected later.
                 sel.value = '';
-                if (bodyEl) bodyEl.focus();
+            });
+        });
+    </script>
+
+    {{-- Rich text editor for the reply body so bold/italic/link/lists
+         work. Body is sent as HTML — see OutreachController::inboxReply
+         which no longer nl2br+escape wraps. --}}
+    <script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script>
+        window.addEventListener('load', function () {
+            if (! window.tinymce) return;
+            if (! document.querySelector('textarea.reply-body')) return;
+            tinymce.init({
+                selector: 'textarea.reply-body',
+                plugins: 'lists link code',
+                toolbar: 'undo redo | bold italic underline | bullist numlist | link | code',
+                menubar: false,
+                branding: false,
+                statusbar: false,
+                height: 260,
+                convert_urls: false,
+                promotion: false,
+                license_key: 'gpl',
+                content_style: 'body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size: 14px; }',
             });
         });
     </script>
@@ -568,10 +600,10 @@
                         </div>
                         <div>
                             <x-input-label for="body" value="Sõnum" />
-                            <textarea id="body" name="body" rows="8" required
-                                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ old('body') }}</textarea>
+                            <textarea id="body" name="body" rows="10" required
+                                      class="reply-body mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ old('body') }}</textarea>
                             <x-input-error :messages="$errors->get('body')" class="mt-1" />
-                            <p class="text-xs text-gray-500 mt-1">Saadetakse tavalise tekstina (rida-vahetused säilivad).</p>
+                            <p class="text-xs text-gray-500 mt-1">Saadetakse HTML-ina — bold, italic, lingid, loetelud töötavad. Postkasti signatuur lisatakse automaatselt lõppu.</p>
                         </div>
                         {{-- Optional schedule: leave empty to send now,
                              pick a future datetime to queue the send for

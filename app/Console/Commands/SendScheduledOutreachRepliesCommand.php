@@ -52,7 +52,7 @@ class SendScheduledOutreachRepliesCommand extends Command
                     toEmail:    $row->to_email,
                     toName:     $row->to_name ?: $row->to_email,
                     subject:    $row->subject,
-                    htmlBody:   nl2br(e($row->body)),
+                    htmlBody:   $row->body,
                     inReplyTo:  $row->in_reply_to,
                     references: $row->references_header,
                 );

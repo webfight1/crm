@@ -29,8 +29,8 @@
                     </div>
                     <div>
                         <x-input-label value="Sisu" />
-                        <textarea name="body" rows="6" required
-                                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        <textarea name="body" rows="8" required
+                                  class="template-body mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                   placeholder="Tere,&#10;&#10;Tänan vastuse eest! …"></textarea>
                         <x-input-error :messages="$errors->get('body')" class="mt-1" />
                     </div>
@@ -70,8 +70,8 @@
                             </div>
                             <div>
                                 <x-input-label value="Sisu" />
-                                <textarea name="body" rows="6" required
-                                          class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ $t->body }}</textarea>
+                                <textarea name="body" rows="8" required
+                                          class="template-body mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ $t->body }}</textarea>
                             </div>
                             <div>
                                 <x-input-label value="Järjekord (väiksem = ülemine)" />
@@ -95,4 +95,27 @@
             </div>
         </div>
     </div>
+
+    {{-- Rich text editor for template bodies. Same TinyMCE config as the
+         tasks views so bold/italic/link/lists work end-to-end (template →
+         picker → reply send-out as HTML). --}}
+    <script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script>
+        window.addEventListener('load', function () {
+            if (! window.tinymce) return;
+            tinymce.init({
+                selector: 'textarea.template-body',
+                plugins: 'lists link code',
+                toolbar: 'undo redo | bold italic underline | bullist numlist | link | code',
+                menubar: false,
+                branding: false,
+                statusbar: false,
+                height: 260,
+                convert_urls: false,
+                promotion: false,
+                license_key: 'gpl',
+                content_style: 'body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size: 14px; }',
+            });
+        });
+    </script>
 </x-app-layout>
