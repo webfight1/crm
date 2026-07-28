@@ -102,6 +102,7 @@ class OutreachCampaignStep extends Model
             '{{last_name}}'         => $lead->last_name ?? '',
             '{{full_name}}'         => trim("{$lead->first_name} " . ($lead->last_name ?? '')),
             '{{company}}'           => $lead->company ?? '',
+            '{{company_short}}'     => $this->cleanCompany($lead->company),
             '{{website}}'           => $lead->website ?? '',
             '{{industry}}'          => $lead->industry ?? '',
             '{{email}}'             => $lead->email,
@@ -119,5 +120,30 @@ class OutreachCampaignStep extends Model
         // substitutions in a single pass with no risk of one replacement
         // containing a placeholder that gets substituted again.
         return strtr($template, $variables);
+    }
+
+    /**
+     * Company name with its Estonian (and a few common foreign) legal form
+     * stripped, so "Inox Baltic OÜ" → "Inox Baltic" for greetings like
+     * "Tere {{company_short}} tiim!". The form is removed whether it sits at
+     * the start ("AS Tallink") or end ("Webfight OÜ"), with any surrounding
+     * comma/period/whitespace. Names without a form are returned unchanged.
+     */
+    private function cleanCompany(?string $company): string
+    {
+        $name = trim((string) $company);
+        if ($name === '') {
+            return '';
+        }
+
+        // Whole-word legal forms (case-insensitive, UTF-8). Add more as needed.
+        $forms = 'OÜ|AS|MTÜ|FIE|TÜ|UÜ|SA|KÜ|MÜ|Ltd|LLC|Inc|OY|OYj|AB|GmbH';
+
+        // Trailing form: "Webfight OÜ", "Baltic AS," (allow trailing , . space)
+        $name = preg_replace('/[\s,]+(?:' . $forms . ')[.,\s]*$/ui', '', $name);
+        // Leading form: "AS Tallink", "OÜ Webfight"
+        $name = preg_replace('/^(?:' . $forms . ')[.,\s]+/ui', '', $name);
+
+        return trim($name);
     }
 }
