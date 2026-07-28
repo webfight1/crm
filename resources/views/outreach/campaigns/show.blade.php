@@ -54,6 +54,13 @@
                                 <textarea id="description" name="description" rows="2"
                                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">{{ old('description', $campaign->description) }}</textarea>
                             </div>
+                            <div>
+                                <x-input-label for="unsubscribe_html" value="Loobumisrida (kirja kõige all, allkirja järel)" />
+                                <textarea id="unsubscribe_html" name="unsubscribe_html" rows="2"
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 font-mono text-xs"
+                                    placeholder="Nt: Kui te ei soovi rohkem kirju, vastake STOP.">{{ old('unsubscribe_html', $campaign->unsubscribe_html) }}</textarea>
+                                <p class="text-xs text-gray-500 mt-1">Kuvatakse iga saadetava kirja kõige all — allkirja järel — väikeses hallis kirjas. HTML lubatud (nt loobumislink).</p>
+                            </div>
                             <div class="flex flex-col gap-3">
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" name="reply_stop_enabled" value="1" @checked(old('reply_stop_enabled', $campaign->reply_stop_enabled)) class="rounded border-gray-300 text-indigo-600">
@@ -129,7 +136,7 @@
                                     </div>
                                     <textarea name="body_template" rows="4"
                                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm font-mono text-sm focus:ring-indigo-500 focus:border-indigo-500">{{ $step->body_template }}</textarea>
-                                    <p class="text-xs text-gray-400 mt-1">Muutujad: &#123;&#123;first_name&#125;&#125; &#123;&#123;last_name&#125;&#125; &#123;&#123;company&#125;&#125; &#123;&#123;website&#125;&#125; &#123;&#123;lcp_mobile&#125;&#125; &#123;&#123;performance_score&#125;&#125; &#123;&#123;ai_line&#125;&#125;</p>
+                                    <p class="text-xs text-gray-400 mt-1">Muutujad: &#123;&#123;first_name&#125;&#125; &#123;&#123;last_name&#125;&#125; &#123;&#123;company&#125;&#125; &#123;&#123;company_short&#125;&#125; &#123;&#123;website&#125;&#125; &#123;&#123;lcp_mobile&#125;&#125; &#123;&#123;performance_score&#125;&#125; &#123;&#123;ai_line&#125;&#125;</p>
                                 </div>
                                 <div class="flex items-center gap-3">
                                     <x-primary-button>Salvesta samm</x-primary-button>

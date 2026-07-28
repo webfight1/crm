@@ -12,6 +12,7 @@ class OutreachCampaign extends Model
     protected $fillable = [
         'name',
         'description',
+        'unsubscribe_html',
         'ai_prompt',
         'daily_limit',
         'reply_stop_enabled',

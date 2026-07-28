@@ -199,6 +199,7 @@ class OutreachEmailService
                 subject:     $renderedSubject,
                 htmlBody:    $renderedBody,
                 attachments: $step->attachmentsForMailer(),
+                footer:      trim((string) ($campaign->unsubscribe_html ?? '')) ?: null,
             );
 
             $log->markSent($messageId);

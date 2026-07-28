@@ -246,6 +246,7 @@ class OutreachController extends Controller
         $data = $request->validate([
             'name'               => 'required|string|max:200',
             'description'        => 'nullable|string',
+            'unsubscribe_html'   => 'nullable|string|max:10000',
             'ai_prompt'          => 'nullable|string',
             'daily_limit'        => 'nullable|integer|min:1',
             'reply_stop_enabled' => 'boolean',
@@ -285,6 +286,7 @@ class OutreachController extends Controller
         $data = $request->validate([
             'name'               => 'required|string|max:200',
             'description'        => 'nullable|string',
+            'unsubscribe_html'   => 'nullable|string|max:10000',
             'ai_prompt'          => 'nullable|string',
             'daily_limit'        => 'nullable|integer|min:1',
             'reply_stop_enabled' => 'boolean',
@@ -448,6 +450,7 @@ class OutreachController extends Controller
                 $subject,
                 $body,
                 attachments: $step->attachmentsForMailer(),
+                footer:      trim((string) ($campaign->unsubscribe_html ?? '')) ?: null,
             );
         } catch (\Throwable $e) {
             \Log::error('[Outreach] Test send failed', [
