@@ -168,6 +168,35 @@ class OutreachEmailService
         $renderedSubject = $step->renderSubject($lead);
         $renderedBody    = $step->renderBody($lead);
 
+        // ── THREADING (follow-ups) ───────────────────────────────────────────
+        // Step 2+ must land in the SAME conversation as the first email, so the
+        // recipient sees the original when they scroll down. A mail client
+        // groups a message into a thread by its References / In-Reply-To
+        // headers together with a matching subject. We chain every
+        // previously-sent Message-ID for this lead and reuse the first email's
+        // subject as "Re: …".
+        $inReplyTo  = null;
+        $references = null;
+        if ($step->step_order > 1) {
+            $priorSent = OutreachSendLog::where('lead_id', $lead->id)
+                ->where('status', OutreachSendLog::STATUS_SENT)
+                ->whereNotNull('message_id')
+                ->orderBy('sent_at')
+                ->get(['message_id', 'subject']);
+
+            if ($priorSent->isNotEmpty()) {
+                $ids        = $priorSent->pluck('message_id')->all();
+                $inReplyTo  = end($ids);
+                $references = implode(' ', array_map(fn ($m) => '<' . trim((string) $m, '<>') . '>', $ids));
+
+                // Thread under the original subject so every client groups it.
+                $firstSubject    = $priorSent->first()->subject ?: $renderedSubject;
+                $renderedSubject = preg_match('/^\s*re:/i', $firstSubject)
+                    ? $firstSubject
+                    : 'Re: ' . $firstSubject;
+            }
+        }
+
         try {
             $log = OutreachSendLog::create([
                 'lead_id'          => $lead->id,
@@ -198,6 +227,8 @@ class OutreachEmailService
                 toName:      trim("{$lead->first_name} " . ($lead->last_name ?? '')),
                 subject:     $renderedSubject,
                 htmlBody:    $renderedBody,
+                inReplyTo:   $inReplyTo,
+                references:  $references,
                 attachments: $step->attachmentsForMailer(),
                 footer:      trim((string) ($campaign->unsubscribe_html ?? '')) ?: null,
             );
