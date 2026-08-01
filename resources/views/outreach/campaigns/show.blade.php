@@ -79,6 +79,23 @@
                                 </label>
                             </div>
                             <div>
+                                <x-input-label value="Saatja-postkastid" />
+                                <div class="mt-1 space-y-1">
+                                    @forelse($accounts as $acc)
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                            <input type="checkbox" name="sending_account_ids[]" value="{{ $acc->id }}"
+                                                   @checked(in_array($acc->id, old('sending_account_ids', $selectedAccounts ?? [])))
+                                                   class="rounded border-gray-300 text-indigo-600">
+                                            <span class="text-gray-700">{{ $acc->name }}</span>
+                                            <span class="text-gray-400 text-xs">{{ $acc->email }}</span>
+                                        </label>
+                                    @empty
+                                        <p class="text-xs text-gray-400">Aktiivseid postkaste pole.</p>
+                                    @endforelse
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Vali, milliste postkastide alt see kampaania saadab. <strong>Tühjaks jättes</strong> kasutab kõiki aktiivseid postkaste (rotatsioon).</p>
+                            </div>
+                            <div>
                                 <x-input-label for="ai_prompt" value="AI prompt (valikuline)" />
                                 <textarea id="ai_prompt" name="ai_prompt" rows="5"
                                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm"

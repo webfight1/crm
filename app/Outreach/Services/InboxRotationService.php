@@ -52,11 +52,18 @@ class InboxRotationService
     {
         return DB::transaction(function () use ($lead, $campaign) {
 
+            // Mailboxes this campaign is limited to (empty = no limit → all).
+            $campaignAccountIds = $campaign->sendingAccountIds();
+
             // ── 1. Sticky assignment ─────────────────────────────────────────
             // Skip sticky if the previously assigned inbox is now flagged as
             // the primary reply account — that account exists for replying to
             // engaged leads, not for cold sending. Fall through to LRU rotation.
-            if ($lead->assigned_email_account_id) {
+            // Also skip if the campaign has since been restricted to a set of
+            // mailboxes that no longer includes the sticky one.
+            if ($lead->assigned_email_account_id
+                && (empty($campaignAccountIds) || in_array($lead->assigned_email_account_id, $campaignAccountIds, true))
+            ) {
                 $stickyAccount = OutreachEmailAccount::find($lead->assigned_email_account_id);
 
                 if ($stickyAccount && ! $stickyAccount->is_primary_reply_account) {
@@ -98,6 +105,8 @@ class InboxRotationService
                         $q->whereNull('last_sent_at')
                           ->orWhere('last_sent_at', '<=', $cooldownCutoff);
                     })
+                    // Restrict to the campaign's chosen mailboxes when set.
+                    ->when(! empty($campaignAccountIds), fn ($q) => $q->whereIn('id', $campaignAccountIds))
                     ->when(! $includePrimary, fn ($q) => $q->where('is_primary_reply_account', false))
                     // Prefer dedicated senders first even when the primary is eligible.
                     ->orderByRaw('is_primary_reply_account ASC, COALESCE(last_sent_at, "1970-01-01") ASC')
@@ -106,12 +115,11 @@ class InboxRotationService
             // Prefer a dedicated (non-primary) sending inbox.
             $candidate = $candidateQuery(false)->first();
 
-            // Single-mailbox fallback: when NO dedicated sending inbox exists at
-            // all, allow the primary reply account to send too — otherwise a
-            // one-mailbox deployment could never send. Multi-inbox deployments
-            // keep the primary reply-only (this branch never runs while any
-            // non-primary sender is configured).
-            if (! $candidate && ! $this->hasDedicatedSender()) {
+            // Single-mailbox fallback: when NO dedicated sending inbox exists
+            // within the campaign's allowed scope, allow the primary reply
+            // account to send too — otherwise a campaign restricted to only the
+            // primary mailbox (or a one-mailbox deployment) could never send.
+            if (! $candidate && ! $this->hasDedicatedSender($campaignAccountIds)) {
                 $candidate = $candidateQuery(true)->first();
             }
 
@@ -181,10 +189,11 @@ class InboxRotationService
      * mailbox that must both send and receive, so the primary reply account is
      * allowed into the sending rotation as a fallback.
      */
-    private function hasDedicatedSender(): bool
+    private function hasDedicatedSender(array $scopeIds = []): bool
     {
         return OutreachEmailAccount::where('is_active', true)
             ->where('is_primary_reply_account', false)
+            ->when(! empty($scopeIds), fn ($q) => $q->whereIn('id', $scopeIds))
             ->exists();
     }
 

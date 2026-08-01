@@ -254,7 +254,13 @@ class OutreachController extends Controller
             'is_active'          => 'boolean',
         ]);
 
+        $request->validate([
+            'sending_account_ids'   => 'nullable|array',
+            'sending_account_ids.*' => 'integer|exists:outreach_email_accounts,id',
+        ]);
+
         $campaign = OutreachCampaign::create($data);
+        $campaign->sendingAccounts()->sync($request->input('sending_account_ids', []));
 
         return redirect()->route('outreach.campaigns.show', $campaign)
                          ->with('success', 'Campaign created.');
@@ -262,14 +268,19 @@ class OutreachController extends Controller
 
     public function campaignsShow(OutreachCampaign $campaign): View
     {
-        $campaign->loadMissing(['steps', 'leads']);
+        $campaign->loadMissing(['steps', 'leads', 'sendingAccounts']);
         $recentLogs = OutreachSendLog::where('campaign_id', $campaign->id)
             ->with('lead')
             ->orderByDesc('created_at')
             ->limit(50)
             ->get();
 
-        return view('outreach.campaigns.show', compact('campaign', 'recentLogs'));
+        // Active mailboxes for the "send from" picker. Selected ids let the
+        // form pre-check the campaign's current choices.
+        $accounts        = OutreachEmailAccount::where('is_active', true)->orderBy('name')->get();
+        $selectedAccounts = $campaign->sendingAccounts->pluck('id')->all();
+
+        return view('outreach.campaigns.show', compact('campaign', 'recentLogs', 'accounts', 'selectedAccounts'));
     }
 
     public function campaignsUpdate(Request $request, OutreachCampaign $campaign): RedirectResponse
@@ -294,7 +305,13 @@ class OutreachController extends Controller
             'is_active'          => 'boolean',
         ]);
 
+        $request->validate([
+            'sending_account_ids'   => 'nullable|array',
+            'sending_account_ids.*' => 'integer|exists:outreach_email_accounts,id',
+        ]);
+
         $campaign->update($data);
+        $campaign->sendingAccounts()->sync($request->input('sending_account_ids', []));
 
         return back()->with('success', 'Campaign updated.');
     }
@@ -701,6 +718,14 @@ class OutreachController extends Controller
             ->groupBy('group_email')
             ->orderByDesc('last_received_at');
 
+        // Optional filter by the mailbox that received the reply — i.e. which
+        // sender the thread belongs to (Marius vs Kristina). Applied before the
+        // group-by so counts/pagination reflect the filtered set.
+        $mailboxId = (int) $request->query('mailbox', 0);
+        if ($mailboxId > 0) {
+            $query->where('email_account_id', $mailboxId);
+        }
+
         if ($search !== '') {
             $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $search) . '%';
             $query->where(function ($q) use ($like) {
@@ -893,6 +918,9 @@ class OutreachController extends Controller
             'leads'          => null,
             'crmLink'        => null,
             'watchedAll'     => $watchedAll,
+            // Mailbox filter (which sender the reply came back to).
+            'mailboxes'       => OutreachEmailAccount::where('is_active', true)->orderBy('name')->get(),
+            'selectedMailbox' => $mailboxId ?: null,
         ];
 
         return $data;

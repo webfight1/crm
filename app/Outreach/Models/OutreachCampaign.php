@@ -3,6 +3,7 @@
 namespace App\Outreach\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class OutreachCampaign extends Model
@@ -45,7 +46,30 @@ class OutreachCampaign extends Model
         return $this->hasMany(OutreachSendLog::class, 'campaign_id');
     }
 
+    /**
+     * Mailboxes this campaign is restricted to sending from. Empty = no
+     * restriction (rotate across every active sending inbox, the default).
+     */
+    public function sendingAccounts(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            OutreachEmailAccount::class,
+            'outreach_campaign_email_accounts',
+            'campaign_id',
+            'email_account_id',
+        );
+    }
+
     // ─── Helpers ────────────────────────────────────────────────────────────
+
+    /**
+     * IDs of the mailboxes this campaign may send from. Empty array means
+     * "no restriction" — InboxRotationService then uses every active inbox.
+     */
+    public function sendingAccountIds(): array
+    {
+        return $this->sendingAccounts()->pluck('outreach_email_accounts.id')->all();
+    }
 
     public function getStepAt(int $stepOrder): ?OutreachCampaignStep
     {
