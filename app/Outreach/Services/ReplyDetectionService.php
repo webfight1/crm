@@ -267,64 +267,67 @@ class ReplyDetectionService
             return 0;
         }
 
-        // Search for messages from the last 7 days (both UNSEEN and SEEN)
-        // This allows reply detection to work even if user reads emails before cron runs
-        $sevenDaysAgo = date('d-M-Y', strtotime('-7 days'));
-        $messageNums = @imap_search($imap, "SINCE \"$sevenDaysAgo\"");
-        if (! $messageNums) {
+        // One search + one overview over the recent window. The overview object
+        // carries in_reply_to / references, so we match thread headers WITHOUT a
+        // header fetch per message (the old per-message imap_fetchheader loop was
+        // the remaining bottleneck). Full headers are pulled only for matches.
+        $since   = date('d-M-Y', strtotime('-30 days'));
+        $msgNums = @imap_search($imap, "SINCE \"$since\"");
+        if (! $msgNums) {
+            return 0;
+        }
+        $overviews = @imap_fetch_overview($imap, implode(',', $msgNums));
+        if (! $overviews) {
             return 0;
         }
 
         $detected = 0;
 
-        foreach ($messageNums as $msgNum) {
-            // imap_fetchheader returns raw RFC 2822 header block only — no body
-            $rawHeaders = @imap_fetchheader($imap, $msgNum);
-            if (! $rawHeaders) {
+        foreach ($overviews as $ov) {
+            $inReplyTo  = $ov->in_reply_to ?? '';
+            $references = $ov->references ?? '';
+            if ($inReplyTo === '' && $references === '') {
                 continue;
             }
 
-            // Skip automated senders before doing any further work
-            if ($this->isAutomatedSender($rawHeaders)) {
-                continue;
-            }
-
-            // Extract thread-reference headers
-            $inReplyTo  = $this->extractHeader($rawHeaders, 'In-Reply-To');
-            $references = $this->extractHeader($rawHeaders, 'References');
-
-            // Check each sent Message-ID against thread headers.
-            // Note: we DO process already-replied leads — for the primary
-            // reply mailbox, follow-up replies past the first one still need
-            // to be persisted into the conversation thread. The
-            // markReplied() + audit hop is gated to first-reply only so we
-            // don't keep updating replied_at or spamming the audit log.
-            foreach ($messageIdMap as $sentMessageId => $lead) {
+            $lead      = null;
+            $matchedId = null;
+            foreach ($messageIdMap as $sentMessageId => $candidateLead) {
                 if ($this->headerContainsMessageId($inReplyTo, $sentMessageId)
                     || $this->headerContainsMessageId($references, $sentMessageId)
                 ) {
-                    // Persist first — UNIQUE (account_id, imap_uid) makes this
-                    // idempotent across poller runs.
-                    $this->persistMessage($imap, $msgNum, $rawHeaders, $account, lead: $lead);
-
-                    if (! $lead->replied) {
-                        $lead->markReplied();
-                        $detected++;
-                        $this->audit->replyDetected($lead->id, 'message_id', $sentMessageId);
-                    }
-
-                    $this->logger->info('[Outreach] Reply detected via Message-ID header', [
-                        'lead_id'         => $lead->id,
-                        'email'           => $lead->email,
-                        'message_id'      => $sentMessageId,
-                        'msg_num'         => $msgNum,
-                        'already_replied' => (bool) $lead->replied,
-                    ]);
-
-                    // One message can only match one lead; stop checking IDs
+                    $lead      = $candidateLead;
+                    $matchedId = $sentMessageId;
                     break;
                 }
             }
+            if (! $lead) {
+                continue;
+            }
+
+            // Full headers only for the handful of matches: automated-sender
+            // exclusion + persistence.
+            $rawHeaders = @imap_fetchheader($imap, $ov->msgno);
+            if (! $rawHeaders || $this->isAutomatedSender($rawHeaders)) {
+                continue;
+            }
+
+            // Persist first — UNIQUE (account_id, imap_uid) makes this
+            // idempotent across poller runs.
+            $this->persistMessage($imap, $ov->msgno, $rawHeaders, $account, lead: $lead);
+
+            if (! $lead->replied) {
+                $lead->markReplied();
+                $detected++;
+                $this->audit->replyDetected($lead->id, 'message_id', $matchedId);
+            }
+
+            $this->logger->info('[Outreach] Reply detected via Message-ID header', [
+                'lead_id'    => $lead->id,
+                'email'      => $lead->email,
+                'message_id' => $matchedId,
+                'msg_num'    => $ov->msgno,
+            ]);
         }
 
         return $detected;
@@ -340,59 +343,87 @@ class ReplyDetectionService
      */
     private function detectBySenderAddress($imap, Collection $leads, OutreachEmailAccount $account): int
     {
+        // Build email → lead map for O(1) matching. This replaces the old
+        // per-lead IMAP search (one round-trip PER lead — the bottleneck that
+        // made this take minutes over ~1500 leads) with a SINGLE bulk search
+        // plus one overview fetch, matching From addresses in memory.
+        $emailMap = [];
+        foreach ($leads as $lead) {
+            $e = strtolower(trim((string) $lead->email));
+            if ($e !== '') {
+                $emailMap[$e] = $lead;
+            }
+        }
+        if (empty($emailMap)) {
+            return 0;
+        }
+
+        // One search over the recent window (by received date). Replies arrive
+        // within days of the send and the poller runs every few minutes, so
+        // 30 days is comfortably safe.
+        $since   = date('d-M-Y', strtotime('-30 days'));
+        $msgNums = @imap_search($imap, "SINCE \"$since\"");
+        if (! $msgNums) {
+            return 0;
+        }
+
+        // One overview call returns From/Subject for every message at once —
+        // far cheaper than a header fetch (or a search) per message.
+        $overviews = @imap_fetch_overview($imap, implode(',', $msgNums));
+        if (! $overviews) {
+            return 0;
+        }
+
         $detected = 0;
 
-        foreach ($leads as $lead) {
-            $firstLog = $lead->sendLogs->first();
-            if (! $firstLog?->sent_at) {
+        foreach ($overviews as $ov) {
+            $fromEmail = $this->extractEmailAddress($ov->from ?? '');
+            if ($fromEmail === '' || ! isset($emailMap[$fromEmail])) {
+                continue;
+            }
+            $lead   = $emailMap[$fromEmail];
+            $msgNum = $ov->msgno;
+
+            // Only now (for the handful of address matches) fetch full headers
+            // to exclude automated senders and require a genuine reply signal.
+            $rawHeaders = @imap_fetchheader($imap, $msgNum);
+            if (! $rawHeaders || $this->isAutomatedSender($rawHeaders)) {
+                continue;
+            }
+            if (! ($this->hasReplyHeader($rawHeaders) || $this->hasReplySubject($rawHeaders))) {
                 continue;
             }
 
-            $since    = $firstLog->sent_at->format('d-M-Y');
-            $criteria = sprintf('FROM "%s" SINCE "%s"', $lead->email, $since);
-            $results  = @imap_search($imap, $criteria);
+            $this->persistMessage($imap, $msgNum, $rawHeaders, $account, lead: $lead);
 
-            if (! $results) {
-                continue;
+            if (! $lead->replied) {
+                $lead->markReplied();
+                $detected++;
+                $this->audit->replyDetected($lead->id, 'sender_address');
             }
 
-            foreach ($results as $msgNum) {
-                $rawHeaders = @imap_fetchheader($imap, $msgNum);
-                if (! $rawHeaders) {
-                    continue;
-                }
-
-                // Hard-exclude automated / system messages
-                if ($this->isAutomatedSender($rawHeaders)) {
-                    continue;
-                }
-
-                // Require at least one positive signal: reply header OR Re: subject.
-                // Without this gate, an auto-responder FROM the same address would
-                // trigger a false positive, even after the automated-sender check.
-                if ($this->hasReplyHeader($rawHeaders) || $this->hasReplySubject($rawHeaders)) {
-                    $this->persistMessage($imap, $msgNum, $rawHeaders, $account, lead: $lead);
-
-                    if (! $lead->replied) {
-                        $lead->markReplied();
-                        $detected++;
-                        $this->audit->replyDetected($lead->id, 'sender_address');
-                    }
-
-                    $this->logger->info('[Outreach] Reply detected via sender address', [
-                        'lead_id'         => $lead->id,
-                        'email'           => $lead->email,
-                        'msg_num'         => $msgNum,
-                        'already_replied' => (bool) $lead->replied,
-                    ]);
-
-                    // One confirmed reply is enough — stop scanning other messages
-                    break;
-                }
-            }
+            $this->logger->info('[Outreach] Reply detected via sender address', [
+                'lead_id'         => $lead->id,
+                'email'           => $lead->email,
+                'msg_num'         => $msgNum,
+                'already_replied' => (bool) $lead->replied,
+            ]);
         }
 
         return $detected;
+    }
+
+    /**
+     * Pull the bare, lowercased email address out of a From-style header value
+     * such as "Jaan Tamm <jaan@firma.ee>" or "jaan@firma.ee". Returns '' when
+     * no address is present.
+     */
+    private function extractEmailAddress(string $value): string
+    {
+        if ($value !== '' && preg_match('/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/i', $value, $m)) {
+            return strtolower($m[0]);
+        }
+        return '';
     }
 
     // ─── Strategy C ─────────────────────────────────────────────────────────
