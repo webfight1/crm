@@ -188,11 +188,12 @@ class ReplyDetectionService
 
         if (! $account->is_primary_reply_account) {
             $leadQuery->where(function ($q) use ($account) {
-                $q->where(function ($firstReply) use ($account) {
-                    $firstReply->where('assigned_email_account_id', $account->id)
-                               ->where('replied', false)
-                               ->where('status', OutreachLead::STATUS_ACTIVE);
-                })->orWhere('replied', true);
+                // Every lead this mailbox has ever sent to — ANY status, so a
+                // reply from a lead that already completed the sequence is
+                // still matched. This removes the need for a primary catch-all:
+                // each mailbox fully covers its own leads' replies.
+                $q->where('assigned_email_account_id', $account->id)
+                  ->orWhere('replied', true);
             });
         }
 

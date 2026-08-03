@@ -1185,14 +1185,6 @@ class OutreachController extends Controller
             'scheduled_at' => 'nullable|date',
         ]);
 
-        $primary = OutreachEmailAccount::primaryReplyAccount();
-        if (! $primary) {
-            return back()->with('error', 'Lisa enne põhi-postkast (Postkastid → muuda → "Põhipostkast vastusteks").');
-        }
-        if (! $primary->is_active) {
-            return back()->with('error', 'Põhipostkast on välja lülitatud — aktiveeri see enne vastamist.');
-        }
-
         $emailLower = strtolower($email);
 
         // Look up every attribution channel for this email. The thread can
@@ -1231,6 +1223,29 @@ class OutreachController extends Controller
             ->where('direction', OutreachMessage::DIRECTION_INBOUND)
             ->exists();
         abort_if(! $lead && ! $customer && ! $contact && ! $hasInboundHistory, 404);
+
+        // Reply FROM the mailbox that owns this thread — the account that
+        // received the client's message. Keeps a multi-sender setup correct:
+        // a conversation Marius started is answered from Marius, Kristina's
+        // from Kristina. Falls back to the account that sent the original,
+        // then to any active mailbox.
+        $replyAccount = null;
+        if ($ownerMsg = OutreachMessage::whereRaw('LOWER(from_email) = ?', [$emailLower])
+                ->where('direction', OutreachMessage::DIRECTION_INBOUND)
+                ->whereNotNull('email_account_id')
+                ->orderByDesc('received_at')->first()) {
+            $replyAccount = OutreachEmailAccount::find($ownerMsg->email_account_id);
+        }
+        if (! $replyAccount && $lead && $lead->assigned_email_account_id) {
+            $replyAccount = OutreachEmailAccount::find($lead->assigned_email_account_id);
+        }
+        if (! $replyAccount) {
+            $replyAccount = OutreachEmailAccount::where('is_active', true)
+                ->orderByDesc('is_primary_reply_account')->orderBy('id')->first();
+        }
+        if (! $replyAccount || ! $replyAccount->is_active) {
+            return back()->with('error', 'Vastamiseks pole aktiivset postkasti — aktiveeri mõni postkast.');
+        }
 
         // Build the In-Reply-To / References chain across all attribution
         // channels. Pick the newest prior message (lead inbound, lead outbound,
@@ -1307,7 +1322,7 @@ class OutreachController extends Controller
                 'body'               => $data['body'],
                 'in_reply_to'        => $inReplyTo,
                 'references_header'  => $references !== '' ? $references : null,
-                'account_id'         => $primary->id,
+                'account_id'         => $replyAccount->id,
                 'scheduled_at'       => $scheduledAt,
                 'status'             => OutreachScheduledReply::STATUS_PENDING,
                 'created_by_user_id' => auth()->id(),
@@ -1320,7 +1335,7 @@ class OutreachController extends Controller
 
         try {
             $sentMessageId = $mailer->send(
-                account:    $primary,
+                account:    $replyAccount,
                 toEmail:    $email,
                 toName:     $contactName !== '' ? $contactName : $email,
                 subject:    $data['subject'],
@@ -1345,13 +1360,13 @@ class OutreachController extends Controller
             'lead_id'           => $lead?->id,
             'customer_id'       => $customer?->id,
             'contact_id'        => $contact?->id,
-            'email_account_id'  => $primary->id,
+            'email_account_id'  => $replyAccount->id,
             'direction'         => OutreachMessage::DIRECTION_OUTBOUND,
             'message_id'        => $sentMessageId,
             'in_reply_to'       => $inReplyTo,
             'references_header' => $references !== '' ? $references : null,
-            'from_email'        => $primary->email,
-            'from_name'         => $primary->name,
+            'from_email'        => $replyAccount->email,
+            'from_name'         => $replyAccount->name,
             'subject'           => $data['subject'],
             'body_text'         => $data['body'],
             'body_html'         => null,
