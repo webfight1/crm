@@ -43,4 +43,12 @@ return [
         'key' => env('PAGESPEED_API_KEY'),
     ],
 
+    // Merit Aktiva (raamatupidamine) — võlgnike meeldetuletuste moodul.
+    // Võtmed genereeritakse Meritis: Seaded » Üldine » Andmevahetus » API.
+    'merit' => [
+        'api_id'   => env('MERIT_API_ID'),
+        'api_key'  => env('MERIT_API_KEY'),
+        'base_url' => env('MERIT_API_URL', 'https://aktiva.merit.ee/api/v1'),
+    ],
+
 ];
