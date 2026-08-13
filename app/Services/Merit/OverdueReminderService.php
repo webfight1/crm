@@ -150,6 +150,11 @@ class OverdueReminderService
     {
         $settings = MeritReminderSetting::getSettings();
 
+        // Testrežiim: kui test-saaja on täidetud, lähevad KÕIK kirjad sinna
+        // (mitte päris klientidele) ilma olekut/logisid muutmata.
+        $testRecipient = filter_var((string) $settings->test_recipient, FILTER_VALIDATE_EMAIL) ?: null;
+        $testMode = $testRecipient !== null;
+
         // Päris saatmiseks vaja aktiivset outreach-postkasti (SMTP).
         if (! $dryRun && $this->configureOutreachMailer() === null) {
             throw new \RuntimeException(
@@ -166,7 +171,11 @@ class OverdueReminderService
         foreach ($debtors as $debtor) {
             $seenIds[] = $debtor->customerId;
 
-            $state = MeritDebtorState::firstOrNew(['merit_customer_id' => $debtor->customerId]);
+            // Testrežiimis kasutame värsket olekut, et varasem päris-saatmine
+            // (min_days_between / juba-saadetud aste) testimist ei blokeeriks.
+            $state = $testMode
+                ? new MeritDebtorState(['merit_customer_id' => $debtor->customerId])
+                : MeritDebtorState::firstOrNew(['merit_customer_id' => $debtor->customerId]);
             $level = $this->determineDueLevel($debtor, $settings, $state);
 
             if ($level === null) {
@@ -204,17 +213,20 @@ class OverdueReminderService
                 $attachments = $this->buildAttachments($debtor, $settings);
 
                 Mail::mailer($this->outreachMailer)
-                    ->to($debtor->email)
-                    ->send(new OverdueReminderMail($debtor, $level, $settings, $attachments));
+                    ->to($testMode ? $testRecipient : $debtor->email)
+                    ->send(new OverdueReminderMail($debtor, $level, $settings, $attachments, $testMode));
 
-                $this->log($debtor, $level, 'sent');
-                $state->fill([
-                    'highest_level_sent' => $level,
-                    'last_sent_at'       => now(),
-                    'debt_cleared_at'    => null,
-                ])->save();
+                // Testrežiimis ei logi ega muuda olekut — korduvalt testitav.
+                if (! $testMode) {
+                    $this->log($debtor, $level, 'sent');
+                    $state->fill([
+                        'highest_level_sent' => $level,
+                        'last_sent_at'       => now(),
+                        'debt_cleared_at'    => null,
+                    ])->save();
+                }
 
-                $plan['result'] = 'sent';
+                $plan['result'] = $testMode ? 'test_sent' : 'sent';
                 $result['planned'][] = $plan;
                 $result['sent']++;
             } catch (\Throwable $e) {
@@ -230,7 +242,8 @@ class OverdueReminderService
         }
 
         // Episoodi lõpetamine: kliendid, kes enam võlaraportis pole → nulli olek.
-        if (! $dryRun) {
+        // Testrežiimis olekut ei muudeta.
+        if (! $dryRun && ! $testMode) {
             $result['cleared'] = $this->resetClearedDebtors($seenIds);
         }
 

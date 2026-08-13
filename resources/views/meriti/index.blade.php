@@ -21,6 +21,13 @@
                 <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">{{ session('error') }}</div>
             @endif
 
+            @if($settings->test_recipient)
+                <div class="bg-amber-50 border border-amber-300 text-amber-900 px-4 py-3 rounded flex items-center gap-2">
+                    <span class="text-lg">🧪</span>
+                    <span>{{ __('Testrežiim on sees — kõik meeldetuletused lähevad aadressile') }} <strong>{{ $settings->test_recipient }}</strong>, {{ __('mitte päris klientidele. Olekut ei muudeta.') }}</span>
+                </div>
+            @endif
+
             {{-- Olek + ühendus --}}
             <div class="bg-white shadow-sm sm:rounded-lg p-6">
                 <div class="flex flex-wrap items-center gap-4">

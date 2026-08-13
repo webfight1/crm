@@ -28,6 +28,7 @@ class OverdueReminderMail extends Mailable
         public int $level,
         public MeritReminderSetting $settings,
         public array $pdfAttachments = [],
+        public bool $isTest = false,
     ) {
     }
 
@@ -37,6 +38,10 @@ class OverdueReminderMail extends Mailable
         $subject = $this->applyPlaceholders($step['subject'] ?: MeritReminderSetting::defaultBody($this->level));
         // Teema ei tohi olla mitmerealine — võta esimene rida.
         $subject = trim(strtok($subject, "\n")) ?: 'Meeldetuletus tasumata arve kohta';
+
+        if ($this->isTest) {
+            $subject = '[TEST → ' . ($this->debtor->email ?: '?') . '] ' . $subject;
+        }
 
         $from = null;
         if ($this->settings->from_email) {

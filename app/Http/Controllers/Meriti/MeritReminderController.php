@@ -54,6 +54,7 @@ class MeritReminderController extends Controller
             'from_email'       => 'nullable|email|max:255',
             'attach_pdfs'      => 'nullable|boolean',
             'max_attachments'  => 'required|integer|min:1|max:50',
+            'test_recipient'   => 'nullable|email|max:255',
 
             'step1_enabled' => 'nullable|boolean',
             'step1_days'    => 'required|integer|min:0|max:365',

@@ -73,6 +73,15 @@
                             <x-input-error :messages="$errors->get('max_attachments')" class="mt-1" />
                         </div>
                     </div>
+
+                    <div class="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4">
+                        <x-input-label for="test_recipient" :value="__('🧪 Testrežiim — test-saaja e-post')" class="font-medium text-amber-900" />
+                        <x-text-input id="test_recipient" name="test_recipient" type="email" class="mt-1 block w-full" :value="old('test_recipient', $settings->test_recipient)" placeholder="{{ __('nt sinu@email.ee — jäta tühjaks päris saatmiseks') }}" />
+                        <p class="text-xs text-amber-800 mt-2">
+                            {{ __('Kui täidetud, lähevad KÕIK meeldetuletused sellele aadressile (mitte päris klientidele) ega muuda olekut/logisid. Ideaalne testimiseks. Päris saatmiseks jäta tühjaks.') }}
+                        </p>
+                        <x-input-error :messages="$errors->get('test_recipient')" class="mt-1" />
+                    </div>
                 </div>
 
                 {{-- Kohatäidete abi --}}

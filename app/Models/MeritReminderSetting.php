@@ -22,6 +22,7 @@ class MeritReminderSetting extends Model
         'from_email',
         'attach_pdfs',
         'max_attachments',
+        'test_recipient',
     ];
 
     protected $casts = [
