@@ -2,6 +2,7 @@
 
 namespace App\Services\Merit;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -63,7 +64,12 @@ class MeritClient
             $payload['DebtDate'] = $debtDate; // yyyyMMdd
         }
 
-        $result = $this->request('getcustdebtrep', $payload);
+        // Lühike cache, et sagedased lehelaadimised Meriti API-t üle ei koormaks (429).
+        $result = Cache::remember(
+            $this->cacheKey('debts', $payload),
+            now()->addMinutes(3),
+            fn () => $this->request('getcustdebtrep', $payload)
+        );
 
         return is_array($result) ? array_values(array_filter($result, 'is_array')) : [];
     }
@@ -75,16 +81,29 @@ class MeritClient
      */
     public function getCustomer(string $custId): ?array
     {
-        $result = $this->request('getcustomers', ['Id' => $custId]);
+        // Kliendi andmed (nimi, e-post) muutuvad harva → pikem cache, vähem API-kutseid.
+        return Cache::remember(
+            $this->cacheKey('cust', ['Id' => $custId]),
+            now()->addHour(),
+            function () use ($custId): ?array {
+                $result = $this->request('getcustomers', ['Id' => $custId]);
 
-        if (isset($result['CustomerId']) || isset($result['Name'])) {
-            return $result; // üksik klient
-        }
-        if (is_array($result) && isset($result[0]) && is_array($result[0])) {
-            return $result[0]; // nimekiri — võta esimene
-        }
+                if (isset($result['CustomerId']) || isset($result['Name'])) {
+                    return $result; // üksik klient
+                }
+                if (is_array($result) && isset($result[0]) && is_array($result[0])) {
+                    return $result[0]; // nimekiri — võta esimene
+                }
 
-        return null;
+                return null;
+            }
+        );
+    }
+
+    /** Cache-võti, mis arvestab API kontot (apiId), et kontod ei põrkaks. */
+    private function cacheKey(string $kind, array $payload): string
+    {
+        return 'merit:' . $kind . ':' . substr(md5($this->apiId()), 0, 8) . ':' . md5(json_encode($payload));
     }
 
     /**
@@ -188,14 +207,26 @@ class MeritClient
         }
         $url = $base . '/' . ltrim($endpoint, '/');
 
-        $response = Http::withHeaders(['Content-Type' => 'application/json'])
-            ->timeout(30)
-            ->withBody($json, 'application/json')
-            ->post($url . '?' . http_build_query([
-                'apiId'     => $this->apiId(),
-                'timestamp' => $timestamp,
-                'signature' => $signature,
-            ]));
+        $query = http_build_query([
+            'apiId'     => $this->apiId(),
+            'timestamp' => $timestamp,
+            'signature' => $signature,
+        ]);
+
+        // Väike kordus 429 (Too many requests) korral.
+        $attempt = 0;
+        do {
+            $response = Http::withHeaders(['Content-Type' => 'application/json'])
+                ->timeout(30)
+                ->withBody($json, 'application/json')
+                ->post($url . '?' . $query);
+
+            if ($response->status() !== 429 || $attempt >= 2) {
+                break;
+            }
+            $attempt++;
+            usleep(1500000); // 1,5 s
+        } while (true);
 
         if ($response->failed()) {
             Log::warning('[Merit] API päring ebaõnnestus', [
