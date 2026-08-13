@@ -44,8 +44,9 @@
                         <span class="text-sm text-gray-500">{{ __('Astmed (päeva üle tähtaja)') }}</span><br>
                         <span class="text-sm text-gray-800">
                             @foreach([1,2,3] as $l)
-                                @if($settings->{"step{$l}_enabled"})
-                                    <span class="mr-2">{{ $l }}. {{ $settings->{"step{$l}_days"} }}p</span>
+                                @php($step = $settings->step($l))
+                                @if($step['enabled'])
+                                    <span class="mr-2">{{ $l }}. {{ $step['days'] }}p</span>
                                 @endif
                             @endforeach
                         </span>

@@ -60,41 +60,48 @@
                 {{-- Kohatäidete abi --}}
                 <div class="bg-indigo-50 border border-indigo-200 text-indigo-900 text-sm rounded-lg p-4">
                     <strong>{{ __('Kohatäited kirja tekstis:') }}</strong>
-                    <code class="mx-1">{{ '{{nimi}}' }}</code>{{ __('kontakti/kliendi nimi') }},
-                    <code class="mx-1">{{ '{{arved}}' }}</code>{{ __('arvete nimekiri') }},
-                    <code class="mx-1">{{ '{{summa}}' }}</code>{{ __('tasumata kokku') }},
-                    <code class="mx-1">{{ '{{paevad}}' }}</code>{{ __('päeva üle tähtaja') }},
-                    <code class="mx-1">{{ '{{ettevote}}' }}</code>{{ __('sinu firma nimi') }}.
+                    <code class="mx-1">@{{nimi}}</code>{{ __('kontakti/kliendi nimi') }},
+                    <code class="mx-1">@{{arved}}</code>{{ __('arvete nimekiri') }},
+                    <code class="mx-1">@{{summa}}</code>{{ __('tasumata kokku') }},
+                    <code class="mx-1">@{{paevad}}</code>{{ __('päeva üle tähtaja') }},
+                    <code class="mx-1">@{{ettevote}}</code>{{ __('sinu firma nimi') }}.
                 </div>
 
                 {{-- 3 astet --}}
                 @foreach([1,2,3] as $l)
+                    @php
+                        $step = $settings->step($l);
+                        $fEnabled = 'step'.$l.'_enabled';
+                        $fDays    = 'step'.$l.'_days';
+                        $fSubject = 'step'.$l.'_subject';
+                        $fBody    = 'step'.$l.'_body';
+                    @endphp
                     <div class="bg-white shadow-sm sm:rounded-lg p-6">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="text-lg font-medium">{{ $l }}. {{ __('meeldetuletus') }}</h3>
                             <label class="inline-flex items-center">
-                                <input type="checkbox" name="step{{ $l }}_enabled" value="1" @checked(old("step{$l}_enabled", $settings->{"step{$l}_enabled"})) class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                                <input type="checkbox" name="{{ $fEnabled }}" value="1" @checked(old($fEnabled, $step['enabled'])) class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
                                 <span class="ml-2 text-sm text-gray-700">{{ __('Kasutusel') }}</span>
                             </label>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
-                                <x-input-label :for="'step'.$l.'_days'" :value="__('Päeva üle tähtaja')" />
-                                <x-text-input :id="'step'.$l.'_days'" :name="'step'.$l.'_days'" type="number" min="0" max="365" class="mt-1 block w-full" :value="old('step'.$l.'_days', $settings->{'step'.$l.'_days'})" required />
-                                <x-input-error :messages="$errors->get('step'.$l.'_days')" class="mt-1" />
+                                <x-input-label :for="$fDays" :value="__('Päeva üle tähtaja')" />
+                                <x-text-input :id="$fDays" :name="$fDays" type="number" min="0" max="365" class="mt-1 block w-full" :value="old($fDays, $step['days'])" required />
+                                <x-input-error :messages="$errors->get($fDays)" class="mt-1" />
                             </div>
                             <div class="md:col-span-3">
-                                <x-input-label :for="'step'.$l.'_subject'" :value="__('Teema')" />
-                                <x-text-input :id="'step'.$l.'_subject'" :name="'step'.$l.'_subject'" type="text" class="mt-1 block w-full" :value="old('step'.$l.'_subject', $settings->{'step'.$l.'_subject'})" />
-                                <x-input-error :messages="$errors->get('step'.$l.'_subject')" class="mt-1" />
+                                <x-input-label :for="$fSubject" :value="__('Teema')" />
+                                <x-text-input :id="$fSubject" :name="$fSubject" type="text" class="mt-1 block w-full" :value="old($fSubject, $step['subject'])" />
+                                <x-input-error :messages="$errors->get($fSubject)" class="mt-1" />
                             </div>
                         </div>
 
                         <div class="mt-4">
-                            <x-input-label :for="'step'.$l.'_body'" :value="__('Kirja tekst')" />
-                            <textarea id="step{{ $l }}_body" name="step{{ $l }}_body" rows="9" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">{{ old("step{$l}_body", $settings->{"step{$l}_body"}) }}</textarea>
-                            <x-input-error :messages="$errors->get('step'.$l.'_body')" class="mt-1" />
+                            <x-input-label :for="$fBody" :value="__('Kirja tekst')" />
+                            <textarea id="{{ $fBody }}" name="{{ $fBody }}" rows="9" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">{{ old($fBody, $step['body']) }}</textarea>
+                            <x-input-error :messages="$errors->get($fBody)" class="mt-1" />
                         </div>
                     </div>
                 @endforeach
