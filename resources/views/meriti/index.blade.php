@@ -49,9 +49,10 @@
                         @endif
                     </div>
                     <div>
-                        <span class="text-sm text-gray-500">{{ __('Rütm') }}</span><br>
+                        <span class="text-sm text-gray-500">{{ __('Rütm (päeva üle tähtaja)') }}</span><br>
                         <span class="text-sm text-gray-800">
-                            {{ __('1. kiri') }} {{ $settings->first_reminder_days }}p → {{ __('iga') }} {{ $settings->repeat_interval_days }}p → {{ __('max') }} {{ $settings->max_reminders }}
+                            {{ $settings->step1_days }} → {{ $settings->step2_days }} → {{ $settings->step3_days }} → {{ $settings->step4_days }} p
+                            <span class="text-gray-400">| {{ __('teade Mariusele') }} {{ $settings->notify_step }}. {{ __('astmes') }}</span>
                         </span>
                     </div>
                     <div class="ml-auto">
@@ -72,49 +73,47 @@
             {{-- Praeguste võlgnike eelvaade --}}
             <div class="bg-white shadow-sm sm:rounded-lg overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-medium text-gray-900">{{ __('Praegused üle tähtaja võlgnikud') }}</h3>
-                    <p class="text-sm text-gray-500">{{ __('Eelvaade Meritist. "Järgmine aste" näitab, milline meeldetuletus järgmisena välja läheks.') }}</p>
+                    <h3 class="text-lg font-medium text-gray-900">{{ __('Praegused üle tähtaja arved') }}</h3>
+                    <p class="text-sm text-gray-500">{{ __('Eelvaade Meritist — iga arve eraldi. "Järgmine kiri" näitab, milline aste järgmisena välja läheks.') }}</p>
                 </div>
 
                 @if($error)
                     <div class="px-6 py-4 text-red-700">{{ __('Andmete laadimine ebaõnnestus: ') }}{{ $error }}</div>
                 @elseif($plan->isEmpty())
-                    <div class="px-6 py-8 text-center text-gray-500">{{ __('Üle tähtaja võlgnikke ei leitud.') }}</div>
+                    <div class="px-6 py-8 text-center text-gray-500">{{ __('Üle tähtaja arveid ei leitud.') }}</div>
                 @else
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 text-sm">
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-4 py-3 text-left font-medium text-gray-500">{{ __('Klient') }}</th>
-                                    <th class="px-4 py-3 text-left font-medium text-gray-500">{{ __('Kontakt') }}</th>
+                                    <th class="px-4 py-3 text-left font-medium text-gray-500">{{ __('Arve') }}</th>
                                     <th class="px-4 py-3 text-left font-medium text-gray-500">{{ __('E-post') }}</th>
-                                    <th class="px-4 py-3 text-right font-medium text-gray-500">{{ __('Arveid') }}</th>
                                     <th class="px-4 py-3 text-right font-medium text-gray-500">{{ __('Tasumata') }}</th>
                                     <th class="px-4 py-3 text-right font-medium text-gray-500">{{ __('Päevi üle') }}</th>
-                                    <th class="px-4 py-3 text-center font-medium text-gray-500">{{ __('Kirju saadetud') }}</th>
+                                    <th class="px-4 py-3 text-center font-medium text-gray-500">{{ __('Saadetud') }}</th>
                                     <th class="px-4 py-3 text-center font-medium text-gray-500">{{ __('Järgmine kiri') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
                                 @foreach($plan as $row)
-                                    @php($d = $row['debtor'])
+                                    @php($i = $row['invoice'])
                                     <tr>
-                                        <td class="px-4 py-3 text-gray-900">{{ $d->name ?: '—' }}</td>
-                                        <td class="px-4 py-3 text-gray-600">{{ $d->contact ?: '—' }}</td>
+                                        <td class="px-4 py-3 text-gray-900">{{ $i->customerName ?: '—' }}</td>
+                                        <td class="px-4 py-3 text-gray-700">{{ $i->invoiceNo }}</td>
                                         <td class="px-4 py-3">
-                                            @if($d->hasEmail())
-                                                <span class="text-gray-700">{{ $d->email }}</span>
+                                            @if($i->hasEmail())
+                                                <span class="text-gray-700">{{ $i->email }}</span>
                                             @else
                                                 <span class="text-red-600">{{ __('puudub') }}</span>
                                             @endif
                                         </td>
-                                        <td class="px-4 py-3 text-right text-gray-700">{{ count($d->invoices) }}</td>
-                                        <td class="px-4 py-3 text-right text-gray-900 whitespace-nowrap">{{ $d->formattedTotal() }}</td>
-                                        <td class="px-4 py-3 text-right text-gray-700">{{ $d->maxOverdueDays }}</td>
-                                        <td class="px-4 py-3 text-center text-gray-500">{{ $row['state']->highest_level_sent ?: '—' }}</td>
+                                        <td class="px-4 py-3 text-right text-gray-900 whitespace-nowrap">{{ $i->formattedUnpaid() }}</td>
+                                        <td class="px-4 py-3 text-right text-gray-700">{{ $i->daysOverdue }}</td>
+                                        <td class="px-4 py-3 text-center text-gray-500">{{ $row['state']->highest_step_sent ?: '—' }}</td>
                                         <td class="px-4 py-3 text-center">
-                                            @if($row['level'])
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">{{ $row['level'] }}. {{ __('kiri') }}</span>
+                                            @if($row['step'])
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">{{ $row['step'] }}. {{ __('kiri') }}</span>
                                             @else
                                                 <span class="text-gray-400">—</span>
                                             @endif

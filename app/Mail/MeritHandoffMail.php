@@ -2,7 +2,7 @@
 
 namespace App\Mail;
 
-use App\Services\Merit\MeritDebtor;
+use App\Services\Merit\MeritInvoice;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -10,24 +10,25 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * Sisemine teavitus (nt marius@kind.ee-le): kliendile on saadetud maksimaalne
- * arv meeldetuletusi, automaatika peatub — palun helista kliendile.
+ * Sisemine teavitus Mariusele: arve on N päeva üle tähtaja ja meeldetuletusi
+ * on saadetud — palun võta kliendiga ise ühendust (helista).
  */
 class MeritHandoffMail extends Mailable
 {
     use Queueable, SerializesModels;
 
     public function __construct(
-        public MeritDebtor $debtor,
-        public int $count,
+        public MeritInvoice $invoice,
+        public int $step,
     ) {
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Helista võlgnikule: ' . ($this->debtor->name ?: 'klient')
-                . ' (' . $this->count . ' meeldetuletust saadetud)',
+            subject: 'Võta ühendust: ' . ($this->invoice->customerName ?: 'klient')
+                . ' — arve nr ' . $this->invoice->invoiceNo
+                . ' (' . $this->invoice->daysOverdue . ' p üle tähtaja)',
         );
     }
 
@@ -35,10 +36,7 @@ class MeritHandoffMail extends Mailable
     {
         return new Content(
             view: 'emails.merit-handoff',
-            with: [
-                'debtor' => $this->debtor,
-                'count'  => $this->count,
-            ],
+            with: ['invoice' => $this->invoice, 'step' => $this->step],
         );
     }
 }

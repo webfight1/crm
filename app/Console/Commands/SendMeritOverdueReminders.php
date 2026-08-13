@@ -41,12 +41,13 @@ class SendMeritOverdueReminders extends Command
 
         if (! empty($result['planned'])) {
             $this->table(
-                ['Klient', 'E-post', 'Aste', 'Päevi üle', 'Summa', 'Tulemus'],
+                ['Klient', 'Arve', 'E-post', 'Aste', 'Päevi üle', 'Summa', 'Tulemus'],
                 collect($result['planned'])->map(fn (array $p) => [
                     $p['name'],
+                    $p['invoice'] ?? '—',
                     $p['email'] ?: '—',
-                    $p['level'],
-                    $p['overdue_days'],
+                    $p['step'],
+                    $p['days'],
                     $p['total'],
                     $p['result'],
                 ])->all()
@@ -54,13 +55,13 @@ class SendMeritOverdueReminders extends Command
         }
 
         $this->info(sprintf(
-            '%s: %d, vahele jäetud: %d, ebaõnnestus: %d, teavitusi (helista): %d, episood lõpetatud: %d',
+            '%s: %d, vahele jäetud: %d, ebaõnnestus: %d, teavitusi Mariusele: %d, lahendatud: %d',
             $dryRun ? 'Saadaks' : 'Saadetud',
             $result['sent'],
             $result['skipped'],
             $result['failed'],
-            $result['handoff'] ?? 0,
-            $result['cleared'],
+            $result['notified'] ?? 0,
+            $result['resolved'] ?? 0,
         ));
 
         return self::SUCCESS;

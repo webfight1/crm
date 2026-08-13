@@ -6,22 +6,23 @@
         <tr><td align="center">
             <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background:#ffffff; border-radius:8px; overflow:hidden; border:1px solid #e5e7eb;">
                 <tr><td style="padding:16px 32px; background:#b45309; color:#fff; font-size:16px; font-weight:bold;">
-                    ⚠️ {{ __('Automaatsed meeldetuletused ammendatud') }}
+                    📞 {{ __('Palun võta kliendiga ühendust') }}
                 </td></tr>
                 <tr><td style="padding:24px 32px; font-size:15px; line-height:1.6;">
-                    <p>{{ __('Kliendile') }} <strong>{{ $debtor->name ?: '—' }}</strong> {{ __('on saadetud') }}
-                       <strong>{{ $count }}</strong> {{ __('automaatset meeldetuletust, kuid võlg on endiselt tasumata.') }}</p>
+                    <p>{{ __('Arve on') }} <strong>{{ $invoice->daysOverdue }}</strong> {{ __('päeva üle tähtaja ja meeldetuletusi on saadetud. Palun helista kliendile.') }}</p>
 
                     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0; font-size:14px;">
-                        <tr><td style="padding:2px 12px 2px 0; color:#6b7280;">{{ __('Tasumata kokku:') }}</td><td style="padding:2px 0;"><strong>{{ $debtor->formattedTotal() }}</strong></td></tr>
-                        <tr><td style="padding:2px 12px 2px 0; color:#6b7280;">{{ __('Üle tähtaja:') }}</td><td style="padding:2px 0;">{{ $debtor->maxOverdueDays }} {{ __('päeva') }}</td></tr>
-                        <tr><td style="padding:2px 12px 2px 0; color:#6b7280;">{{ __('Arveid:') }}</td><td style="padding:2px 0;">{{ count($debtor->invoices) }}</td></tr>
-                        @if($debtor->email)
-                        <tr><td style="padding:2px 12px 2px 0; color:#6b7280;">{{ __('Kliendi e-post:') }}</td><td style="padding:2px 0;">{{ $debtor->email }}</td></tr>
+                        <tr><td style="padding:2px 12px 2px 0; color:#6b7280;">{{ __('Klient:') }}</td><td style="padding:2px 0;"><strong>{{ $invoice->customerName ?: '—' }}</strong></td></tr>
+                        <tr><td style="padding:2px 12px 2px 0; color:#6b7280;">{{ __('Arve nr:') }}</td><td style="padding:2px 0;">{{ $invoice->invoiceNo }}</td></tr>
+                        <tr><td style="padding:2px 12px 2px 0; color:#6b7280;">{{ __('Tasumata:') }}</td><td style="padding:2px 0;"><strong>{{ $invoice->formattedUnpaid() }}</strong></td></tr>
+                        <tr><td style="padding:2px 12px 2px 0; color:#6b7280;">{{ __('Tähtaeg:') }}</td><td style="padding:2px 0;">{{ $invoice->dueDateFormatted() }}</td></tr>
+                        @if($invoice->email)
+                        <tr><td style="padding:2px 12px 2px 0; color:#6b7280;">{{ __('Kliendi e-post:') }}</td><td style="padding:2px 0;">{{ $invoice->email }}</td></tr>
+                        @endif
+                        @if($invoice->contact)
+                        <tr><td style="padding:2px 12px 2px 0; color:#6b7280;">{{ __('Kontakt:') }}</td><td style="padding:2px 0;">{{ $invoice->contact }}</td></tr>
                         @endif
                     </table>
-
-                    <p style="font-size:16px;"><strong>{{ __('Palun helista nüüd kliendile.') }}</strong></p>
                 </td></tr>
             </table>
         </td></tr>

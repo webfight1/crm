@@ -28,38 +28,38 @@
                         <span class="ml-2 text-sm text-gray-700">{{ __('Automaatne saatmine sees') }}</span>
                     </label>
 
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                            <x-input-label for="first_reminder_days" :value="__('1. kiri: päeva üle tähtaja')" />
-                            <x-text-input id="first_reminder_days" name="first_reminder_days" type="number" min="0" max="365" class="mt-1 block w-full" :value="old('first_reminder_days', $settings->first_reminder_days)" required />
-                            <p class="text-xs text-gray-500 mt-1">{{ __('nt 7 = 1 nädal') }}</p>
-                            <x-input-error :messages="$errors->get('first_reminder_days')" class="mt-1" />
-                        </div>
-                        <div>
-                            <x-input-label for="repeat_interval_days" :value="__('Korduse intervall (päeva)')" />
-                            <x-text-input id="repeat_interval_days" name="repeat_interval_days" type="number" min="1" max="365" class="mt-1 block w-full" :value="old('repeat_interval_days', $settings->repeat_interval_days)" required />
-                            <p class="text-xs text-gray-500 mt-1">{{ __('nt 2 = iga 2 päeva tagant') }}</p>
-                            <x-input-error :messages="$errors->get('repeat_interval_days')" class="mt-1" />
-                        </div>
-                        <div>
-                            <x-input-label for="max_reminders" :value="__('Max kirju kliendile')" />
-                            <x-text-input id="max_reminders" name="max_reminders" type="number" min="1" max="100" class="mt-1 block w-full" :value="old('max_reminders', $settings->max_reminders)" required />
-                            <p class="text-xs text-gray-500 mt-1">{{ __('siis peatub + teavitus') }}</p>
-                            <x-input-error :messages="$errors->get('max_reminders')" class="mt-1" />
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="md:col-span-2">
+                            <x-input-label for="company_name" :value="__('Ettevõtte nimi arvel (väljastaja)')" />
+                            <x-text-input id="company_name" name="company_name" type="text" class="mt-1 block w-full" :value="old('company_name', $settings->company_name)" placeholder="Kind Studio OÜ" />
+                            <p class="text-xs text-gray-500 mt-1">{{ __('Kasutatakse kirjades väljastaja nimena (kohatäide') }} <code>@{{ettevote}}</code>).</p>
+                            <x-input-error :messages="$errors->get('company_name')" class="mt-1" />
                         </div>
                         <div>
                             <x-input-label for="send_hour" :value="__('Saatmise tund (0–23)')" />
                             <x-text-input id="send_hour" name="send_hour" type="number" min="0" max="23" class="mt-1 block w-full" :value="old('send_hour', $settings->send_hour)" required />
                             <x-input-error :messages="$errors->get('send_hour')" class="mt-1" />
                         </div>
-                        <div class="md:col-span-2">
-                            <x-input-label for="handoff_recipient" :value="__('Teavituse saaja (kui max täis → helista)')" />
+                        <div>
+                            <x-input-label for="notify_step" :value="__('Teade Mariusele mis astmes')" />
+                            <x-text-input id="notify_step" name="notify_step" type="number" min="1" max="4" class="mt-1 block w-full" :value="old('notify_step', $settings->notify_step)" required />
+                            <p class="text-xs text-gray-500 mt-1">{{ __('nt 3 = 3. kirja juures') }}</p>
+                            <x-input-error :messages="$errors->get('notify_step')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="attach_from_step" :value="__('PDF alates mis astmest')" />
+                            <x-text-input id="attach_from_step" name="attach_from_step" type="number" min="1" max="5" class="mt-1 block w-full" :value="old('attach_from_step', $settings->attach_from_step)" required />
+                            <p class="text-xs text-gray-500 mt-1">{{ __('nt 2 = 1. kirjas PDF-i ei ole') }}</p>
+                            <x-input-error :messages="$errors->get('attach_from_step')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="handoff_recipient" :value="__('Teavituse saaja (Marius)')" />
                             <x-text-input id="handoff_recipient" name="handoff_recipient" type="email" class="mt-1 block w-full" :value="old('handoff_recipient', $settings->handoff_recipient)" placeholder="marius@kind.ee" />
                             <x-input-error :messages="$errors->get('handoff_recipient')" class="mt-1" />
                         </div>
                         <div>
                             <x-input-label for="from_name" :value="__('Saatja nimi')" />
-                            <x-text-input id="from_name" name="from_name" type="text" class="mt-1 block w-full" :value="old('from_name', $settings->from_name)" placeholder="{{ __('nt KIND') }}" />
+                            <x-text-input id="from_name" name="from_name" type="text" class="mt-1 block w-full" :value="old('from_name', $settings->from_name)" placeholder="KIND" />
                             <x-input-error :messages="$errors->get('from_name')" class="mt-1" />
                         </div>
                         <div>
@@ -68,55 +68,34 @@
                             <x-input-error :messages="$errors->get('from_email')" class="mt-1" />
                         </div>
                     </div>
-
-                    <hr class="my-6">
-
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                        <div class="md:col-span-2">
-                            <label class="inline-flex items-center">
-                                <input type="checkbox" name="attach_pdfs" value="1" @checked(old('attach_pdfs', $settings->attach_pdfs)) class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
-                                <span class="ml-2 text-sm text-gray-700">{{ __('Lisa arved PDF-manusena') }}</span>
-                            </label>
-                            <p class="text-xs text-gray-500 mt-1">{{ __('Tõmbab arved Meritist ja lisab kirjale manusena.') }}</p>
-                        </div>
-                        <div>
-                            <x-input-label for="max_attachments" :value="__('PDF-manuste turvapiir')" />
-                            <x-text-input id="max_attachments" name="max_attachments" type="number" min="1" max="200" class="mt-1 block w-full" :value="old('max_attachments', $settings->max_attachments)" required />
-                            <p class="text-xs text-gray-500 mt-1">{{ __('Tavaliselt lisatakse kõik arved. See on ülemine kaitse liiga suure kirja vastu (nt 50).') }}</p>
-                            <x-input-error :messages="$errors->get('max_attachments')" class="mt-1" />
-                        </div>
-                    </div>
-
-                    <div class="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4">
-                        <x-input-label for="test_recipient" :value="__('🧪 Testrežiim — test-saaja e-post')" class="font-medium text-amber-900" />
-                        <x-text-input id="test_recipient" name="test_recipient" type="email" class="mt-1 block w-full" :value="old('test_recipient', $settings->test_recipient)" placeholder="{{ __('nt sinu@email.ee — jäta tühjaks päris saatmiseks') }}" />
-                        <p class="text-xs text-amber-800 mt-2">
-                            {{ __('Kui täidetud, lähevad KÕIK meeldetuletused sellele aadressile (mitte päris klientidele) ega muuda olekut/logisid. Ideaalne testimiseks. Päris saatmiseks jäta tühjaks.') }}
-                        </p>
-                        <x-input-error :messages="$errors->get('test_recipient')" class="mt-1" />
-                    </div>
                 </div>
 
                 {{-- Kohatäidete abi --}}
                 <div class="bg-indigo-50 border border-indigo-200 text-indigo-900 text-sm rounded-lg p-4">
                     <strong>{{ __('Kohatäited kirja tekstis:') }}</strong>
-                    <code class="mx-1">@{{nimi}}</code>{{ __('kontakti/kliendi nimi') }},
-                    <code class="mx-1">@{{arved}}</code>{{ __('arvete nimekiri') }},
-                    <code class="mx-1">@{{summa}}</code>{{ __('tasumata kokku') }},
-                    <code class="mx-1">@{{paevad}}</code>{{ __('päeva üle tähtaja') }},
-                    <code class="mx-1">@{{ettevote}}</code>{{ __('sinu firma nimi') }}.
+                    <code class="mx-1">@{{arve_nr}}</code>{{ __('arve number') }},
+                    <code class="mx-1">@{{ettevote}}</code>{{ __('väljastaja firma') }},
+                    <code class="mx-1">@{{tahtaeg}}</code>{{ __('arve tähtaeg') }},
+                    <code class="mx-1">@{{summa}}</code>{{ __('arve summa') }},
+                    <code class="mx-1">@{{nimi}}</code>{{ __('kliendi/kontakti nimi') }}.
                 </div>
 
-                {{-- Kirjade mallid: 1. kiri, 2. kiri, 3. kiri (kordub kuni max-ini) --}}
-                @php $labels = [1 => __('1. kiri'), 2 => __('2. kiri'), 3 => __('3. kiri (kordub kuni max-ini)')]; @endphp
-                @foreach([1,2,3] as $l)
+                {{-- 4 kirja: iga arve saab need astmed oma päevade järgi --}}
+                @php $labels = [1 => __('1. kiri (maksetähtajal)'), 2 => __('2. kiri'), 3 => __('3. kiri'), 4 => __('4. kiri (viimane)')]; @endphp
+                @foreach([1,2,3,4] as $l)
                     @php
                         $step = $settings->step($l);
-                        $fSubject = 'step'.$l.'_subject';
-                        $fBody    = 'step'.$l.'_body';
+                        $fDays = 'step'.$l.'_days'; $fSubject = 'step'.$l.'_subject'; $fBody = 'step'.$l.'_body';
                     @endphp
                     <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                        <h3 class="text-lg font-medium mb-4">{{ $labels[$l] }}</h3>
+                        <div class="flex items-center justify-between mb-4 gap-4">
+                            <h3 class="text-lg font-medium">{{ $labels[$l] }}</h3>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-gray-600" for="{{ $fDays }}">{{ __('päeva üle tähtaja:') }}</label>
+                                <x-text-input :id="$fDays" :name="$fDays" type="number" min="0" max="365" class="w-24" :value="old($fDays, $step['days'])" required />
+                            </div>
+                        </div>
+                        <x-input-error :messages="$errors->get($fDays)" class="mb-2" />
 
                         <div>
                             <x-input-label :for="$fSubject" :value="__('Teema')" />
@@ -131,6 +110,18 @@
                         </div>
                     </div>
                 @endforeach
+
+                {{-- Testrežiim --}}
+                <div class="bg-white shadow-sm sm:rounded-lg p-6">
+                    <div class="rounded-lg border border-amber-300 bg-amber-50 p-4">
+                        <x-input-label for="test_recipient" :value="__('🧪 Testrežiim — test-saaja e-post')" class="font-medium text-amber-900" />
+                        <x-text-input id="test_recipient" name="test_recipient" type="email" class="mt-1 block w-full" :value="old('test_recipient', $settings->test_recipient)" placeholder="{{ __('nt sinu@email.ee — jäta tühjaks päris saatmiseks') }}" />
+                        <p class="text-xs text-amber-800 mt-2">
+                            {{ __('Kui täidetud, lähevad KÕIK meeldetuletused (ja Mariuse teated) sellele aadressile, mitte päris klientidele, ega muuda olekut. Päris saatmiseks jäta tühjaks.') }}
+                        </p>
+                        <x-input-error :messages="$errors->get('test_recipient')" class="mt-1" />
+                    </div>
+                </div>
 
                 <div class="flex justify-end">
                     <x-primary-button type="submit">{{ __('Salvesta seaded') }}</x-primary-button>

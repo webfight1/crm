@@ -22,6 +22,10 @@ class MeritReminderSetting extends Model
         'step1_enabled', 'step1_days', 'step1_subject', 'step1_body',
         'step2_enabled', 'step2_days', 'step2_subject', 'step2_body',
         'step3_enabled', 'step3_days', 'step3_subject', 'step3_body',
+        'step4_days', 'step4_subject', 'step4_body',
+        'notify_step',
+        'attach_from_step',
+        'company_name',
         'from_name',
         'from_email',
         'attach_pdfs',
@@ -43,88 +47,94 @@ class MeritReminderSetting extends Model
         'step2_days'       => 'integer',
         'step3_enabled'    => 'boolean',
         'step3_days'       => 'integer',
+        'step4_days'       => 'integer',
+        'notify_step'      => 'integer',
+        'attach_from_step' => 'integer',
         'attach_pdfs'      => 'boolean',
         'max_attachments'  => 'integer',
     ];
+
+    /** Astmete arv (per-arve mudel): 1..4. */
+    public const STEP_COUNT = 4;
 
     public static function getSettings(): self
     {
         $settings = static::first();
 
         if ($settings === null) {
-            $settings = static::create([
-                'step1_subject' => 'Meeldetuletus tasumata arve(te) kohta',
-                'step1_body'    => self::defaultBody(1),
-                'step2_subject' => 'Korduv meeldetuletus tasumata arve(te) kohta',
-                'step2_body'    => self::defaultBody(2),
-                'step3_subject' => 'Viimane meeldetuletus tasumata arve(te) kohta',
-                'step3_body'    => self::defaultBody(3),
-            ]);
-            // Lae DB vaikeväärtused (enabled, rütm jne) mällu tagasi.
+            $settings = static::create(self::defaults());
             $settings->refresh();
         }
 
         return $settings;
     }
 
-    /** Kuhu läheb käsitsi-helistamise teavitus, kui max kirju on saadetud. */
+    /** Vaikeväärtused uue paigalduse jaoks (Mariuse tekstid, päevad 0/2/9/12). */
+    public static function defaults(): array
+    {
+        return [
+            'company_name'    => 'Kind Studio OÜ',
+            'notify_step'     => 3,
+            'attach_from_step' => 2,
+            'step1_days' => 0,  'step1_subject' => self::defaultSubject(1), 'step1_body' => self::defaultBody(1),
+            'step2_days' => 2,  'step2_subject' => self::defaultSubject(2), 'step2_body' => self::defaultBody(2),
+            'step3_days' => 9,  'step3_subject' => self::defaultSubject(3), 'step3_body' => self::defaultBody(3),
+            'step4_days' => 12, 'step4_subject' => self::defaultSubject(4), 'step4_body' => self::defaultBody(4),
+        ];
+    }
+
+    /** Kuhu läheb teavitus Mariusele (notify_step astmes). */
     public function handoffRecipient(): string
     {
         return $this->handoff_recipient ?: 'marius@kind.ee';
     }
 
-    /** Mallide arv (1. kiri, 2. kiri, 3.+ kordub). */
-    public const TEMPLATE_COUNT = 3;
-
-    /** Malli indeks saatmisnumbri järgi: viimane mall kordub. */
-    public function templateForSend(int $sendNumber): int
+    public function companyName(): string
     {
-        return min(max($sendNumber, 1), self::TEMPLATE_COUNT);
+        return $this->company_name ?: config('app.name');
+    }
+
+    /** Astmete päevakünnised [aste => päeva üle tähtaja], sorteeritud. */
+    public function stepDays(): array
+    {
+        $days = [];
+        foreach (range(1, self::STEP_COUNT) as $level) {
+            $days[$level] = (int) $this->{"step{$level}_days"};
+        }
+        asort($days);
+
+        return $days;
     }
 
     /**
-     * Astme konfiguratsioon ühtse struktuurina.
-     *
-     * @return array{enabled: bool, days: int, subject: ?string, body: ?string}
+     * @return array{days: int, subject: ?string, body: ?string}
      */
     public function step(int $level): array
     {
         return [
-            'enabled' => (bool) $this->{"step{$level}_enabled"},
             'days'    => (int) $this->{"step{$level}_days"},
             'subject' => $this->{"step{$level}_subject"},
             'body'    => $this->{"step{$level}_body"},
         ];
     }
 
-    /** Sisselülitatud astmed [tase => days], sorteeritud päevade järgi. */
-    public function enabledSteps(): array
+    public static function defaultSubject(int $level): string
     {
-        $steps = [];
-        foreach ([1, 2, 3] as $level) {
-            if ($this->{"step{$level}_enabled"}) {
-                $steps[$level] = (int) $this->{"step{$level}_days"};
-            }
-        }
-        asort($steps);
-
-        return $steps;
+        return match ($level) {
+            1 => '{{ettevote}} Arve nr {{arve_nr}} – täna on tasumise tähtaeg',
+            2 => 'Meeldetuletus: {{ettevote}} Arve nr {{arve_nr}}',
+            default => 'Korduv meeldetuletus: {{ettevote}} Arve nr {{arve_nr}}',
+        };
     }
 
     public static function defaultBody(int $level): string
     {
-        $intro = match ($level) {
-            1 => 'Soovime meelde tuletada, et Teil on meile tasumata järgmine(sed) arve(d):',
-            2 => 'Tuletame korduvalt meelde, et alljärgnev(ad) arve(d) on endiselt tasumata:',
-            default => 'Juhime tähelepanu, et vaatamata varasematele meeldetuletustele on alljärgnev(ad) arve(d) jätkuvalt tasumata:',
-        };
+        $sign = "Heade soovidega,\nMarius-Guy Allik\nmarius@kind.ee\n53486097\nKIND";
 
-        $outro = match ($level) {
-            1 => 'Palume arve(d) tasuda esimesel võimalusel. Kui olete arve juba tasunud, siis palume seda kirja mitte arvestada.',
-            2 => 'Palume võlgnevus tasuda lähipäevil. Kui olete arve juba tasunud, siis palume seda kirja mitte arvestada.',
-            default => 'Palume võlgnevus viivitamatult tasuda. Kui makse ei laeku, oleme sunnitud rakendama edasisi meetmeid. Kui olete arve juba tasunud, siis palume seda kirja mitte arvestada.',
+        return match ($level) {
+            1 => "Tere!\n\nTuletame meelde, et {{ettevote}} arve nr {{arve_nr}} tasumise tähtaeg on täna.\n\n{$sign}",
+            2 => "Tere!\n\nMeie andmetel on arve nr {{arve_nr}} veel tasumata. Palume arve tasuda.\n\nKirjaga on kaasas PDF-formaadis arve nr {{arve_nr}} ettevõttelt {{ettevote}}.\n\n{$sign}",
+            default => "Tere!\n\nMeie andmetel on arve nr {{arve_nr}} endiselt tasumata. Palume arve tasuda.\n\nKirjaga on kaasas PDF-formaadis arve nr {{arve_nr}} ettevõttelt {{ettevote}}.\n\n{$sign}",
         };
-
-        return "Lugupeetud {{nimi}}\n\n{$intro}\n\n{{arved}}\n\nTasumata kokku: {{summa}}\nÜle tähtaja: {{paevad}} päeva\n\n{$outro}\n\nLugupidamisega\n{{ettevote}}";
     }
 }

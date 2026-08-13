@@ -12,6 +12,7 @@ class MeritReminderLog extends Model
     protected $fillable = [
         'merit_customer_id',
         'customer_name',
+        'invoice_no',
         'email',
         'level',
         'overdue_days',
