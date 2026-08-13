@@ -320,9 +320,9 @@ class OverdueReminderService
     }
 
     /**
-     * Kogu võlgniku üle tähtaja arvete PDF-id manusteks (Meritist).
-     * Kui arveid on rohkem kui lubatud ülempiir, jäetakse manused hoopis ära
-     * (kiri läheb ainult nimekirjaga), et kiri ei paisuks.
+     * Kogu võlgniku üle tähtaja arvete PDF-id manusteks (Meritist) — iga arve
+     * eraldi PDF. max_attachments on turvapiir (0 = piiramata), et kaitsta
+     * absurdselt suure kirja eest; tavaliselt lisatakse kõik arved.
      *
      * @return array<int, array{name: string, content: string}>
      */
@@ -332,13 +332,13 @@ class OverdueReminderService
             return [];
         }
 
-        $max = (int) $settings->max_attachments;
-        if ($max > 0 && count($debtor->invoices) > $max) {
-            return []; // liiga palju arveid → ainult nimekiri
-        }
-
+        $max = (int) $settings->max_attachments; // 0 = piiramata
         $attachments = [];
+
         foreach ($debtor->invoices as $inv) {
+            if ($max > 0 && count($attachments) >= $max) {
+                break; // turvapiir täis
+            }
             try {
                 $sihId = $this->client->getInvoiceId((string) $inv['doc_no'], $debtor->customerId ?: null);
                 if (! $sihId) {

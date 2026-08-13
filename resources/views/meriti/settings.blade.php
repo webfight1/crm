@@ -67,9 +67,9 @@
                             <p class="text-xs text-gray-500 mt-1">{{ __('Tõmbab arved Meritist ja lisab kirjale manusena.') }}</p>
                         </div>
                         <div>
-                            <x-input-label for="max_attachments" :value="__('Manuste ülempiir (arvet kirja kohta)')" />
-                            <x-text-input id="max_attachments" name="max_attachments" type="number" min="1" max="50" class="mt-1 block w-full" :value="old('max_attachments', $settings->max_attachments)" required />
-                            <p class="text-xs text-gray-500 mt-1">{{ __('Kui arveid on rohkem, saadetakse ainult nimekiri (ilma manusteta).') }}</p>
+                            <x-input-label for="max_attachments" :value="__('PDF-manuste turvapiir')" />
+                            <x-text-input id="max_attachments" name="max_attachments" type="number" min="1" max="200" class="mt-1 block w-full" :value="old('max_attachments', $settings->max_attachments)" required />
+                            <p class="text-xs text-gray-500 mt-1">{{ __('Tavaliselt lisatakse kõik arved. See on ülemine kaitse liiga suure kirja vastu (nt 50).') }}</p>
                             <x-input-error :messages="$errors->get('max_attachments')" class="mt-1" />
                         </div>
                     </div>

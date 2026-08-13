@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('merit_reminder_settings', function (Blueprint $table) {
             $table->boolean('attach_pdfs')->default(true)->after('from_email');
-            $table->unsignedSmallInteger('max_attachments')->default(10)->after('attach_pdfs');
+            $table->unsignedSmallInteger('max_attachments')->default(50)->after('attach_pdfs');
         });
     }
 
