@@ -48,14 +48,9 @@
                         @endif
                     </div>
                     <div>
-                        <span class="text-sm text-gray-500">{{ __('Astmed (päeva üle tähtaja)') }}</span><br>
+                        <span class="text-sm text-gray-500">{{ __('Rütm') }}</span><br>
                         <span class="text-sm text-gray-800">
-                            @foreach([1,2,3] as $l)
-                                @php($step = $settings->step($l))
-                                @if($step['enabled'])
-                                    <span class="mr-2">{{ $l }}. {{ $step['days'] }}p</span>
-                                @endif
-                            @endforeach
+                            {{ __('1. kiri') }} {{ $settings->first_reminder_days }}p → {{ __('iga') }} {{ $settings->repeat_interval_days }}p → {{ __('max') }} {{ $settings->max_reminders }}
                         </span>
                     </div>
                     <div class="ml-auto">
@@ -95,8 +90,8 @@
                                     <th class="px-4 py-3 text-right font-medium text-gray-500">{{ __('Arveid') }}</th>
                                     <th class="px-4 py-3 text-right font-medium text-gray-500">{{ __('Tasumata') }}</th>
                                     <th class="px-4 py-3 text-right font-medium text-gray-500">{{ __('Päevi üle') }}</th>
-                                    <th class="px-4 py-3 text-center font-medium text-gray-500">{{ __('Saadetud') }}</th>
-                                    <th class="px-4 py-3 text-center font-medium text-gray-500">{{ __('Järgmine aste') }}</th>
+                                    <th class="px-4 py-3 text-center font-medium text-gray-500">{{ __('Kirju saadetud') }}</th>
+                                    <th class="px-4 py-3 text-center font-medium text-gray-500">{{ __('Järgmine kiri') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">

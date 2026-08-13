@@ -54,11 +54,12 @@ class SendMeritOverdueReminders extends Command
         }
 
         $this->info(sprintf(
-            '%s: %d, vahele jäetud: %d, ebaõnnestus: %d, episood lõpetatud: %d',
+            '%s: %d, vahele jäetud: %d, ebaõnnestus: %d, teavitusi (helista): %d, episood lõpetatud: %d',
             $dryRun ? 'Saadaks' : 'Saadetud',
             $result['sent'],
             $result['skipped'],
             $result['failed'],
+            $result['handoff'] ?? 0,
             $result['cleared'],
         ));
 

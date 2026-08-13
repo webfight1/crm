@@ -14,11 +14,13 @@ class MeritDebtorState extends Model
         'highest_level_sent',
         'last_sent_at',
         'debt_cleared_at',
+        'handoff_notified_at',
     ];
 
     protected $casts = [
-        'highest_level_sent' => 'integer',
-        'last_sent_at'       => 'datetime',
-        'debt_cleared_at'    => 'datetime',
+        'highest_level_sent'  => 'integer',
+        'last_sent_at'        => 'datetime',
+        'debt_cleared_at'     => 'datetime',
+        'handoff_notified_at' => 'datetime',
     ];
 }

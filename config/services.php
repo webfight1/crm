@@ -49,6 +49,18 @@ return [
         'api_id'   => env('MERIT_API_ID'),
         'api_key'  => env('MERIT_API_KEY'),
         'base_url' => env('MERIT_API_URL', 'https://aktiva.merit.ee/api/v1'),
+
+        // Meeldetuletuste oma saatja (eraldi outreach'ist), nt arved@kind.ee.
+        // Kui täidetud, saadetakse kirjad selle SMTP kaudu; muidu langetakse
+        // tagasi aktiivsele outreach-postkastile.
+        'mail' => [
+            'host'       => env('MERIT_MAIL_HOST'),
+            'port'       => env('MERIT_MAIL_PORT', 587),
+            'encryption' => env('MERIT_MAIL_ENCRYPTION', 'tls'),
+            'username'   => env('MERIT_MAIL_USERNAME'),
+            'password'   => env('MERIT_MAIL_PASSWORD'),
+            'from_name'  => env('MERIT_MAIL_FROM_NAME', 'KIND'),
+        ],
     ],
 
 ];

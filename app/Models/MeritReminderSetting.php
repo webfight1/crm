@@ -13,6 +13,10 @@ class MeritReminderSetting extends Model
     protected $fillable = [
         'enabled',
         'min_overdue_days',
+        'first_reminder_days',
+        'repeat_interval_days',
+        'max_reminders',
+        'handoff_recipient',
         'min_days_between',
         'send_hour',
         'step1_enabled', 'step1_days', 'step1_subject', 'step1_body',
@@ -26,10 +30,13 @@ class MeritReminderSetting extends Model
     ];
 
     protected $casts = [
-        'enabled'          => 'boolean',
-        'min_overdue_days' => 'integer',
-        'min_days_between' => 'integer',
-        'send_hour'        => 'integer',
+        'enabled'              => 'boolean',
+        'min_overdue_days'     => 'integer',
+        'first_reminder_days'  => 'integer',
+        'repeat_interval_days' => 'integer',
+        'max_reminders'        => 'integer',
+        'min_days_between'     => 'integer',
+        'send_hour'            => 'integer',
         'step1_enabled'    => 'boolean',
         'step1_days'       => 'integer',
         'step2_enabled'    => 'boolean',
@@ -53,11 +60,26 @@ class MeritReminderSetting extends Model
                 'step3_subject' => 'Viimane meeldetuletus tasumata arve(te) kohta',
                 'step3_body'    => self::defaultBody(3),
             ]);
-            // Lae DB vaikeväärtused (enabled, step-päevad jne) mällu tagasi.
+            // Lae DB vaikeväärtused (enabled, rütm jne) mällu tagasi.
             $settings->refresh();
         }
 
         return $settings;
+    }
+
+    /** Kuhu läheb käsitsi-helistamise teavitus, kui max kirju on saadetud. */
+    public function handoffRecipient(): string
+    {
+        return $this->handoff_recipient ?: 'marius@kind.ee';
+    }
+
+    /** Mallide arv (1. kiri, 2. kiri, 3.+ kordub). */
+    public const TEMPLATE_COUNT = 3;
+
+    /** Malli indeks saatmisnumbri järgi: viimane mall kordub. */
+    public function templateForSend(int $sendNumber): int
+    {
+        return min(max($sendNumber, 1), self::TEMPLATE_COUNT);
     }
 
     /**

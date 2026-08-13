@@ -46,34 +46,28 @@ class MeritReminderController extends Controller
         $settings = MeritReminderSetting::getSettings();
 
         $validated = $request->validate([
-            'enabled'          => 'nullable|boolean',
-            'min_overdue_days' => 'required|integer|min:0|max:365',
-            'min_days_between' => 'required|integer|min:0|max:365',
-            'send_hour'        => 'required|integer|min:0|max:23',
-            'from_name'        => 'nullable|string|max:255',
-            'from_email'       => 'nullable|email|max:255',
-            'attach_pdfs'      => 'nullable|boolean',
-            'max_attachments'  => 'required|integer|min:1|max:200',
-            'test_recipient'   => 'nullable|email|max:255',
+            'enabled'              => 'nullable|boolean',
+            'first_reminder_days'  => 'required|integer|min:0|max:365',
+            'repeat_interval_days' => 'required|integer|min:1|max:365',
+            'max_reminders'        => 'required|integer|min:1|max:100',
+            'handoff_recipient'    => 'nullable|email|max:255',
+            'send_hour'            => 'required|integer|min:0|max:23',
+            'from_name'            => 'nullable|string|max:255',
+            'from_email'           => 'nullable|email|max:255',
+            'attach_pdfs'          => 'nullable|boolean',
+            'max_attachments'      => 'required|integer|min:1|max:200',
+            'test_recipient'       => 'nullable|email|max:255',
 
-            'step1_enabled' => 'nullable|boolean',
-            'step1_days'    => 'required|integer|min:0|max:365',
             'step1_subject' => 'nullable|string|max:500',
             'step1_body'    => 'nullable|string',
-
-            'step2_enabled' => 'nullable|boolean',
-            'step2_days'    => 'required|integer|min:0|max:365',
             'step2_subject' => 'nullable|string|max:500',
             'step2_body'    => 'nullable|string',
-
-            'step3_enabled' => 'nullable|boolean',
-            'step3_days'    => 'required|integer|min:0|max:365',
             'step3_subject' => 'nullable|string|max:500',
             'step3_body'    => 'nullable|string',
         ]);
 
         // Märkeruudud: puuduv väärtus = false.
-        foreach (['enabled', 'step1_enabled', 'step2_enabled', 'step3_enabled', 'attach_pdfs'] as $flag) {
+        foreach (['enabled', 'attach_pdfs'] as $flag) {
             $validated[$flag] = $request->boolean($flag);
         }
 
@@ -91,8 +85,8 @@ class MeritReminderController extends Controller
         }
 
         return redirect()->route('meriti.index')->with('success', __(
-            'Saadetud: :sent, vahele jäetud: :skipped, ebaõnnestus: :failed.',
-            ['sent' => $result['sent'], 'skipped' => $result['skipped'], 'failed' => $result['failed']]
+            'Saadetud: :sent, vahele jäetud: :skipped, ebaõnnestus: :failed, teavitusi (helista): :handoff.',
+            ['sent' => $result['sent'], 'skipped' => $result['skipped'], 'failed' => $result['failed'], 'handoff' => $result['handoff'] ?? 0]
         ));
     }
 

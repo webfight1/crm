@@ -51,18 +51,38 @@ class OverdueReminderService
     }
 
     /**
-     * Seadistab käitusaegse maileri valitud outreach-konto SMTP-st ja tagastab
-     * selle nime (või null, kui aktiivset kontot pole). Parool dekrüpteeritakse
-     * mudeli accessoriga mälus. Seab ka globaalse "from" konto aadressiks, et
-     * Gmail kirja vastu võtaks.
+     * Seadistab käitusaegse maileri ja tagastab selle nime (või null).
+     * Eelistab Meriti oma saatjat (MERIT_MAIL_*, nt arved@kind.ee); kui see on
+     * seadistamata, langeb tagasi aktiivsele outreach-postkastile.
+     * Paroole ei prindita — jäävad mällu.
      */
-    public function configureOutreachMailer(): ?string
+    public function configureMailer(): ?string
     {
         if ($this->mailerResolved) {
             return $this->outreachMailer;
         }
         $this->mailerResolved = true;
 
+        // 1) Meriti oma saatja (eraldi outreach'ist).
+        $m = config('services.merit.mail');
+        if (! empty($m['username']) && ! empty($m['password'])) {
+            config([
+                'mail.mailers.merit_sender' => [
+                    'transport'  => 'smtp',
+                    'host'       => $m['host'] ?: 'smtp.gmail.com',
+                    'port'       => (int) ($m['port'] ?: 587),
+                    'encryption' => $m['encryption'] ?: 'tls',
+                    'username'   => $m['username'],
+                    'password'   => $m['password'],
+                ],
+                'mail.from.address' => $m['username'],
+                'mail.from.name'    => $m['from_name'] ?: config('app.name'),
+            ]);
+
+            return $this->outreachMailer = 'merit_sender';
+        }
+
+        // 2) Tagavara: aktiivne outreach-postkast.
         $account = $this->resolveSendAccount();
         if ($account === null) {
             return $this->outreachMailer = null;
@@ -155,39 +175,54 @@ class OverdueReminderService
         $testRecipient = filter_var((string) $settings->test_recipient, FILTER_VALIDATE_EMAIL) ?: null;
         $testMode = $testRecipient !== null;
 
-        // Päris saatmiseks vaja aktiivset outreach-postkasti (SMTP).
-        if (! $dryRun && $this->configureOutreachMailer() === null) {
+        // Päris saatmiseks vaja töötavat saatjat (Meriti oma või outreach).
+        if (! $dryRun && $this->configureMailer() === null) {
             throw new \RuntimeException(
-                'Saatmiseks pole aktiivset outreach-postkasti. Lisa/aktiveeri Postkastide all vähemalt üks SMTP-konto.'
+                'Saatmiseks pole saatjat seadistatud. Lisa MERIT_MAIL_* (nt arved@kind.ee) .env-i või aktiveeri outreach-postkast.'
             );
         }
 
         $debtors = $this->collectDebtors();
 
-        $result = ['sent' => 0, 'skipped' => 0, 'failed' => 0, 'cleared' => 0, 'planned' => []];
+        $result = ['sent' => 0, 'skipped' => 0, 'failed' => 0, 'cleared' => 0, 'handoff' => 0, 'planned' => []];
 
+        $max = max(1, (int) $settings->max_reminders);
         $seenIds = [];
 
         foreach ($debtors as $debtor) {
             $seenIds[] = $debtor->customerId;
 
             // Testrežiimis kasutame värsket olekut, et varasem päris-saatmine
-            // (min_days_between / juba-saadetud aste) testimist ei blokeeriks.
+            // testimist ei blokeeriks.
             $state = $testMode
                 ? new MeritDebtorState(['merit_customer_id' => $debtor->customerId])
                 : MeritDebtorState::firstOrNew(['merit_customer_id' => $debtor->customerId]);
-            $level = $this->determineDueLevel($debtor, $settings, $state);
 
-            if ($level === null) {
+            // Max kirju saadetud → käsitsi-helistamise teavitus (üks kord).
+            if (! $dryRun && ! $testMode
+                && (int) $state->highest_level_sent >= $max
+                && $state->handoff_notified_at === null
+            ) {
+                $this->sendHandoff($debtor, (int) $state->highest_level_sent, $settings);
+                $state->handoff_notified_at = now();
+                $state->save();
+                $result['handoff']++;
+            }
+
+            $sendNumber = $this->determineDueLevel($debtor, $settings, $state);
+
+            if ($sendNumber === null) {
                 $result['skipped']++;
                 continue;
             }
+
+            $templateLevel = $settings->templateForSend($sendNumber);
 
             $plan = [
                 'customer_id'  => $debtor->customerId,
                 'name'         => $debtor->name,
                 'email'        => $debtor->email,
-                'level'        => $level,
+                'level'        => $sendNumber,   // mitmes kiri
                 'overdue_days' => $debtor->maxOverdueDays,
                 'total'        => $debtor->formattedTotal(),
             ];
@@ -197,7 +232,7 @@ class OverdueReminderService
                 $result['planned'][] = $plan;
                 $result['skipped']++;
                 if (! $dryRun) {
-                    $this->log($debtor, $level, 'skipped', 'E-posti aadress puudub');
+                    $this->log($debtor, $sendNumber, 'skipped', 'E-posti aadress puudub');
                 }
                 continue;
             }
@@ -214,13 +249,13 @@ class OverdueReminderService
 
                 Mail::mailer($this->outreachMailer)
                     ->to($testMode ? $testRecipient : $debtor->email)
-                    ->send(new OverdueReminderMail($debtor, $level, $settings, $attachments, $testMode));
+                    ->send(new OverdueReminderMail($debtor, $templateLevel, $settings, $attachments, $testMode));
 
                 // Testrežiimis ei logi ega muuda olekut — korduvalt testitav.
                 if (! $testMode) {
-                    $this->log($debtor, $level, 'sent');
+                    $this->log($debtor, $sendNumber, 'sent');
                     $state->fill([
-                        'highest_level_sent' => $level,
+                        'highest_level_sent' => $sendNumber,
                         'last_sent_at'       => now(),
                         'debt_cleared_at'    => null,
                     ])->save();
@@ -234,7 +269,7 @@ class OverdueReminderService
                     'customer' => $debtor->customerId,
                     'error'    => $e->getMessage(),
                 ]);
-                $this->log($debtor, $level, 'failed', $e->getMessage());
+                $this->log($debtor, $sendNumber, 'failed', $e->getMessage());
                 $plan['result'] = 'failed';
                 $result['planned'][] = $plan;
                 $result['failed']++;
@@ -272,31 +307,36 @@ class OverdueReminderService
     }
 
     /**
-     * Milline meeldetuletuse aste on nüüd võlgu (või null, kui midagi ei saada).
+     * Mitmes meeldetuletus on nüüd võlgu (1..max), või null kui midagi ei saada.
+     *
+     * Rütm: 1. kiri kui arve first_reminder_days üle tähtaja; edasi iga
+     * repeat_interval_days tagant; kokku kuni max_reminders kirja.
+     * NB! enabled-kontroll on käsu/kontrolleri tasemel — siin arvutame ka
+     * väljalülitatud olekus, et UI eelvaade saaks näidata.
      */
     public function determineDueLevel(MeritDebtor $debtor, MeritReminderSetting $settings, MeritDebtorState $state): ?int
     {
-        // NB! enabled-kontroll on käsu/kontrolleri tasemel — siin arvutame astme
-        // ka väljalülitatud olekus, et UI eelvaade saaks seda näidata.
-        if ($debtor->maxOverdueDays < $settings->min_overdue_days) {
-            return null;
+        $sent = (int) $state->highest_level_sent;
+        $max  = max(1, (int) $settings->max_reminders);
+
+        if ($sent >= $max) {
+            return null; // limiit täis (edasi käsitsi — handoff eraldi)
         }
 
-        // Min vahe kahe kirja vahel.
-        if ($state->last_sent_at && $state->last_sent_at->diffInDays(now()) < $settings->min_days_between) {
-            return null;
+        // Esimene kiri: arve peab olema vähemalt first_reminder_days üle tähtaja.
+        if ($sent === 0) {
+            return $debtor->maxOverdueDays >= (int) $settings->first_reminder_days ? 1 : null;
         }
 
-        $already = (int) $state->highest_level_sent;
-
-        // Järgmine sisselülitatud aste, mille päevakünnis on täis ja mida pole veel saadetud.
-        foreach ($settings->enabledSteps() as $level => $days) {
-            if ($level > $already && $debtor->maxOverdueDays >= $days) {
-                return $level;
-            }
+        // Järgmised kirjad: iga repeat_interval_days tagant viimasest saatmisest.
+        $interval = max(1, (int) $settings->repeat_interval_days);
+        if ($state->last_sent_at === null) {
+            return $sent + 1;
         }
 
-        return null;
+        $daysSince = $state->last_sent_at->copy()->startOfDay()->diffInDays(now()->startOfDay());
+
+        return $daysSince >= $interval ? $sent + 1 : null;
     }
 
     /**
@@ -314,9 +354,28 @@ class OverdueReminderService
         }
 
         return $query->update([
-            'highest_level_sent' => 0,
-            'debt_cleared_at'    => now(),
+            'highest_level_sent'  => 0,
+            'debt_cleared_at'     => now(),
+            'handoff_notified_at' => null,
         ]);
+    }
+
+    /**
+     * Saadab käsitsi-helistamise teavituse (nt marius@kind.ee-le), kui kliendile
+     * on saadetud max arv kirju. Ei blokeeri põhivoogu, kui saatmine ebaõnnestub.
+     */
+    private function sendHandoff(MeritDebtor $debtor, int $count, MeritReminderSetting $settings): void
+    {
+        try {
+            Mail::mailer($this->outreachMailer)
+                ->to($settings->handoffRecipient())
+                ->send(new \App\Mail\MeritHandoffMail($debtor, $count));
+        } catch (\Throwable $e) {
+            Log::error('[Merit] Käsitsi-teavituse saatmine ebaõnnestus', [
+                'customer' => $debtor->customerId,
+                'error'    => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

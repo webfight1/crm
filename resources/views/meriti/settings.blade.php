@@ -28,30 +28,43 @@
                         <span class="ml-2 text-sm text-gray-700">{{ __('Automaatne saatmine sees') }}</span>
                     </label>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
-                            <x-input-label for="min_overdue_days" :value="__('Alampiir: päeva üle tähtaja')" />
-                            <x-text-input id="min_overdue_days" name="min_overdue_days" type="number" min="0" max="365" class="mt-1 block w-full" :value="old('min_overdue_days', $settings->min_overdue_days)" required />
-                            <x-input-error :messages="$errors->get('min_overdue_days')" class="mt-1" />
+                            <x-input-label for="first_reminder_days" :value="__('1. kiri: päeva üle tähtaja')" />
+                            <x-text-input id="first_reminder_days" name="first_reminder_days" type="number" min="0" max="365" class="mt-1 block w-full" :value="old('first_reminder_days', $settings->first_reminder_days)" required />
+                            <p class="text-xs text-gray-500 mt-1">{{ __('nt 7 = 1 nädal') }}</p>
+                            <x-input-error :messages="$errors->get('first_reminder_days')" class="mt-1" />
                         </div>
                         <div>
-                            <x-input-label for="min_days_between" :value="__('Min vahe kahe kirja vahel (päeva)')" />
-                            <x-text-input id="min_days_between" name="min_days_between" type="number" min="0" max="365" class="mt-1 block w-full" :value="old('min_days_between', $settings->min_days_between)" required />
-                            <x-input-error :messages="$errors->get('min_days_between')" class="mt-1" />
+                            <x-input-label for="repeat_interval_days" :value="__('Korduse intervall (päeva)')" />
+                            <x-text-input id="repeat_interval_days" name="repeat_interval_days" type="number" min="1" max="365" class="mt-1 block w-full" :value="old('repeat_interval_days', $settings->repeat_interval_days)" required />
+                            <p class="text-xs text-gray-500 mt-1">{{ __('nt 2 = iga 2 päeva tagant') }}</p>
+                            <x-input-error :messages="$errors->get('repeat_interval_days')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="max_reminders" :value="__('Max kirju kliendile')" />
+                            <x-text-input id="max_reminders" name="max_reminders" type="number" min="1" max="100" class="mt-1 block w-full" :value="old('max_reminders', $settings->max_reminders)" required />
+                            <p class="text-xs text-gray-500 mt-1">{{ __('siis peatub + teavitus') }}</p>
+                            <x-input-error :messages="$errors->get('max_reminders')" class="mt-1" />
                         </div>
                         <div>
                             <x-input-label for="send_hour" :value="__('Saatmise tund (0–23)')" />
                             <x-text-input id="send_hour" name="send_hour" type="number" min="0" max="23" class="mt-1 block w-full" :value="old('send_hour', $settings->send_hour)" required />
                             <x-input-error :messages="$errors->get('send_hour')" class="mt-1" />
                         </div>
+                        <div class="md:col-span-2">
+                            <x-input-label for="handoff_recipient" :value="__('Teavituse saaja (kui max täis → helista)')" />
+                            <x-text-input id="handoff_recipient" name="handoff_recipient" type="email" class="mt-1 block w-full" :value="old('handoff_recipient', $settings->handoff_recipient)" placeholder="marius@kind.ee" />
+                            <x-input-error :messages="$errors->get('handoff_recipient')" class="mt-1" />
+                        </div>
                         <div>
                             <x-input-label for="from_name" :value="__('Saatja nimi')" />
-                            <x-text-input id="from_name" name="from_name" type="text" class="mt-1 block w-full" :value="old('from_name', $settings->from_name)" placeholder="{{ __('nt Minu Firma OÜ') }}" />
+                            <x-text-input id="from_name" name="from_name" type="text" class="mt-1 block w-full" :value="old('from_name', $settings->from_name)" placeholder="{{ __('nt KIND') }}" />
                             <x-input-error :messages="$errors->get('from_name')" class="mt-1" />
                         </div>
-                        <div class="md:col-span-2">
+                        <div>
                             <x-input-label for="from_email" :value="__('Saatja e-post (valikuline)')" />
-                            <x-text-input id="from_email" name="from_email" type="email" class="mt-1 block w-full" :value="old('from_email', $settings->from_email)" placeholder="{{ config('mail.from.address') }}" />
+                            <x-text-input id="from_email" name="from_email" type="email" class="mt-1 block w-full" :value="old('from_email', $settings->from_email)" placeholder="{{ config('services.merit.mail.username') ?: config('mail.from.address') }}" />
                             <x-input-error :messages="$errors->get('from_email')" class="mt-1" />
                         </div>
                     </div>
@@ -94,35 +107,21 @@
                     <code class="mx-1">@{{ettevote}}</code>{{ __('sinu firma nimi') }}.
                 </div>
 
-                {{-- 3 astet --}}
+                {{-- Kirjade mallid: 1. kiri, 2. kiri, 3. kiri (kordub kuni max-ini) --}}
+                @php $labels = [1 => __('1. kiri'), 2 => __('2. kiri'), 3 => __('3. kiri (kordub kuni max-ini)')]; @endphp
                 @foreach([1,2,3] as $l)
                     @php
                         $step = $settings->step($l);
-                        $fEnabled = 'step'.$l.'_enabled';
-                        $fDays    = 'step'.$l.'_days';
                         $fSubject = 'step'.$l.'_subject';
                         $fBody    = 'step'.$l.'_body';
                     @endphp
                     <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-lg font-medium">{{ $l }}. {{ __('meeldetuletus') }}</h3>
-                            <label class="inline-flex items-center">
-                                <input type="checkbox" name="{{ $fEnabled }}" value="1" @checked(old($fEnabled, $step['enabled'])) class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
-                                <span class="ml-2 text-sm text-gray-700">{{ __('Kasutusel') }}</span>
-                            </label>
-                        </div>
+                        <h3 class="text-lg font-medium mb-4">{{ $labels[$l] }}</h3>
 
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div>
-                                <x-input-label :for="$fDays" :value="__('Päeva üle tähtaja')" />
-                                <x-text-input :id="$fDays" :name="$fDays" type="number" min="0" max="365" class="mt-1 block w-full" :value="old($fDays, $step['days'])" required />
-                                <x-input-error :messages="$errors->get($fDays)" class="mt-1" />
-                            </div>
-                            <div class="md:col-span-3">
-                                <x-input-label :for="$fSubject" :value="__('Teema')" />
-                                <x-text-input :id="$fSubject" :name="$fSubject" type="text" class="mt-1 block w-full" :value="old($fSubject, $step['subject'])" />
-                                <x-input-error :messages="$errors->get($fSubject)" class="mt-1" />
-                            </div>
+                        <div>
+                            <x-input-label :for="$fSubject" :value="__('Teema')" />
+                            <x-text-input :id="$fSubject" :name="$fSubject" type="text" class="mt-1 block w-full" :value="old($fSubject, $step['subject'])" />
+                            <x-input-error :messages="$errors->get($fSubject)" class="mt-1" />
                         </div>
 
                         <div class="mt-4">
