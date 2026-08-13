@@ -88,6 +88,56 @@ class MeritClient
     }
 
     /**
+     * Leia arve sisemine Id (SIHId) arve numbri järgi (getinvoices2, v2).
+     * Vajalik PDF-i pärimiseks, sest võlaraport annab ainult arve numbri.
+     */
+    public function getInvoiceId(string $invNo, ?string $custId = null): ?string
+    {
+        $payload = ['InvNo' => $invNo];
+        if ($custId) {
+            $payload['CustId'] = $custId;
+        }
+
+        $result = $this->request('getinvoices2', $payload, 2);
+        if (! is_array($result)) {
+            return null;
+        }
+
+        // Eelista täpset arve numbri vastet.
+        foreach ($result as $inv) {
+            if (is_array($inv) && (string) ($inv['InvoiceNo'] ?? '') === $invNo && ! empty($inv['SIHId'])) {
+                return (string) $inv['SIHId'];
+            }
+        }
+        foreach ($result as $inv) {
+            if (is_array($inv) && ! empty($inv['SIHId'])) {
+                return (string) $inv['SIHId'];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Tõmba müügiarve PDF (getsalesinvpdf, v2). Tagastab [name, content(base64)].
+     *
+     * @return array{name: string, content: string}|null
+     */
+    public function getInvoicePdf(string $sihId): ?array
+    {
+        $result = $this->request('getsalesinvpdf', ['Id' => $sihId, 'DelivNote' => false], 2);
+
+        if (is_array($result) && ! empty($result['FileContent'])) {
+            return [
+                'name'    => (string) ($result['FileName'] ?? ('arve-' . $sihId . '.pdf')),
+                'content' => (string) $result['FileContent'],
+            ];
+        }
+
+        return null;
+    }
+
+    /**
      * Kerge ühenduse test UI staatuse jaoks. Tagastab [ok, message].
      *
      * @return array{ok: bool, message: string}
@@ -112,9 +162,10 @@ class MeritClient
      * Allkirjastatud päring Meriti API-le.
      *
      * @param  array<string, mixed>  $payload
+     * @param  int|null  $version  Kui antud, kasutab /vN endpointi (nt v2), muidu seadistatud baasi.
      * @return mixed  Dekodeeritud JSON-vastus (array).
      */
-    private function request(string $endpoint, array $payload): mixed
+    private function request(string $endpoint, array $payload, ?int $version = null): mixed
     {
         if (! $this->isConfigured()) {
             throw new RuntimeException('Merit API võtmed on seadistamata.');
@@ -130,7 +181,12 @@ class MeritClient
             hash_hmac('sha256', $this->apiId() . $timestamp . $json, $this->apiKey(), true)
         );
 
-        $url = $this->baseUrl() . '/' . ltrim($endpoint, '/');
+        $base = $this->baseUrl();
+        if ($version !== null) {
+            // Asenda baasi versioonisegment (nt .../api/v1 → .../api/v2).
+            $base = preg_replace('#/v\d+$#', '/v' . $version, $base, 1) ?? $base;
+        }
+        $url = $base . '/' . ltrim($endpoint, '/');
 
         $response = Http::withHeaders(['Content-Type' => 'application/json'])
             ->timeout(30)

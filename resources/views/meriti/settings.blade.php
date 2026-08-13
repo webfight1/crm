@@ -55,6 +55,24 @@
                             <x-input-error :messages="$errors->get('from_email')" class="mt-1" />
                         </div>
                     </div>
+
+                    <hr class="my-6">
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <div class="md:col-span-2">
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" name="attach_pdfs" value="1" @checked(old('attach_pdfs', $settings->attach_pdfs)) class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                                <span class="ml-2 text-sm text-gray-700">{{ __('Lisa arved PDF-manusena') }}</span>
+                            </label>
+                            <p class="text-xs text-gray-500 mt-1">{{ __('Tõmbab arved Meritist ja lisab kirjale manusena.') }}</p>
+                        </div>
+                        <div>
+                            <x-input-label for="max_attachments" :value="__('Manuste ülempiir (arvet kirja kohta)')" />
+                            <x-text-input id="max_attachments" name="max_attachments" type="number" min="1" max="50" class="mt-1 block w-full" :value="old('max_attachments', $settings->max_attachments)" required />
+                            <p class="text-xs text-gray-500 mt-1">{{ __('Kui arveid on rohkem, saadetakse ainult nimekiri (ilma manusteta).') }}</p>
+                            <x-input-error :messages="$errors->get('max_attachments')" class="mt-1" />
+                        </div>
+                    </div>
                 </div>
 
                 {{-- Kohatäidete abi --}}

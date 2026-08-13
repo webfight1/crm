@@ -20,6 +20,8 @@ class MeritReminderSetting extends Model
         'step3_enabled', 'step3_days', 'step3_subject', 'step3_body',
         'from_name',
         'from_email',
+        'attach_pdfs',
+        'max_attachments',
     ];
 
     protected $casts = [
@@ -33,6 +35,8 @@ class MeritReminderSetting extends Model
         'step2_days'       => 'integer',
         'step3_enabled'    => 'boolean',
         'step3_days'       => 'integer',
+        'attach_pdfs'      => 'boolean',
+        'max_attachments'  => 'integer',
     ];
 
     public static function getSettings(): self

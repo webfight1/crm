@@ -52,6 +52,8 @@ class MeritReminderController extends Controller
             'send_hour'        => 'required|integer|min:0|max:23',
             'from_name'        => 'nullable|string|max:255',
             'from_email'       => 'nullable|email|max:255',
+            'attach_pdfs'      => 'nullable|boolean',
+            'max_attachments'  => 'required|integer|min:1|max:50',
 
             'step1_enabled' => 'nullable|boolean',
             'step1_days'    => 'required|integer|min:0|max:365',
@@ -70,7 +72,7 @@ class MeritReminderController extends Controller
         ]);
 
         // Märkeruudud: puuduv väärtus = false.
-        foreach (['enabled', 'step1_enabled', 'step2_enabled', 'step3_enabled'] as $flag) {
+        foreach (['enabled', 'step1_enabled', 'step2_enabled', 'step3_enabled', 'attach_pdfs'] as $flag) {
             $validated[$flag] = $request->boolean($flag);
         }
 

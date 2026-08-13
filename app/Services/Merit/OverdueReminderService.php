@@ -201,9 +201,11 @@ class OverdueReminderService
             }
 
             try {
+                $attachments = $this->buildAttachments($debtor, $settings);
+
                 Mail::mailer($this->outreachMailer)
                     ->to($debtor->email)
-                    ->send(new OverdueReminderMail($debtor, $level, $settings));
+                    ->send(new OverdueReminderMail($debtor, $level, $settings, $attachments));
 
                 $this->log($debtor, $level, 'sent');
                 $state->fill([
@@ -302,6 +304,46 @@ class OverdueReminderService
             'highest_level_sent' => 0,
             'debt_cleared_at'    => now(),
         ]);
+    }
+
+    /**
+     * Kogu võlgniku üle tähtaja arvete PDF-id manusteks (Meritist).
+     * Kui arveid on rohkem kui lubatud ülempiir, jäetakse manused hoopis ära
+     * (kiri läheb ainult nimekirjaga), et kiri ei paisuks.
+     *
+     * @return array<int, array{name: string, content: string}>
+     */
+    private function buildAttachments(MeritDebtor $debtor, MeritReminderSetting $settings): array
+    {
+        if (! $settings->attach_pdfs) {
+            return [];
+        }
+
+        $max = (int) $settings->max_attachments;
+        if ($max > 0 && count($debtor->invoices) > $max) {
+            return []; // liiga palju arveid → ainult nimekiri
+        }
+
+        $attachments = [];
+        foreach ($debtor->invoices as $inv) {
+            try {
+                $sihId = $this->client->getInvoiceId((string) $inv['doc_no'], $debtor->customerId ?: null);
+                if (! $sihId) {
+                    continue;
+                }
+                $pdf = $this->client->getInvoicePdf($sihId);
+                if ($pdf) {
+                    $attachments[] = $pdf;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('[Merit] Arve PDF-i pärimine ebaõnnestus', [
+                    'doc'   => $inv['doc_no'] ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $attachments;
     }
 
     private function log(MeritDebtor $debtor, int $level, string $status, ?string $error = null): void
