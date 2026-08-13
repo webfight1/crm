@@ -115,12 +115,15 @@ class OverdueReminderService
     {
         $rows = $this->client->getOverdueDebts(0);
 
+        // Käsitsi lisatud e-postid (kasutatakse, kui Meritis puudub).
+        $overrides = \App\Models\MeritCustomerEmail::pluck('email', 'merit_customer_id');
+
         $grouped = collect($rows)
             // Ainult tegelikud võlad: tasumata summa > 0 ja mitte pakkumine (SO).
             ->filter(fn (array $r) => (float) ($r['UnPaidAmount'] ?? 0) > 0 && ($r['DocType'] ?? '') !== 'SO')
             ->groupBy(fn (array $r) => (string) ($r['PartnerId'] ?? $r['PartnerName'] ?? ''));
 
-        return $grouped->map(function (Collection $rows, string $customerId): MeritDebtor {
+        return $grouped->map(function (Collection $rows, string $customerId) use ($overrides): MeritDebtor {
             $today = Carbon::today();
             $partnerName = (string) ($rows->first()['PartnerName'] ?? '');
 
@@ -148,15 +151,27 @@ class OverdueReminderService
 
             $customer = $customerId !== '' ? $this->lookupCustomer($customerId) : null;
 
+            // E-post: Meriti oma võidab; kui puudub, kasuta käsitsi lisatut.
+            $meritEmail = $customer['Email'] ?? null;
+            $meritEmail = is_string($meritEmail) && trim($meritEmail) !== '' ? trim($meritEmail) : null;
+
+            $email = $meritEmail;
+            $source = $meritEmail !== null ? 'merit' : null;
+            if ($email === null && isset($overrides[$customerId]) && $overrides[$customerId] !== '') {
+                $email = $overrides[$customerId];
+                $source = 'manual';
+            }
+
             return new MeritDebtor(
                 customerId: $customerId,
                 name: $customer['Name'] ?? $partnerName,
                 contact: $customer['Contact'] ?? null,
-                email: $customer['Email'] ?? null,
+                email: $email,
                 invoices: $invoices,
                 totalUnpaid: round($total, 2),
                 maxOverdueDays: $maxOverdue,
                 currency: $currency,
+                emailSource: $source,
             );
         })->values();
     }

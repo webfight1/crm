@@ -5,6 +5,7 @@
                 {{ __('Meriti võlgnike meeldetuletused') }}
             </h2>
             <div class="space-x-2">
+                <a href="{{ route('meriti.emails') }}" class="text-sm text-gray-600 hover:text-gray-900">{{ __('Kliendi e-postid') }}</a>
                 <a href="{{ route('meriti.logs') }}" class="text-sm text-gray-600 hover:text-gray-900">{{ __('Ajalugu') }}</a>
                 <a href="{{ route('meriti.settings') }}" class="inline-flex items-center px-3 py-1.5 bg-gray-800 text-white text-sm rounded-md hover:bg-gray-700">{{ __('Seaded') }}</a>
             </div>

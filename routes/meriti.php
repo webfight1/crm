@@ -20,5 +20,8 @@ Route::prefix('meriti')->name('meriti.')->group(function () {
 
     Route::post('/send-now', [MeritReminderController::class, 'sendNow'])->name('send-now');
 
+    Route::get('/emails', [MeritReminderController::class, 'emails'])->name('emails');
+    Route::post('/emails', [MeritReminderController::class, 'emailsStore'])->name('emails.store');
+
     Route::get('/logs', [MeritReminderController::class, 'logs'])->name('logs');
 });

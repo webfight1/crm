@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Meriti;
 
 use App\Http\Controllers\Controller;
+use App\Models\MeritCustomerEmail;
 use App\Models\MeritReminderLog;
 use App\Models\MeritReminderSetting;
 use App\Services\Merit\MeritClient;
@@ -95,5 +96,54 @@ class MeritReminderController extends Controller
         $logs = MeritReminderLog::latest('id')->paginate(50);
 
         return view('meriti.logs', compact('logs'));
+    }
+
+    /** Kliendi e-postide haldus — käsitsi lisamine, kui Meritis puudub. */
+    public function emails(OverdueReminderService $service, MeritClient $client)
+    {
+        $connection = $client->testConnection();
+        $debtors = collect();
+        $error = null;
+
+        if ($connection['ok']) {
+            try {
+                $debtors = $service->collectDebtors()
+                    ->sortByDesc(fn ($d) => $d->totalUnpaid)
+                    ->values();
+            } catch (\Throwable $e) {
+                $error = $e->getMessage();
+            }
+        }
+
+        $overrides = MeritCustomerEmail::pluck('email', 'merit_customer_id');
+
+        return view('meriti.emails', compact('debtors', 'overrides', 'connection', 'error'));
+    }
+
+    public function emailsStore(Request $request)
+    {
+        $request->validate([
+            'emails'   => 'array',
+            'emails.*' => 'nullable|email|max:255',
+        ]);
+
+        foreach ((array) $request->input('emails', []) as $cid => $email) {
+            $email = trim((string) $email);
+            $cid = (string) $cid;
+            if ($cid === '') {
+                continue;
+            }
+
+            if ($email === '') {
+                MeritCustomerEmail::where('merit_customer_id', $cid)->delete();
+            } else {
+                MeritCustomerEmail::updateOrCreate(
+                    ['merit_customer_id' => $cid],
+                    ['email' => $email, 'customer_name' => $request->input("names.$cid")]
+                );
+            }
+        }
+
+        return redirect()->route('meriti.emails')->with('success', __('E-postid on salvestatud!'));
     }
 }

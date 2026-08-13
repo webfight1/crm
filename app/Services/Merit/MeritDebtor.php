@@ -22,6 +22,7 @@ class MeritDebtor
         public float $totalUnpaid,
         public int $maxOverdueDays,
         public string $currency = 'EUR',
+        public ?string $emailSource = null, // 'merit' | 'manual' | null
     ) {
     }
 
