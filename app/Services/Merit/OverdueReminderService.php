@@ -6,6 +6,7 @@ use App\Mail\OverdueReminderMail;
 use App\Models\MeritDebtorState;
 use App\Models\MeritReminderLog;
 use App\Models\MeritReminderSetting;
+use App\Outreach\Models\OutreachEmailAccount;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -14,15 +15,74 @@ use Illuminate\Support\Facades\Mail;
 /**
  * OverdueReminderService — kogub Meritist üle tähtaja võlgnikud ja saadab
  * neile astmelised meeldetuletused (kuni 3), vältides kordust.
+ *
+ * Kirjad saadetakse läbi aktiivse outreach-postkasti SMTP (nt marius@kind.ee),
+ * sama töötava seadistuse kaudu, mida outreach juba kasutab — nii pole eraldi
+ * MAIL_* / parooli seadistust .env-is vaja.
  */
 class OverdueReminderService
 {
     /** @var array<string, array<string, mixed>|null> jooksu-cache getCustomer vastustele */
     private array $customerCache = [];
 
+    /** Jooksu jooksul lahendatud saatja-maileri nimi (või null, kui pole kontot). */
+    private ?string $outreachMailer = null;
+
+    private bool $mailerResolved = false;
+
     public function __construct(
         private readonly MeritClient $client,
     ) {
+    }
+
+    /**
+     * Aktiivne outreach-postkast, mille kaudu meeldetuletused saadetakse.
+     * Eelistab primaarset vastuskontot, muidu esimest aktiivset SMTP-kontot.
+     */
+    public function resolveSendAccount(): ?OutreachEmailAccount
+    {
+        return OutreachEmailAccount::query()
+            ->where('is_active', true)
+            ->whereNotNull('smtp_host')
+            ->whereNull('relay_url')
+            ->orderByDesc('is_primary_reply_account')
+            ->orderBy('id')
+            ->first();
+    }
+
+    /**
+     * Seadistab käitusaegse maileri valitud outreach-konto SMTP-st ja tagastab
+     * selle nime (või null, kui aktiivset kontot pole). Parool dekrüpteeritakse
+     * mudeli accessoriga mälus. Seab ka globaalse "from" konto aadressiks, et
+     * Gmail kirja vastu võtaks.
+     */
+    public function configureOutreachMailer(): ?string
+    {
+        if ($this->mailerResolved) {
+            return $this->outreachMailer;
+        }
+        $this->mailerResolved = true;
+
+        $account = $this->resolveSendAccount();
+        if ($account === null) {
+            return $this->outreachMailer = null;
+        }
+
+        config([
+            'mail.mailers.merit_outreach' => [
+                'transport'  => 'smtp',
+                'host'       => $account->smtp_host,
+                'port'       => (int) $account->smtp_port,
+                'encryption' => $account->smtp_encryption,
+                'username'   => $account->smtp_username,
+                'password'   => $account->smtp_password, // dekrüpteeritud accessoriga
+            ],
+            'mail.from.address' => $account->email,
+            'mail.from.name'    => MeritReminderSetting::getSettings()->from_name
+                ?: ($account->name ?: config('app.name')),
+        ]);
+
+        return $this->outreachMailer = 'merit_outreach';
     }
 
     /**
@@ -89,6 +149,14 @@ class OverdueReminderService
     public function sendReminders(bool $dryRun = false): array
     {
         $settings = MeritReminderSetting::getSettings();
+
+        // Päris saatmiseks vaja aktiivset outreach-postkasti (SMTP).
+        if (! $dryRun && $this->configureOutreachMailer() === null) {
+            throw new \RuntimeException(
+                'Saatmiseks pole aktiivset outreach-postkasti. Lisa/aktiveeri Postkastide all vähemalt üks SMTP-konto.'
+            );
+        }
+
         $debtors = $this->collectDebtors();
 
         $result = ['sent' => 0, 'skipped' => 0, 'failed' => 0, 'cleared' => 0, 'planned' => []];
@@ -133,7 +201,9 @@ class OverdueReminderService
             }
 
             try {
-                Mail::to($debtor->email)->send(new OverdueReminderMail($debtor, $level, $settings));
+                Mail::mailer($this->outreachMailer)
+                    ->to($debtor->email)
+                    ->send(new OverdueReminderMail($debtor, $level, $settings));
 
                 $this->log($debtor, $level, 'sent');
                 $state->fill([
