@@ -145,7 +145,7 @@
                                     </div>
                                     <textarea name="body_template" rows="4"
                                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm font-mono text-sm focus:ring-indigo-500 focus:border-indigo-500">{{ $step->body_template }}</textarea>
-                                    <p class="text-xs text-gray-400 mt-1">Muutujad: &#123;&#123;first_name&#125;&#125; &#123;&#123;last_name&#125;&#125; &#123;&#123;company&#125;&#125; &#123;&#123;company_short&#125;&#125; &#123;&#123;website&#125;&#125; &#123;&#123;lcp_mobile&#125;&#125; &#123;&#123;performance_score&#125;&#125; &#123;&#123;ai_line&#125;&#125;</p>
+                                    <p class="text-xs text-gray-400 mt-1">Muutujad: &#123;&#123;first_name&#125;&#125; &#123;&#123;last_name&#125;&#125; &#123;&#123;company&#125;&#125; &#123;&#123;company_short&#125;&#125; &#123;&#123;website&#125;&#125; &#123;&#123;lcp_mobile&#125;&#125; &#123;&#123;performance_score&#125;&#125; &#123;&#123;design_year&#125;&#125; &#123;&#123;design_age&#125;&#125; &#123;&#123;ai_line&#125;&#125;</p>
                                 </div>
                                 <div class="flex items-center gap-3">
                                     <x-primary-button>Salvesta samm</x-primary-button>
@@ -241,7 +241,7 @@
                                 Lae näidis CSV
                             </a>
                         </div>
-                        <p class="text-xs text-gray-500 mb-4">Veerud: <code class="bg-gray-100 px-1 rounded">email, first_name, last_name, company, website, industry, lcp_mobile, performance_score, notes, qualification</code><br><span class="text-gray-400">qualification: <code>lead</code> (vaikimisi) või <code>skip</code> — skip-read ei saadeta.</span></p>
+                        <p class="text-xs text-gray-500 mb-4">Veerud: <code class="bg-gray-100 px-1 rounded">email, first_name, last_name, company, website, industry, lcp_mobile, performance_score, design_year, design_age, notes, qualification</code><br><span class="text-gray-400">qualification: <code>lead</code> (vaikimisi) või <code>skip</code> — skip-read ei saadeta.</span></p>
 
                         @if($errors->has('csv_file'))
                             <div class="mb-3 text-sm text-red-600">{{ $errors->first('csv_file') }}</div>
@@ -329,6 +329,8 @@
                 lcp: '2.8s',
                 lcp_mobile: '2.8s',
                 performance_score: '45',
+                design_year: '2016',
+                design_age: '10',
                 ai_line: 'Märkasin, et teie avaleht laeb mobiilis aeglaselt.',
             };
 

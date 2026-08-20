@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\DB;
  * ── Supported columns ───────────────────────────────────────────────────────
  *   Required : email
  *   Optional : first_name, last_name, company, website, industry,
- *              lcp_mobile, performance_score, notes, qualification
+ *              lcp_mobile, performance_score, design_year, design_age,
+ *              notes, qualification
  *   Special  : custom_line — if present and non-empty, its value is stored as
  *              ai_line verbatim, bypassing the OpenAI generation entirely.
  *              Useful when you already have personalisation copy in the CSV.
@@ -110,7 +111,8 @@ class OutreachCsvImportService
         foreach ([
             'email', 'first_name', 'last_name',
             'company', 'website', 'industry',
-            'lcp_mobile', 'performance_score', 'notes', 'qualification',
+            'lcp_mobile', 'performance_score', 'design_year', 'design_age',
+            'notes', 'qualification',
             'custom_line',
         ] as $col) {
             $idx = array_search($col, $headers, true);
@@ -153,6 +155,17 @@ class OutreachCsvImportService
                 ? max(0, min(100, (int) $perfRaw))
                 : null;
 
+            // Design age: year (e.g. 2018) and age in years (e.g. 8), both optional
+            $designYearRaw = $this->col($row, $colMap, 'design_year');
+            $designYear = is_numeric($designYearRaw)
+                ? max(1990, min((int) date('Y'), (int) $designYearRaw))
+                : null;
+
+            $designAgeRaw = $this->col($row, $colMap, 'design_age');
+            $designAge = is_numeric($designAgeRaw)
+                ? max(0, min(255, (int) $designAgeRaw))
+                : null;
+
             $batch[] = [
                 'campaign_id'       => $campaignId,
                 'email'             => $email,
@@ -163,6 +176,8 @@ class OutreachCsvImportService
                 'industry'          => $this->col($row, $colMap, 'industry'),
                 'lcp_mobile'        => $this->col($row, $colMap, 'lcp_mobile'),
                 'performance_score' => $performanceScore,
+                'design_year'       => $designYear,
+                'design_age'        => $designAge,
                 'notes'             => $this->col($row, $colMap, 'notes'),
                 'qualification'     => $qualification,
                 // custom_line in the CSV pre-fills ai_line, skipping OpenAI generation

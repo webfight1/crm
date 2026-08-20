@@ -75,6 +75,12 @@ class OutreachCampaignStep extends Model
             '{{performance_score}}' => $lead->performance_score !== null
                                         ? (string) $lead->performance_score
                                         : '',
+            '{{design_year}}'       => $lead->design_year !== null
+                                        ? (string) $lead->design_year
+                                        : '',
+            '{{design_age}}'        => $lead->design_age !== null
+                                        ? (string) $lead->design_age
+                                        : '',
             // ai_line is written to lead.ai_line by OutreachEmailService
             // before render is called, so reading it here is always safe.
             '{{ai_line}}'           => $lead->ai_line ?? '',
