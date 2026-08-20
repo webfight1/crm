@@ -104,6 +104,20 @@ class OutreachEmailService
             return false;
         }
 
+        // ── DESIGN-AGE DATA GUARD ────────────────────────────────────────────
+        // Same idea as the PageSpeed guard: if the step template references
+        // {{design_year}} / {{design_age}} but the lead has not been measured
+        // yet, skip silently. It will be picked up on the next scheduler run
+        // once the operator has run outreach:measure-design-age.
+        if ($this->stepNeedsDesignData($step) && ! $this->leadHasDesignData($lead)) {
+            $this->logger->info('[Outreach] Lead missing design-age data, skipping', [
+                'lead_id'    => $lead->id,
+                'step_order' => $stepOrder,
+            ]);
+            $lead->releaseProcessingLock();
+            return false;
+        }
+
         // ── INBOX SELECTION (reserves capacity atomically) ───────────────────
         $account = $this->rotation->selectInbox($lead, $campaign);
 
@@ -400,6 +414,27 @@ class OutreachEmailService
     private function leadHasSpeedData(OutreachLead $lead): bool
     {
         return $lead->performance_score !== null;
+    }
+
+    /**
+     * Returns true if the step's subject or body references a design-age
+     * placeholder that requires prior measurement to render meaningfully.
+     */
+    private function stepNeedsDesignData(OutreachCampaignStep $step): bool
+    {
+        $text = $step->subject . $step->body_template;
+
+        return str_contains($text, '{{design_year}}')
+            || str_contains($text, '{{design_age}}');
+    }
+
+    /**
+     * Returns true if the lead has usable design-age data for template
+     * rendering (design_year is set once the site has been measured).
+     */
+    private function leadHasDesignData(OutreachLead $lead): bool
+    {
+        return $lead->design_year !== null;
     }
 
     private function afterSuccessfulSend(OutreachLead $lead, OutreachCampaign $campaign): void

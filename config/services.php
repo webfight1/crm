@@ -43,4 +43,10 @@ return [
         'key' => env('PAGESPEED_API_KEY'),
     ],
 
+    'design_age' => [
+        // Minimum CSS content similarity (%) for two Wayback snapshots to count
+        // as "the same design" when estimating website design age.
+        'threshold' => env('DESIGN_AGE_SIMILARITY_THRESHOLD', 85),
+    ],
+
 ];
