@@ -28,6 +28,7 @@ class MeasureDesignAgeCommand extends Command
     protected $signature = 'outreach:measure-design-age
                             {campaign : Campaign ID}
                             {--force  : Re-measure leads that already have a design age}
+                            {--limit=0 : Only process this many leads (0 = all); handy for a first test}
                             {--delay=1 : Seconds to wait between leads (be gentle on Wayback)}';
 
     protected $description = 'Estimate website design age (via Wayback) for all leads in a campaign';
@@ -43,12 +44,17 @@ class MeasureDesignAgeCommand extends Command
 
         $force = $this->option('force');
         $delay = max(0, (int) $this->option('delay'));
+        $limit = max(0, (int) $this->option('limit'));
 
         // Load leads that have a website
         $query = $campaign->leads()->whereNotNull('website')->where('website', '!=', '');
 
         if (! $force) {
             $query->whereNull('design_year');
+        }
+
+        if ($limit > 0) {
+            $query->limit($limit);
         }
 
         $leads = $query->get();
