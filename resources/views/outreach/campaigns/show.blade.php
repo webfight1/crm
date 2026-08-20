@@ -79,6 +79,7 @@
                                 <p class="text-xs text-gray-500 mt-1">
                                     Muutujad promptis:
                                     <code class="bg-gray-100 px-1 rounded">&#123;&#123;company&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;company_short&#125;&#125;</code>
                                     <code class="bg-gray-100 px-1 rounded">&#123;&#123;website&#125;&#125;</code>
                                     <code class="bg-gray-100 px-1 rounded">&#123;&#123;industry&#125;&#125;</code>
                                     <code class="bg-gray-100 px-1 rounded">&#123;&#123;first_name&#125;&#125;</code>
@@ -144,7 +145,7 @@
                                     </div>
                                     <textarea name="body_template" rows="4"
                                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm font-mono text-sm focus:ring-indigo-500 focus:border-indigo-500">{{ $step->body_template }}</textarea>
-                                    <p class="text-xs text-gray-400 mt-1">Muutujad: &#123;&#123;first_name&#125;&#125; &#123;&#123;last_name&#125;&#125; &#123;&#123;company&#125;&#125; &#123;&#123;website&#125;&#125; &#123;&#123;lcp_mobile&#125;&#125; &#123;&#123;performance_score&#125;&#125; &#123;&#123;ai_line&#125;&#125;</p>
+                                    <p class="text-xs text-gray-400 mt-1">Muutujad: &#123;&#123;first_name&#125;&#125; &#123;&#123;last_name&#125;&#125; &#123;&#123;company&#125;&#125; &#123;&#123;company_short&#125;&#125; &#123;&#123;website&#125;&#125; &#123;&#123;lcp_mobile&#125;&#125; &#123;&#123;performance_score&#125;&#125; &#123;&#123;ai_line&#125;&#125;</p>
                                 </div>
                                 <div class="flex items-center gap-3">
                                     <x-primary-button>Salvesta samm</x-primary-button>

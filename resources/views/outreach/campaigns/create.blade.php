@@ -50,6 +50,7 @@
                         <p class="text-xs text-gray-500 mt-1">
                             Jäta tühjaks vaikimisi promti kasutamiseks. Saadaval muutujad:
                             <code class="bg-gray-100 px-1 rounded">&#123;&#123;company&#125;&#125;</code>
+                            <code class="bg-gray-100 px-1 rounded">&#123;&#123;company_short&#125;&#125;</code>
                             <code class="bg-gray-100 px-1 rounded">&#123;&#123;website&#125;&#125;</code>
                             <code class="bg-gray-100 px-1 rounded">&#123;&#123;industry&#125;&#125;</code>
                             <code class="bg-gray-100 px-1 rounded">&#123;&#123;first_name&#125;&#125;</code>

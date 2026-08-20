@@ -80,6 +80,40 @@ class OutreachLead extends Model
 
     // ─── Helpers ────────────────────────────────────────────────────────────
 
+    /**
+     * Company name with the Estonian legal form stripped, for greetings like
+     * "Tere {{company_short}} tiim". Handles the form appearing at the start or
+     * end of the name ("OÜ Bluebay", "VAS AKTIVA OÜ", "Osaühing Konsulent AT").
+     *
+     * Both abbreviations (OÜ, AS, MTÜ, FIE, SA, TÜ, UÜ) and full words
+     * (Osaühing, Aktsiaselts, …) are matched case-insensitively as whole
+     * tokens, so an "as"/"sa" hidden inside another word is never touched.
+     * Falls back to the raw company name if stripping would leave it empty.
+     */
+    public function companyShort(): string
+    {
+        $name = trim((string) ($this->company ?? ''));
+        if ($name === '') {
+            return '';
+        }
+
+        $forms = [
+            'osaühing', 'aktsiaselts', 'mittetulundusühing', 'sihtasutus',
+            'tulundusühistu', 'usaldusühing', 'täisühing',
+            'oü', 'mtü', 'fie', 'as', 'sa', 'tü', 'uü',
+        ];
+
+        $pattern = '/(?:^|\s)(?:' . implode('|', array_map(
+            static fn (string $f): string => preg_quote($f, '/'),
+            $forms
+        )) . ')(?=\s|$)/iu';
+
+        $clean = preg_replace($pattern, ' ', $name) ?? $name;
+        $clean = trim(preg_replace('/\s+/u', ' ', $clean) ?? $clean, " \t\n\r,.-");
+
+        return $clean !== '' ? $clean : $name;
+    }
+
     public function isReadyToSend(): bool
     {
         return $this->status === self::STATUS_ACTIVE

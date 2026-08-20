@@ -141,7 +141,8 @@ class AiPersonalizationService
      * If ai_prompt is null or empty, the built-in default prompt is used.
      *
      * ── Placeholder reference ────────────────────────────────────────────────
-     *   {{company}}    → lead.company
+     *   {{company}}       → lead.company
+     *   {{company_short}} → lead.company minus the legal form (OÜ, AS, …)
      *   {{website}}    → lead.website
      *   {{industry}}   → lead.industry
      *   {{first_name}} → lead.first_name
@@ -156,6 +157,7 @@ class AiPersonalizationService
             // a substituted value containing a placeholder that gets re-evaluated.
             $resolvedPrompt = strtr($campaign->ai_prompt, [
                 '{{company}}'           => $lead->company           ?? '',
+                '{{company_short}}'     => $lead->companyShort(),
                 '{{website}}'           => $lead->website           ?? '',
                 '{{industry}}'          => $lead->industry          ?? '',
                 '{{first_name}}'        => $lead->first_name        ?? '',

@@ -42,7 +42,7 @@ class OutreachCampaignStep extends Model
      *
      * Supported placeholders:
      *   {{first_name}}, {{last_name}}, {{full_name}},
-     *   {{company}}, {{website}}, {{industry}}, {{email}},
+     *   {{company}}, {{company_short}}, {{website}}, {{industry}}, {{email}},
      *   {{ai_line}}, {{lcp}} / {{lcp_mobile}}, {{performance_score}}
      *
      * {{ai_line}} is populated by OutreachEmailService before rendering:
@@ -66,6 +66,7 @@ class OutreachCampaignStep extends Model
             '{{last_name}}'         => $lead->last_name ?? '',
             '{{full_name}}'         => trim("{$lead->first_name} " . ($lead->last_name ?? '')),
             '{{company}}'           => $lead->company ?? '',
+            '{{company_short}}'     => $lead->companyShort(),
             '{{website}}'           => $lead->website ?? '',
             '{{industry}}'          => $lead->industry ?? '',
             '{{email}}'             => $lead->email,
