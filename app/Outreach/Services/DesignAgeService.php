@@ -49,11 +49,23 @@ class DesignAgeService
     private const CDX_TIMEOUT  = 30;   // CDX can be slow on large domains
     private const HTTP_TIMEOUT = 20;   // fetching a single CSS / homepage
 
+    private const USER_AGENT = 'Mozilla/5.0 (compatible; DesignAgeBot/1.0; +webfight.ee)';
+
+    /**
+     * Retries per archive.org request on 429 / 503 / timeout before giving up.
+     * The Wayback Machine rate-limits aggressively; without backoff a burst of
+     * requests silently degrades into false "unknown" results.
+     */
+    private const MAX_RETRIES = 3;
+
     /** How many CSS candidates to try before giving up on a lead. */
-    private const MAX_CSS_ATTEMPTS = 4;
+    private const MAX_CSS_ATTEMPTS = 3;
 
     /** Never download more than this many historical versions per lead. */
-    private const MAX_DOWNLOADS = 15;
+    private const MAX_DOWNLOADS = 8;
+
+    /** Wall-clock time of the last archive.org request (for inter-request pacing). */
+    private float $lastRequestAt = 0.0;
 
     /** Never look further back than this many years. */
     private const MAX_YEARS_BACK = 12;
@@ -219,21 +231,17 @@ class DesignAgeService
             return [];
         }
 
-        try {
-            $resp = Http::timeout(self::CDX_TIMEOUT)->get(self::CDX_URL, [
-                'url'       => $host,
-                'matchType' => 'domain',
-                'output'    => 'json',
-                'filter'    => 'mimetype:text/css',
-                'collapse'  => 'urlkey',
-                'limit'     => 80,
-                'fl'        => 'original',
-            ]);
-        } catch (\Throwable $e) {
-            return [];
-        }
+        $resp = $this->archiveGet(self::CDX_URL, [
+            'url'       => $host,
+            'matchType' => 'domain',
+            'output'    => 'json',
+            'filter'    => 'mimetype:text/css',
+            'collapse'  => 'urlkey',
+            'limit'     => 80,
+            'fl'        => 'original',
+        ], self::CDX_TIMEOUT);
 
-        if (! $resp->successful()) {
+        if (! $resp || ! $resp->successful()) {
             return [];
         }
 
@@ -428,21 +436,15 @@ class DesignAgeService
      */
     private function cdxDigests(string $url): array
     {
-        try {
-            $resp = Http::timeout(self::CDX_TIMEOUT)->get(self::CDX_URL, [
-                'url'      => $url,
-                'output'   => 'json',
-                'collapse' => 'digest',
-                'filter'   => 'statuscode:200',
-                'fl'       => 'timestamp,digest',
-            ]);
-        } catch (\Throwable $e) {
-            // Transient archive/network error — treat as "no history" so the
-            // caller can move on to the next candidate instead of aborting.
-            return [];
-        }
+        $resp = $this->archiveGet(self::CDX_URL, [
+            'url'      => $url,
+            'output'   => 'json',
+            'collapse' => 'digest',
+            'filter'   => 'statuscode:200',
+            'fl'       => 'timestamp,digest',
+        ], self::CDX_TIMEOUT);
 
-        if (! $resp->successful()) {
+        if (! $resp || ! $resp->successful()) {
             return [];
         }
 
@@ -463,14 +465,86 @@ class DesignAgeService
      */
     private function fetchArchived(string $timestamp, string $url): ?string
     {
-        try {
-            $resp = Http::timeout(self::HTTP_TIMEOUT)
-                ->get(self::WAYBACK_RAW . $timestamp . 'id_/' . $url);
-        } catch (\Throwable $e) {
-            return null;
+        $resp = $this->archiveGet(self::WAYBACK_RAW . $timestamp . 'id_/' . $url, [], self::HTTP_TIMEOUT);
+
+        return ($resp && $resp->successful()) ? $resp->body() : null;
+    }
+
+    // ── Rate-limited archive.org access ───────────────────────────────────────
+
+    /**
+     * Perform a GET against archive.org with polite pacing and retry/backoff.
+     *
+     * The Wayback Machine throttles hard: it answers 429/503 (sometimes with a
+     * Retry-After header) or simply stalls when hit too fast. We therefore
+     * space requests out and, on a throttle/timeout, back off and retry rather
+     * than silently reporting "no history" — which would otherwise turn a
+     * temporary block into a batch of false "unknown" results.
+     *
+     * Returns the response, or null if it never succeeded.
+     */
+    private function archiveGet(string $url, array $query = [], int $timeout = self::CDX_TIMEOUT): ?\Illuminate\Http\Client\Response
+    {
+        for ($attempt = 1; $attempt <= self::MAX_RETRIES; $attempt++) {
+            $this->throttle();
+
+            try {
+                $resp = Http::timeout($timeout)
+                    ->withHeaders(['User-Agent' => self::USER_AGENT])
+                    ->get($url, $query);
+            } catch (\Throwable $e) {
+                // Timeout / connection error — back off and retry.
+                if ($attempt >= self::MAX_RETRIES) {
+                    return null;
+                }
+                $this->backoff($attempt);
+                continue;
+            }
+
+            // Explicit throttle / temporary unavailability.
+            if (in_array($resp->status(), [429, 503], true)) {
+                if ($attempt >= self::MAX_RETRIES) {
+                    return null;
+                }
+                $this->backoff($attempt, (int) $resp->header('Retry-After'));
+                continue;
+            }
+
+            return $resp;
         }
 
-        return $resp->successful() ? $resp->body() : null;
+        return null;
+    }
+
+    /**
+     * Enforce a minimum gap between consecutive archive.org requests.
+     */
+    private function throttle(): void
+    {
+        $minGapMs = max(0, (int) config('services.design_age.request_delay_ms', 1500));
+
+        if ($this->lastRequestAt > 0.0) {
+            $elapsedMs = (microtime(true) - $this->lastRequestAt) * 1000;
+            if ($elapsedMs < $minGapMs) {
+                usleep((int) (($minGapMs - $elapsedMs) * 1000));
+            }
+        }
+
+        $this->lastRequestAt = microtime(true);
+    }
+
+    /**
+     * Sleep after a throttle/timeout: honour Retry-After when given, otherwise
+     * exponential backoff (2s, 4s, 8s…), capped.
+     */
+    private function backoff(int $attempt, int $retryAfter = 0): void
+    {
+        $seconds = $retryAfter > 0
+            ? min($retryAfter, 60)
+            : min(2 ** $attempt, 30);
+
+        sleep($seconds);
+        $this->lastRequestAt = microtime(true);
     }
 
     // ── Similarity ────────────────────────────────────────────────────────────

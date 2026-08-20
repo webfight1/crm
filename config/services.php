@@ -47,6 +47,10 @@ return [
         // Minimum CSS content similarity (%) for two Wayback snapshots to count
         // as "the same design" when estimating website design age.
         'threshold' => env('DESIGN_AGE_SIMILARITY_THRESHOLD', 85),
+
+        // Minimum gap (ms) between consecutive archive.org requests. The Wayback
+        // Machine throttles hard, so pace requests to avoid 429s / IP blocks.
+        'request_delay_ms' => env('DESIGN_AGE_REQUEST_DELAY_MS', 1500),
     ],
 
 ];
