@@ -4,6 +4,7 @@ namespace App\Outreach\Jobs;
 
 use App\Outreach\Models\OutreachLead;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -23,9 +24,15 @@ use Illuminate\Support\Facades\Log;
  *  - Stale locks older than 10 minutes are automatically released so a
  *    failed job never blocks a lead permanently.
  */
-class ProcessOutreachLeadsJob implements ShouldQueue
+class ProcessOutreachLeadsJob implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    // Only one copy may sit in the queue at a time. The scheduler fires this
+    // every minute; without uniqueness a backed-up queue accumulates thousands
+    // of duplicate dispatches (a death spiral that once reached 108k jobs).
+    // uniqueFor is the fallback lock TTL should a worker die mid-run.
+    public int $uniqueFor = 600;
 
     // Max time a lead can be in "processing" before its lock is considered stale
     const STALE_LOCK_MINUTES = 10;
