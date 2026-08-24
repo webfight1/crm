@@ -75,7 +75,7 @@ class MeritReminderSetting extends Model
         return [
             'company_name'    => 'Kind Studio OÜ',
             'notify_step'     => 3,
-            'attach_from_step' => 2,
+            'attach_from_step' => 1,
             'step1_days' => 0,  'step1_subject' => self::defaultSubject(1), 'step1_body' => self::defaultBody(1),
             'step2_days' => 2,  'step2_subject' => self::defaultSubject(2), 'step2_body' => self::defaultBody(2),
             'step3_days' => 9,  'step3_subject' => self::defaultSubject(3), 'step3_body' => self::defaultBody(3),
@@ -132,7 +132,7 @@ class MeritReminderSetting extends Model
         $sign = "Heade soovidega,\nMarius-Guy Allik\nmarius@kind.ee\n53486097\nKIND";
 
         return match ($level) {
-            1 => "Tere!\n\nTuletame meelde, et {{ettevote}} arve nr {{arve_nr}} tasumise tähtaeg on täna.\n\n{$sign}",
+            1 => "Tere!\n\nTuletame meelde, et {{ettevote}} arve nr {{arve_nr}} tasumise tähtaeg on täna.\n\nArve on kirjaga PDF-formaadis kaasas.\n\n{$sign}",
             2 => "Tere!\n\nMeie andmetel on arve nr {{arve_nr}} veel tasumata. Palume arve tasuda.\n\nKirjaga on kaasas PDF-formaadis arve nr {{arve_nr}} ettevõttelt {{ettevote}}.\n\n{$sign}",
             default => "Tere!\n\nMeie andmetel on arve nr {{arve_nr}} endiselt tasumata. Palume arve tasuda.\n\nKirjaga on kaasas PDF-formaadis arve nr {{arve_nr}} ettevõttelt {{ettevote}}.\n\n{$sign}",
         };
