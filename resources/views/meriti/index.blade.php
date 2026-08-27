@@ -93,29 +93,50 @@
                                     <th class="px-4 py-3 text-right font-medium text-gray-500">{{ __('Päevi üle') }}</th>
                                     <th class="px-4 py-3 text-center font-medium text-gray-500">{{ __('Saadetud') }}</th>
                                     <th class="px-4 py-3 text-center font-medium text-gray-500">{{ __('Järgmine kiri') }}</th>
+                                    <th class="px-4 py-3 text-center font-medium text-gray-500">{{ __('Tegevus') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
                                 @foreach($plan as $row)
                                     @php($i = $row['invoice'])
-                                    <tr>
-                                        <td class="px-4 py-3 text-gray-900">{{ $i->customerName ?: '—' }}</td>
-                                        <td class="px-4 py-3 text-gray-700">{{ $i->invoiceNo }}</td>
+                                    @php($suppressed = $row['state']->suppressed_at !== null)
+                                    <tr class="{{ $suppressed ? 'bg-gray-50 text-gray-400' : '' }}">
+                                        <td class="px-4 py-3 {{ $suppressed ? '' : 'text-gray-900' }}">{{ $i->customerName ?: '—' }}</td>
+                                        <td class="px-4 py-3">{{ $i->invoiceNo }}</td>
                                         <td class="px-4 py-3">
                                             @if($i->hasEmail())
-                                                <span class="text-gray-700">{{ $i->email }}</span>
+                                                <span>{{ $i->email }}</span>
                                             @else
                                                 <span class="text-red-600">{{ __('puudub') }}</span>
                                             @endif
                                         </td>
-                                        <td class="px-4 py-3 text-right text-gray-900 whitespace-nowrap">{{ $i->formattedUnpaid() }}</td>
-                                        <td class="px-4 py-3 text-right text-gray-700">{{ $i->daysOverdue }}</td>
-                                        <td class="px-4 py-3 text-center text-gray-500">{{ $row['state']->highest_step_sent ?: '—' }}</td>
+                                        <td class="px-4 py-3 text-right whitespace-nowrap">{{ $i->formattedUnpaid() }}</td>
+                                        <td class="px-4 py-3 text-right">{{ $i->daysOverdue }}</td>
+                                        <td class="px-4 py-3 text-center">{{ $row['state']->highest_step_sent ?: '—' }}</td>
                                         <td class="px-4 py-3 text-center">
-                                            @if($row['step'])
+                                            @if($suppressed)
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600">{{ __('peatatud') }}</span>
+                                            @elseif($row['step'])
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">{{ $row['step'] }}. {{ __('kiri') }}</span>
                                             @else
                                                 <span class="text-gray-400">—</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3 text-center whitespace-nowrap">
+                                            @if($suppressed)
+                                                <form method="POST" action="{{ route('meriti.unsuppress') }}">
+                                                    @csrf
+                                                    <input type="hidden" name="invoice_key" value="{{ $i->key() }}">
+                                                    <button type="submit" class="text-xs text-indigo-600 hover:text-indigo-900">{{ __('Taasta') }}</button>
+                                                </form>
+                                            @else
+                                                <form method="POST" action="{{ route('meriti.suppress') }}" onsubmit="return confirm('{{ __('Peata selle arve meeldetuletused? (nt kui arve on tasutud)') }}');">
+                                                    @csrf
+                                                    <input type="hidden" name="invoice_key" value="{{ $i->key() }}">
+                                                    <input type="hidden" name="merit_customer_id" value="{{ $i->customerId }}">
+                                                    <input type="hidden" name="invoice_no" value="{{ $i->invoiceNo }}">
+                                                    <button type="submit" class="text-xs text-red-600 hover:text-red-900">{{ __('Peata') }}</button>
+                                                </form>
                                             @endif
                                         </td>
                                     </tr>

@@ -17,6 +17,7 @@ class MeritInvoiceState extends Model
         'last_sent_at',
         'marius_notified_at',
         'resolved_at',
+        'suppressed_at',
     ];
 
     protected $casts = [
@@ -24,5 +25,6 @@ class MeritInvoiceState extends Model
         'last_sent_at'       => 'datetime',
         'marius_notified_at' => 'datetime',
         'resolved_at'        => 'datetime',
+        'suppressed_at'      => 'datetime',
     ];
 }

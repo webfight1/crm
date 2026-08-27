@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Meriti;
 
 use App\Http\Controllers\Controller;
 use App\Models\MeritCustomerEmail;
+use App\Models\MeritInvoiceState;
 use App\Models\MeritReminderLog;
 use App\Models\MeritReminderSetting;
 use App\Services\Merit\MeritClient;
@@ -87,6 +88,37 @@ class MeritReminderController extends Controller
             'Saadetud: :sent, vahele jäetud: :skipped, ebaõnnestus: :failed, teavitusi Mariusele: :notified.',
             ['sent' => $result['sent'], 'skipped' => $result['skipped'], 'failed' => $result['failed'], 'notified' => $result['notified'] ?? 0]
         ));
+    }
+
+    /** Peata meeldetuletused ühele arvele (nt tegelikult tasutud, Merit näitab veel võlga). */
+    public function suppress(Request $request)
+    {
+        $data = $request->validate([
+            'invoice_key'       => 'required|string|max:255',
+            'merit_customer_id' => 'nullable|string|max:255',
+            'invoice_no'        => 'nullable|string|max:255',
+        ]);
+
+        MeritInvoiceState::updateOrCreate(
+            ['invoice_key' => $data['invoice_key']],
+            [
+                'merit_customer_id' => $data['merit_customer_id'] ?? null,
+                'invoice_no'        => $data['invoice_no'] ?? null,
+                'suppressed_at'     => now(),
+            ]
+        );
+
+        return back()->with('success', __('Arve meeldetuletused peatatud.'));
+    }
+
+    /** Taasta peatatud arve meeldetuletused. */
+    public function unsuppress(Request $request)
+    {
+        $data = $request->validate(['invoice_key' => 'required|string|max:255']);
+
+        MeritInvoiceState::where('invoice_key', $data['invoice_key'])->update(['suppressed_at' => null]);
+
+        return back()->with('success', __('Arve meeldetuletused taastatud.'));
     }
 
     public function logs()

@@ -238,9 +238,18 @@ class OverdueReminderService
         foreach ($invoices as $inv) {
             $seenKeys[] = $inv->key();
 
+            $realState = MeritInvoiceState::firstOrNew(['invoice_key' => $inv->key()]);
+
+            // Käsitsi peatatud arve → ära saada (nt tegelikult tasutud, aga Merit
+            // näitab veel võlga). Kehtib ka testrežiimis.
+            if ($realState->suppressed_at !== null) {
+                $result['skipped']++;
+                continue;
+            }
+
             $state = $testMode
                 ? new MeritInvoiceState(['invoice_key' => $inv->key()])
-                : MeritInvoiceState::firstOrNew(['invoice_key' => $inv->key()]);
+                : $realState;
 
             $step = $this->determineStep($inv, $settings, $state);
             if ($step === null) {
