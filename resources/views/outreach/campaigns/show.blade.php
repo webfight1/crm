@@ -100,7 +100,7 @@
                                 <x-input-label for="draft_prompt_extra" value="🤖 AI mustandi lisajuhised (valikuline)" />
                                 <textarea id="draft_prompt_extra" name="draft_prompt_extra" rows="5"
                                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 font-mono text-xs"
-                                    placeholder="Näiteks: 'Kui design_year on antud, kirjuta &quot;viimane kujundus pärineb {{design_year}}. aastast&quot;. Muudel juhtudel jää üldisemaks. Kliendile paku ka WordPress + WooCommerce lahendust.'">{{ old('draft_prompt_extra', $campaign->draft_prompt_extra) }}</textarea>
+                                    placeholder="Näiteks: Kui design_year on antud, kirjuta &quot;viimane kujundus pärineb &#123;&#123;design_year&#125;&#125;. aastast&quot;. Muudel juhtudel jää üldisemaks. Kliendile paku ka WordPress + WooCommerce lahendust.">{{ old('draft_prompt_extra', $campaign->draft_prompt_extra) }}</textarea>
                                 <p class="text-xs text-gray-500 mt-1">
                                     Kasutatavad placeholderid (asendatakse per lead):
                                     <code class="bg-gray-100 px-1 rounded">&#123;&#123;design_year&#125;&#125;</code>
