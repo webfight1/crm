@@ -106,6 +106,10 @@ class OutreachDraftGeneratorService
         }
 
         // 4. Persist. Status = ready → awaits operator review.
+        // Body fields go through htmlize() — bodies are stored + sent as
+        // HTML, so newlines (real or double-escaped literal "\\n" that
+        // some LLMs emit) must become <br> or the reader sees "\n\n" in
+        // plain text.
         $lead->update([
             'outreach_subject_1'         => $this->str($draft, 'outreach_subject_1', 500),
             'outreach_subject_2'         => $this->str($draft, 'outreach_subject_2', 500),
@@ -113,8 +117,8 @@ class OutreachDraftGeneratorService
             'website_context_summary'    => $this->str($draft, 'website_context_summary', 2000),
             'public_reference_context'   => $this->str($draft, 'public_reference_context', 2000),
             'seo_observation'            => $this->str($draft, 'seo_observation', 2000),
-            'outreach_email_body'        => $this->str($draft, 'outreach_email_body', 20000),
-            'outreach_followup_body'     => $this->str($draft, 'outreach_followup_body', 20000),
+            'outreach_email_body'        => $this->htmlize($this->str($draft, 'outreach_email_body', 20000)),
+            'outreach_followup_body'     => $this->htmlize($this->str($draft, 'outreach_followup_body', 20000)),
             'outreach_sources'           => $ctx['sources'] ?: null,
             'outreach_generation_status' => OutreachLead::DRAFT_READY,
             'outreach_generation_error'  => null,
@@ -225,6 +229,28 @@ SYS;
         $v = $draft[$key] ?? null;
         if (! is_string($v) || trim($v) === '') return null;
         return mb_substr(trim($v), 0, $max);
+    }
+
+    /**
+     * Turn a plain-text body (with newlines OR literal "\n" that the LLM
+     * emitted as escaped tokens) into HTML that renders as expected in
+     * an email client. Order matters: strip literal backslash-n first,
+     * then convert real newlines.
+     */
+    private function htmlize(?string $s): ?string
+    {
+        if ($s === null || $s === '') return $s;
+        // If the model already returned real HTML tags, don't double-wrap.
+        if (preg_match('/<(p|br|div|ul|ol|li|strong|em|a)\b/i', $s)) {
+            return $s;
+        }
+        // Some models emit "\\n" inside their JSON string, which json_decode
+        // preserves as a two-char literal — normalise both forms.
+        $s = str_replace(['\\r\\n', '\\n'], "\n", $s);
+        $s = str_replace(["\r\n", "\r"], "\n", $s);
+        // Collapse 3+ blank lines into 2 (LLMs love empty paragraphs).
+        $s = preg_replace("/\n{3,}/", "\n\n", $s);
+        return nl2br(e(trim($s)), false);
     }
 
     private function fail(OutreachLead $lead, string $error): bool
