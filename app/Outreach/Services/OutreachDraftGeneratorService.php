@@ -111,6 +111,14 @@ class OutreachDraftGeneratorService
         // HTML, so newlines (real or double-escaped literal "\\n" that
         // some LLMs emit) must become <br> or the reader sees "\n\n" in
         // plain text.
+        //
+        // PRESERVE APPROVED: if the operator already approved this draft
+        // for sending, a --force regenerate MUST NOT silently demote it
+        // back to 'ready' — that would flip the send pipeline over to the
+        // step's placeholder template on the next dispatch. Regen updates
+        // the body; the approval stands.
+        $keepApproved = $lead->outreach_generation_status === OutreachLead::DRAFT_APPROVED;
+
         $lead->update([
             'outreach_subject_1'         => $this->str($draft, 'outreach_subject_1', 500),
             'outreach_subject_2'         => $this->str($draft, 'outreach_subject_2', 500),
@@ -121,7 +129,7 @@ class OutreachDraftGeneratorService
             'outreach_email_body'        => $this->htmlize($this->str($draft, 'outreach_email_body', 20000)),
             'outreach_followup_body'     => $this->htmlize($this->str($draft, 'outreach_followup_body', 20000)),
             'outreach_sources'           => $ctx['sources'] ?: null,
-            'outreach_generation_status' => OutreachLead::DRAFT_READY,
+            'outreach_generation_status' => $keepApproved ? OutreachLead::DRAFT_APPROVED : OutreachLead::DRAFT_READY,
             'outreach_generation_error'  => null,
             'outreach_generated_at'      => now(),
         ]);
