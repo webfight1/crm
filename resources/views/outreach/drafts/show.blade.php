@@ -20,6 +20,36 @@
                 <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">{{ session('error') }}</div>
             @endif
 
+            {{-- Prominent prev / next nav bar. Renders even for edge rows
+                 (buttons disabled) so the position counter stays visible. --}}
+            <div class="flex items-center justify-between bg-white shadow-sm rounded-lg px-4 py-3">
+                @if($prevId)
+                    <a href="{{ route('outreach.leads.draft.show', $prevId) }}"
+                       class="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded text-sm">
+                        ← Eelmine <span class="text-xs text-gray-500">(J)</span>
+                    </a>
+                @else
+                    <span class="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-50 text-gray-400 rounded text-sm cursor-not-allowed">
+                        ← Eelmine
+                    </span>
+                @endif
+
+                <span class="text-sm text-gray-500">
+                    @if($position) Lead <strong>{{ $position }}</strong> / {{ $total }} @endif
+                </span>
+
+                @if($nextId)
+                    <a href="{{ route('outreach.leads.draft.show', $nextId) }}"
+                       class="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm">
+                        Järgmine <span class="text-xs text-indigo-100">(K)</span> →
+                    </a>
+                @else
+                    <span class="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-50 text-gray-400 rounded text-sm cursor-not-allowed">
+                        Järgmine →
+                    </span>
+                @endif
+            </div>
+
             {{-- Lead metadata --}}
             <div class="bg-white shadow-sm rounded-lg p-5 grid md:grid-cols-3 gap-4 text-sm">
                 <div>
@@ -164,6 +194,25 @@
                     </div>
                 </div>
             </form>
+
+            {{-- Bottom nav mirror: after long body editing, no need to
+                 scroll back up to advance. --}}
+            <div class="flex items-center justify-between bg-white shadow-sm rounded-lg px-4 py-3">
+                @if($prevId)
+                    <a href="{{ route('outreach.leads.draft.show', $prevId) }}"
+                       class="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded text-sm">← Eelmine</a>
+                @else
+                    <span class="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-50 text-gray-400 rounded text-sm">← Eelmine</span>
+                @endif
+                <a href="{{ route('outreach.campaigns.drafts.index', $lead->campaign_id) }}"
+                   class="text-sm text-gray-500 hover:text-gray-800">Kõikide mustandite nimekiri</a>
+                @if($nextId)
+                    <a href="{{ route('outreach.leads.draft.show', $nextId) }}"
+                       class="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm">Järgmine →</a>
+                @else
+                    <span class="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-50 text-gray-400 rounded text-sm">Järgmine →</span>
+                @endif
+            </div>
         </div>
     </div>
 

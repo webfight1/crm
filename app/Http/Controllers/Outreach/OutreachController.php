@@ -1676,18 +1676,20 @@ class OutreachController extends Controller
     {
         $lead->loadMissing('campaign');
 
-        // Next / previous for J/K keyboard navigation — bounded to same
-        // campaign + only ready/failed leads (already-approved rows are
-        // skipped in the queue because they usually don't need attention).
+        // Nav scope: all leads in this campaign that have a website (i.e.
+        // are draftable). Includes approved rows too — the operator may want
+        // to page back through everything, not just untriaged items.
         $nav = OutreachLead::where('campaign_id', $lead->campaign_id)
-            ->whereIn('outreach_generation_status', [OutreachLead::DRAFT_READY, OutreachLead::DRAFT_FAILED])
+            ->whereNotNull('website')->where('website', '!=', '')
             ->orderBy('id')
             ->pluck('id');
         $idx = $nav->search($lead->id);
         $prevId = $idx !== false && $idx > 0 ? $nav[$idx - 1] : null;
         $nextId = $idx !== false && $idx < $nav->count() - 1 ? $nav[$idx + 1] : null;
+        $position = $idx !== false ? ($idx + 1) : null;
+        $total    = $nav->count();
 
-        return view('outreach.drafts.show', compact('lead', 'prevId', 'nextId'));
+        return view('outreach.drafts.show', compact('lead', 'prevId', 'nextId', 'position', 'total'));
     }
 
     /** Persist operator edits to draft fields. */
