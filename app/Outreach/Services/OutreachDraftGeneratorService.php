@@ -69,7 +69,8 @@ class OutreachDraftGeneratorService
             return $this->fail($lead, 'openai_key_missing');
         }
 
-        $messages = $this->buildMessages($lead, $ctx);
+        $lead->loadMissing('campaign');
+        $messages = $this->buildMessages($lead, $ctx, $lead->campaign);
 
         try {
             $response = Http::withToken($apiKey)
@@ -131,7 +132,7 @@ class OutreachDraftGeneratorService
     // ─── prompt construction ─────────────────────────────────────────────────
 
     /** @return array{0:array,1:array} system+user message pair */
-    private function buildMessages(OutreachLead $lead, array $ctx): array
+    private function buildMessages(OutreachLead $lead, array $ctx, ?\App\Outreach\Models\OutreachCampaign $campaign = null): array
     {
         // Design year: prefer stored design_year (Wayback), fall back to soft phrasing.
         $designHint = $lead->design_year
@@ -198,6 +199,25 @@ Vastus peab olema ainult JSON järgmise skeemiga:
 Kolm subjekti peavad olema erinevad stiililt (nt üks küsiv, üks konkreetne, üks vaba). Iga kuni 60 tähemärki.
 Ära lisa ühtegi kommentaari väljapoole JSON-i. Ära paki JSON-i markdown-koodiblokki.
 SYS;
+
+        // Campaign-level extra guidance appended after the base rules but
+        // before the JSON schema block, so the operator can nudge tone /
+        // insertions (e.g. specific design_year phrasing) without breaking
+        // the schema requirements. Placeholders resolved with strtr().
+        $extra = trim((string) ($campaign?->draft_prompt_extra ?? ''));
+        if ($extra !== '') {
+            $extra = strtr($extra, [
+                '{{company}}'      => (string) ($lead->company ?? ''),
+                '{{website}}'      => (string) ($lead->website ?? ''),
+                '{{industry}}'     => (string) ($lead->industry ?? ''),
+                '{{first_name}}'   => (string) ($lead->first_name ?? ''),
+                '{{last_name}}'    => (string) ($lead->last_name ?? ''),
+                '{{email}}'        => (string) ($lead->email ?? ''),
+                '{{design_year}}'  => (string) ($lead->design_year ?? ''),
+                '{{design_age}}'   => (string) ($lead->design_age ?? ''),
+            ]);
+            $system .= "\n\nKAMPAANIA-SPETSIIFILISED JUHISED:\n" . $extra;
+        }
 
         $user = "Ettevõtte info:\n{$leadBlock}\n\nVeebi kontekst:\n{$contextBlock}";
 

@@ -88,6 +88,31 @@
                                 </p>
                             </div>
 
+                            {{-- Extra guidance appended to the AI DRAFT
+                                 GENERATOR's base prompt. Base prompt owns
+                                 tone, schema and don't-hallucinate rules;
+                                 this field lets the operator inject
+                                 campaign-specific wording without touching
+                                 code. Placeholders resolved per-lead at
+                                 generation time (design_year is the whole
+                                 point of adding this field). --}}
+                            <div>
+                                <x-input-label for="draft_prompt_extra" value="🤖 AI mustandi lisajuhised (valikuline)" />
+                                <textarea id="draft_prompt_extra" name="draft_prompt_extra" rows="5"
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 font-mono text-xs"
+                                    placeholder="Näiteks: 'Kui design_year on antud, kirjuta &quot;viimane kujundus pärineb {{design_year}}. aastast&quot;. Muudel juhtudel jää üldisemaks. Kliendile paku ka WordPress + WooCommerce lahendust.'">{{ old('draft_prompt_extra', $campaign->draft_prompt_extra) }}</textarea>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Kasutatavad placeholderid (asendatakse per lead):
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;design_year&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;design_age&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;company&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;website&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;first_name&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;industry&#125;&#125;</code>.
+                                    Kehtib ainult AI mustandite genereerimisel — <strong>ai_line</strong> väli seda ei kasuta.
+                                </p>
+                            </div>
+
                             {{-- Unsubscribe / opt-out block appended to every
                                  cold-send from this campaign. Inbox replies
                                  and quotation emails NEVER include it — 1-1

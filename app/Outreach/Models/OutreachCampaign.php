@@ -13,6 +13,7 @@ class OutreachCampaign extends Model
         'name',
         'description',
         'ai_prompt',
+        'draft_prompt_extra',
         'unsubscribe_html',
         'daily_limit',
         'reply_stop_enabled',
