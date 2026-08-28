@@ -93,6 +93,7 @@
                         </button>
                     </div>
 
+                    <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50">
                             <tr class="text-left text-xs font-medium text-gray-500 uppercase">
@@ -157,6 +158,7 @@
                             @endforelse
                         </tbody>
                     </table>
+                    </div>
 
                     @if($leads->hasPages())
                         <div class="px-5 py-3 border-t border-gray-200">{{ $leads->links() }}</div>
