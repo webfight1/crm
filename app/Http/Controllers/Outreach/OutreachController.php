@@ -1606,6 +1606,7 @@ class OutreachController extends Controller
             'ready'    => $campaign->leads()->where('outreach_generation_status', OutreachLead::DRAFT_READY)->count(),
             'approved' => $campaign->leads()->where('outreach_generation_status', OutreachLead::DRAFT_APPROVED)->count(),
             'failed'   => $campaign->leads()->where('outreach_generation_status', OutreachLead::DRAFT_FAILED)->count(),
+            'pending'  => $campaign->leads()->where('outreach_generation_status', OutreachLead::DRAFT_PENDING)->count(),
             'missing'  => $campaign->leads()->whereNull('outreach_generation_status')->count(),
         ];
 
@@ -1613,17 +1614,18 @@ class OutreachController extends Controller
     }
 
     /**
-     * Trigger batch generation. Runs synchronously (small batches
-     * complete in seconds; large ones the operator kicks off from CLI).
-     * Cap at 50 per web request to keep responses under nginx timeout.
+     * Trigger batch generation. Dispatches one queued job per lead so
+     * the operator can close the browser tab; the outreach queue worker
+     * picks them up sequentially in the background. Each lead's status
+     * is flipped to 'pending' immediately (so the drafts table shows
+     * they're queued) and updated to 'ready' / 'failed' as jobs finish.
      */
     public function draftsGenerateBatch(
         Request $request,
         OutreachCampaign $campaign,
-        \App\Outreach\Services\OutreachDraftGeneratorService $gen,
     ): RedirectResponse {
         $data = $request->validate([
-            'limit' => 'nullable|integer|min:1|max:50',
+            'limit' => 'nullable|integer|min:1|max:200',
             'force' => 'nullable|boolean',
         ]);
         $limit = $data['limit'] ?? 10;
@@ -1641,12 +1643,17 @@ class OutreachController extends Controller
             return back()->with('success', 'Genereerimist vajavaid lead\'e pole.');
         }
 
-        $ok = $bad = 0;
+        // Mark pending in a single query so the table shows "Töös" right away.
+        OutreachLead::whereIn('id', $leads->pluck('id'))->update([
+            'outreach_generation_status' => OutreachLead::DRAFT_PENDING,
+            'outreach_generation_error'  => null,
+        ]);
+
         foreach ($leads as $lead) {
-            $gen->generate($lead) ? $ok++ : $bad++;
+            \App\Outreach\Jobs\GenerateDraftJob::dispatch($lead->id);
         }
 
-        return back()->with('success', "Genereeritud {$ok}, ebaõnnestunud {$bad}.");
+        return back()->with('success', "Järjekorda pandud {$leads->count()} lead(i). Töö käib taustal — akna võid rahulikult sulgeda.");
     }
 
     /** Bulk approve leads (checkbox selection from the drafts view). */

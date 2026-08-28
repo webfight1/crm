@@ -11,6 +11,14 @@
         </div>
     </x-slot>
 
+    @if(($counts['pending'] ?? 0) > 0)
+        @push('scripts')
+            {{-- Auto-refresh only while queued generations are still running,
+                 so an idle drafts page doesn't reload every 10s forever. --}}
+            <script>setTimeout(() => location.reload(), 10000);</script>
+        @endpush
+    @endif
+
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-4">
 
@@ -28,6 +36,9 @@
                         <span class="font-medium">{{ $counts['total'] }}</span> leadi kokku ·
                         <span class="text-emerald-700">{{ $counts['approved'] }}</span> kinnitatud ·
                         <span class="text-amber-700">{{ $counts['ready'] }}</span> ootel ülevaatust ·
+                        @if(($counts['pending'] ?? 0) > 0)
+                            <span class="text-blue-700">{{ $counts['pending'] }}</span> järjekorras ·
+                        @endif
                         <span class="text-red-700">{{ $counts['failed'] }}</span> ebaõnnestunud ·
                         <span class="text-gray-500">{{ $counts['missing'] }}</span> genereerimata
                     </div>
