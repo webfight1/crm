@@ -1569,6 +1569,194 @@ class OutreachController extends Controller
             ->with('success', 'Mall kustutatud.');
     }
 
+    // ─── AI-generated drafts ────────────────────────────────────────────────
+
+    /**
+     * Review dashboard: all leads in a campaign with draft status +
+     * quick actions (view, approve, regenerate). Sorted so leads that
+     * need attention (failed, ready-not-yet-approved) show first.
+     */
+    public function draftsIndex(Request $request, OutreachCampaign $campaign): View
+    {
+        $filter = $request->query('filter', 'all');
+
+        $query = $campaign->leads()->whereNotNull('website')->where('website', '!=', '');
+        if ($filter === 'ready')    $query->where('outreach_generation_status', OutreachLead::DRAFT_READY);
+        if ($filter === 'approved') $query->where('outreach_generation_status', OutreachLead::DRAFT_APPROVED);
+        if ($filter === 'failed')   $query->where('outreach_generation_status', OutreachLead::DRAFT_FAILED);
+        if ($filter === 'missing')  $query->whereNull('outreach_generation_status');
+
+        // Ordering priority: failed → ready → pending → approved → not yet.
+        // Achieved with a small CASE expression so paginate() stays cheap.
+        $leads = $query->orderByRaw("
+                CASE outreach_generation_status
+                    WHEN 'failed'   THEN 1
+                    WHEN 'ready'    THEN 2
+                    WHEN 'pending'  THEN 3
+                    WHEN 'approved' THEN 4
+                    ELSE 5
+                END
+            ")
+            ->orderBy('id')
+            ->paginate(50)
+            ->withQueryString();
+
+        $counts = [
+            'total'    => $campaign->leads()->count(),
+            'ready'    => $campaign->leads()->where('outreach_generation_status', OutreachLead::DRAFT_READY)->count(),
+            'approved' => $campaign->leads()->where('outreach_generation_status', OutreachLead::DRAFT_APPROVED)->count(),
+            'failed'   => $campaign->leads()->where('outreach_generation_status', OutreachLead::DRAFT_FAILED)->count(),
+            'missing'  => $campaign->leads()->whereNull('outreach_generation_status')->count(),
+        ];
+
+        return view('outreach.drafts.index', compact('campaign', 'leads', 'filter', 'counts'));
+    }
+
+    /**
+     * Trigger batch generation. Runs synchronously (small batches
+     * complete in seconds; large ones the operator kicks off from CLI).
+     * Cap at 50 per web request to keep responses under nginx timeout.
+     */
+    public function draftsGenerateBatch(
+        Request $request,
+        OutreachCampaign $campaign,
+        \App\Outreach\Services\OutreachDraftGeneratorService $gen,
+    ): RedirectResponse {
+        $data = $request->validate([
+            'limit' => 'nullable|integer|min:1|max:50',
+            'force' => 'nullable|boolean',
+        ]);
+        $limit = $data['limit'] ?? 10;
+
+        $query = $campaign->leads()->whereNotNull('website')->where('website', '!=', '');
+        if (empty($data['force'])) {
+            $query->where(function ($q) {
+                $q->whereNull('outreach_generation_status')
+                  ->orWhereIn('outreach_generation_status', [OutreachLead::DRAFT_PENDING, OutreachLead::DRAFT_FAILED]);
+            });
+        }
+        $leads = $query->orderBy('id')->limit($limit)->get();
+
+        if ($leads->isEmpty()) {
+            return back()->with('success', 'Genereerimist vajavaid lead\'e pole.');
+        }
+
+        $ok = $bad = 0;
+        foreach ($leads as $lead) {
+            $gen->generate($lead) ? $ok++ : $bad++;
+        }
+
+        return back()->with('success', "Genereeritud {$ok}, ebaõnnestunud {$bad}.");
+    }
+
+    /** Bulk approve leads (checkbox selection from the drafts view). */
+    public function draftsApproveBatch(Request $request, OutreachCampaign $campaign): RedirectResponse
+    {
+        $ids = array_filter((array) $request->input('lead_ids', []));
+        if (empty($ids)) {
+            return back()->with('error', 'Ühtegi lead\'i pole valitud.');
+        }
+        $updated = $campaign->leads()
+            ->whereIn('id', $ids)
+            ->where('outreach_generation_status', OutreachLead::DRAFT_READY)
+            ->update(['outreach_generation_status' => OutreachLead::DRAFT_APPROVED]);
+
+        return back()->with('success', "Kinnitatud {$updated} lead(i) saatmiseks.");
+    }
+
+    /** Single-draft review + edit view. */
+    public function draftShow(Request $request, OutreachLead $lead): View
+    {
+        $lead->loadMissing('campaign');
+
+        // Next / previous for J/K keyboard navigation — bounded to same
+        // campaign + only ready/failed leads (already-approved rows are
+        // skipped in the queue because they usually don't need attention).
+        $nav = OutreachLead::where('campaign_id', $lead->campaign_id)
+            ->whereIn('outreach_generation_status', [OutreachLead::DRAFT_READY, OutreachLead::DRAFT_FAILED])
+            ->orderBy('id')
+            ->pluck('id');
+        $idx = $nav->search($lead->id);
+        $prevId = $idx !== false && $idx > 0 ? $nav[$idx - 1] : null;
+        $nextId = $idx !== false && $idx < $nav->count() - 1 ? $nav[$idx + 1] : null;
+
+        return view('outreach.drafts.show', compact('lead', 'prevId', 'nextId'));
+    }
+
+    /** Persist operator edits to draft fields. */
+    public function draftUpdate(Request $request, OutreachLead $lead): RedirectResponse
+    {
+        $data = $request->validate([
+            'outreach_subject_1'        => 'nullable|string|max:500',
+            'outreach_subject_2'        => 'nullable|string|max:500',
+            'outreach_subject_3'        => 'nullable|string|max:500',
+            'outreach_selected_subject' => 'nullable|integer|in:1,2,3',
+            'outreach_email_body'       => 'nullable|string|max:20000',
+            'outreach_followup_body'    => 'nullable|string|max:20000',
+            'approve'                   => 'nullable|boolean',
+        ]);
+
+        $updates = collect($data)->only([
+            'outreach_subject_1', 'outreach_subject_2', 'outreach_subject_3',
+            'outreach_selected_subject', 'outreach_email_body', 'outreach_followup_body',
+        ])->all();
+
+        // Edited drafts revert to 'ready' (awaiting explicit approval) unless
+        // the operator ticked the approve box on save — matches Gmail's
+        // "save vs send" separation.
+        $updates['outreach_generation_status'] = !empty($data['approve'])
+            ? OutreachLead::DRAFT_APPROVED
+            : ($lead->outreach_generation_status === OutreachLead::DRAFT_APPROVED
+                ? OutreachLead::DRAFT_APPROVED
+                : OutreachLead::DRAFT_READY);
+
+        $lead->update($updates);
+
+        // "Next" button posts hidden ?next=1 — auto-navigate to next review.
+        if ($request->boolean('goto_next')) {
+            $next = OutreachLead::where('campaign_id', $lead->campaign_id)
+                ->whereIn('outreach_generation_status', [OutreachLead::DRAFT_READY, OutreachLead::DRAFT_FAILED])
+                ->where('id', '>', $lead->id)
+                ->orderBy('id')
+                ->first();
+            if ($next) {
+                return redirect()->route('outreach.leads.draft.show', $next)
+                    ->with('success', 'Salvestatud. Järgmine lead.');
+            }
+        }
+
+        return back()->with('success', 'Mustand salvestatud.');
+    }
+
+    public function draftGenerate(
+        OutreachLead $lead,
+        \App\Outreach\Services\OutreachDraftGeneratorService $gen,
+    ): RedirectResponse {
+        $ok = $gen->generate($lead);
+        return back()->with(
+            $ok ? 'success' : 'error',
+            $ok ? 'Mustand genereeritud.' : ('Genereerimine ebaõnnestus: ' . $lead->fresh()->outreach_generation_error),
+        );
+    }
+
+    public function draftApprove(OutreachLead $lead): RedirectResponse
+    {
+        if ($lead->outreach_generation_status !== OutreachLead::DRAFT_READY
+            && $lead->outreach_generation_status !== OutreachLead::DRAFT_APPROVED) {
+            return back()->with('error', 'Ainult "ready" staatusega mustandit saab kinnitada.');
+        }
+        $lead->update(['outreach_generation_status' => OutreachLead::DRAFT_APPROVED]);
+        return back()->with('success', 'Kinnitatud.');
+    }
+
+    public function draftUnapprove(OutreachLead $lead): RedirectResponse
+    {
+        if ($lead->outreach_generation_status === OutreachLead::DRAFT_APPROVED) {
+            $lead->update(['outreach_generation_status' => OutreachLead::DRAFT_READY]);
+        }
+        return back()->with('success', 'Kinnitus tühistatud.');
+    }
+
     /**
      * URL-safe email decoding shared with the index view's encoder.
      * Returns null if the input is not a valid email address.

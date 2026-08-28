@@ -182,6 +182,28 @@ class OutreachEmailService
         $renderedSubject = $step->renderSubject($lead);
         $renderedBody    = $step->renderBody($lead);
 
+        // ── AI DRAFT OVERRIDE ────────────────────────────────────────────────
+        // If the operator has approved a personalised draft for this lead,
+        // it takes precedence over the campaign step's shared template.
+        // Applies only to step 1 (main pitch) and step 2 (follow-up); later
+        // steps still fall through to the campaign template.
+        if ($lead->outreach_generation_status === OutreachLead::DRAFT_APPROVED) {
+            $stepOrder = (int) ($step->step_order ?? 1);
+            $subjectIdx = max(1, min(3, (int) ($lead->outreach_selected_subject ?? 1)));
+            $subjectField = "outreach_subject_{$subjectIdx}";
+
+            if ($stepOrder === 1 && trim((string) $lead->outreach_email_body) !== '') {
+                if (trim((string) $lead->{$subjectField}) !== '') {
+                    $renderedSubject = (string) $lead->{$subjectField};
+                }
+                $renderedBody = (string) $lead->outreach_email_body;
+            } elseif ($stepOrder === 2 && trim((string) $lead->outreach_followup_body) !== '') {
+                // Follow-up threads on the original subject — Gmail will
+                // "Re:" it via In-Reply-To header wiring at the mailer layer.
+                $renderedBody = (string) $lead->outreach_followup_body;
+            }
+        }
+
         // Campaign-level opt-out HTML — passed to the mailer as $footer so
         // it lands BELOW the account signature (final order: body → sig →
         // unsubscribe). Skipped for empty campaigns.

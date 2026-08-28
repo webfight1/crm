@@ -46,21 +46,48 @@ class OutreachLead extends Model
         'replied',
         'replied_at',
         'processing_since',
+        // AI draft fields (see 2026_08_28 migration)
+        'outreach_subject_1',
+        'outreach_subject_2',
+        'outreach_subject_3',
+        'outreach_selected_subject',
+        'website_context_summary',
+        'public_reference_context',
+        'seo_observation',
+        'outreach_email_body',
+        'outreach_followup_body',
+        'outreach_generation_status',
+        'outreach_generation_error',
+        'outreach_sources',
+        'outreach_generated_at',
+        'mx_ok',
+        'mx_checked_at',
     ];
 
     protected $casts = [
-        'current_step'      => 'integer',
-        'performance_score' => 'integer',
-        'design_year'       => 'integer',
-        'design_age'        => 'integer',
-        'design_similarity' => 'integer',
-        'replied'           => 'boolean',
-        'enrolled_at'       => 'datetime',
-        'next_send_at'      => 'datetime',
-        'last_sent_at'      => 'datetime',
-        'replied_at'        => 'datetime',
-        'processing_since'  => 'datetime',
+        'current_step'              => 'integer',
+        'performance_score'         => 'integer',
+        'design_year'               => 'integer',
+        'design_age'                => 'integer',
+        'design_similarity'         => 'integer',
+        'replied'                   => 'boolean',
+        'enrolled_at'               => 'datetime',
+        'next_send_at'              => 'datetime',
+        'last_sent_at'              => 'datetime',
+        'replied_at'                => 'datetime',
+        'processing_since'          => 'datetime',
+        'mx_ok'                     => 'boolean',
+        'mx_checked_at'             => 'datetime',
+        'outreach_selected_subject' => 'integer',
+        'outreach_sources'          => 'array',
+        'outreach_generated_at'     => 'datetime',
     ];
+
+    // Draft-status constants shared with generator + guard code.
+    public const DRAFT_PENDING  = 'pending';
+    public const DRAFT_READY    = 'ready';
+    public const DRAFT_APPROVED = 'approved';
+    public const DRAFT_FAILED   = 'failed';
 
     // ─── Relationships ──────────────────────────────────────────────────────
 

@@ -46,7 +46,19 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
         Route::post('/{campaign}/leads',                       [OutreachController::class, 'leadsStore'])->name('leads.store');
         Route::patch('/{campaign}/leads/{lead}',               [OutreachController::class, 'leadsUpdate'])->name('leads.update');
         Route::delete('/{campaign}/leads/{lead}',              [OutreachController::class, 'leadsDestroy'])->name('leads.destroy');
+
+        // AI-generated draft review + generation (per campaign)
+        Route::get ('/{campaign}/drafts',                        [OutreachController::class, 'draftsIndex'])->name('drafts.index');
+        Route::post('/{campaign}/drafts/generate-batch',         [OutreachController::class, 'draftsGenerateBatch'])->name('drafts.generate-batch');
+        Route::post('/{campaign}/drafts/approve-batch',          [OutreachController::class, 'draftsApproveBatch'])->name('drafts.approve-batch');
     });
+
+    // Per-lead draft actions (independent of campaign for direct linking)
+    Route::get   ('/leads/{lead}/draft',            [OutreachController::class, 'draftShow'])->name('leads.draft.show');
+    Route::patch ('/leads/{lead}/draft',            [OutreachController::class, 'draftUpdate'])->name('leads.draft.update');
+    Route::post  ('/leads/{lead}/draft/generate',   [OutreachController::class, 'draftGenerate'])->name('leads.draft.generate');
+    Route::post  ('/leads/{lead}/draft/approve',    [OutreachController::class, 'draftApprove'])->name('leads.draft.approve');
+    Route::post  ('/leads/{lead}/draft/unapprove',  [OutreachController::class, 'draftUnapprove'])->name('leads.draft.unapprove');
 
     // ── Inbox (unified replies across mailboxes) ───────────────────────────
     Route::get('/inbox',                          [OutreachController::class, 'inboxIndex'])->name('inbox.index');

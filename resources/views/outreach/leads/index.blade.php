@@ -4,7 +4,10 @@
             <div>
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">Leadid — {{ $campaign->name }}</h2>
             </div>
-            <a href="{{ route('outreach.campaigns.show', $campaign) }}" class="text-sm text-indigo-600 hover:text-indigo-900">← Kampaania</a>
+            <div class="flex items-center gap-3 text-sm">
+                <a href="{{ route('outreach.campaigns.drafts.index', $campaign) }}" class="text-indigo-600 hover:text-indigo-900">🤖 AI mustandid</a>
+                <a href="{{ route('outreach.campaigns.show', $campaign) }}" class="text-indigo-600 hover:text-indigo-900">← Kampaania</a>
+            </div>
         </div>
     </x-slot>
 
