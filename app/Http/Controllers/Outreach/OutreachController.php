@@ -1767,6 +1767,73 @@ class OutreachController extends Controller
     }
 
     /**
+     * Send a test copy of the draft to an arbitrary address so the operator
+     * can eyeball rendering (fonts, links, unsubscribe footer) without
+     * hitting the real recipient. Uses the same OutreachMailer path the
+     * live send takes, so signature + campaign unsubscribe HTML land at
+     * the bottom exactly as they will for the real lead.
+     */
+    public function draftTestSend(
+        Request $request,
+        OutreachLead $lead,
+        \App\Outreach\Services\OutreachMailer $mailer,
+    ): RedirectResponse {
+        $data = $request->validate([
+            'test_email' => 'required|email',
+            'step'       => 'nullable|in:1,2',
+        ]);
+
+        $step = $data['step'] ?? '1';
+        $body = $step === '2'
+            ? (string) $lead->outreach_followup_body
+            : (string) $lead->outreach_email_body;
+
+        if (trim($body) === '') {
+            return back()->with('error', "Sammu {$step} keha on tühi — pole midagi saata.");
+        }
+
+        // Subject: for step 1 use the operator-selected variant; step 2
+        // sends as a Re: to match Gmail thread grouping in the test inbox.
+        $subjectIdx = max(1, min(3, (int) ($lead->outreach_selected_subject ?? 1)));
+        $subject    = (string) $lead->{"outreach_subject_{$subjectIdx}"};
+        if ($step === '2') $subject = 'Re: ' . $subject;
+        $subject = '[TEST] ' . ($subject !== '' ? $subject : 'AI mustand');
+
+        $account = OutreachEmailAccount::where('is_active', true)
+            ->where(function ($q) {
+                $q->where('provider', '!=', 'zone_relay')->orWhereNull('provider');
+            })
+            ->whereNotNull('smtp_host')
+            ->orderByDesc('is_primary_reply_account')
+            ->first();
+
+        if (! $account) {
+            return back()->with('error', 'Testkirja saatmiseks pole aktiivset SMTP-postkasti.');
+        }
+
+        $lead->loadMissing('campaign');
+        $footer = $lead->campaign
+            ? (trim((string) ($lead->campaign->unsubscribe_html ?? '')) ?: null)
+            : null;
+
+        try {
+            $mailer->send(
+                account:  $account,
+                toEmail:  $data['test_email'],
+                toName:   'Test',
+                subject:  $subject,
+                htmlBody: $body,
+                footer:   $footer,
+            );
+        } catch (\Throwable $e) {
+            \Log::error('[DraftTestSend] failed', ['lead' => $lead->id, 'to' => $data['test_email'], 'err' => $e->getMessage()]);
+            return back()->with('error', 'Testkirja saatmine ebaõnnestus: ' . $e->getMessage());
+        }
+
+        return back()->with('success', "Testkiri saadetud aadressile {$data['test_email']} (kontost {$account->email}).");
+    }
+
+    /**
      * URL-safe email decoding shared with the index view's encoder.
      * Returns null if the input is not a valid email address.
      */

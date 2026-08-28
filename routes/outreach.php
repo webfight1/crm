@@ -59,6 +59,7 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
     Route::post  ('/leads/{lead}/draft/generate',   [OutreachController::class, 'draftGenerate'])->name('leads.draft.generate');
     Route::post  ('/leads/{lead}/draft/approve',    [OutreachController::class, 'draftApprove'])->name('leads.draft.approve');
     Route::post  ('/leads/{lead}/draft/unapprove',  [OutreachController::class, 'draftUnapprove'])->name('leads.draft.unapprove');
+    Route::post  ('/leads/{lead}/draft/test-send',  [OutreachController::class, 'draftTestSend'])->name('leads.draft.test-send');
 
     // ── Inbox (unified replies across mailboxes) ───────────────────────────
     Route::get('/inbox',                          [OutreachController::class, 'inboxIndex'])->name('inbox.index');

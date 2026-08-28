@@ -111,6 +111,23 @@
                 </div>
             </div>
 
+            {{-- Test send: pick step 1 or 2, enter any address, get a real
+                 preview delivered (with signature + campaign footer). --}}
+            <form method="POST" action="{{ route('outreach.leads.draft.test-send', $lead) }}"
+                  class="bg-white shadow-sm rounded-lg px-5 py-3 flex flex-wrap items-center gap-3">
+                @csrf
+                <label class="text-sm font-medium text-gray-700">📤 Saada testkiri:</label>
+                <input type="email" name="test_email" required
+                       value="{{ auth()->user()->email ?? '' }}"
+                       placeholder="sinu@email.ee"
+                       class="flex-1 min-w-[220px] text-sm border-gray-300 rounded">
+                <select name="step" class="text-sm border-gray-300 rounded">
+                    <option value="1">Step 1 (esimene kiri)</option>
+                    <option value="2">Step 2 (follow-up)</option>
+                </select>
+                <button type="submit" class="px-3 py-1.5 bg-gray-800 hover:bg-black text-white text-xs rounded">Saada</button>
+            </form>
+
             @if($st === 'failed')
                 <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded text-sm">
                     <div class="font-medium">Genereerimine ebaõnnestus:</div>
@@ -166,14 +183,14 @@
                 <div>
                     <x-input-label value="Kirja sisu (esimene kiri, step 1)" />
                     <textarea name="outreach_email_body" rows="16"
-                              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 font-mono text-sm">{{ old('outreach_email_body', $lead->outreach_email_body) }}</textarea>
+                              class="draft-editor mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 font-mono text-sm">{{ old('outreach_email_body', $lead->outreach_email_body) }}</textarea>
                     <p class="text-xs text-gray-500 mt-1">Salvestatakse HTML-ina. Reavahetused säilivad. Postkasti signatuur + kampaania jaluse lisatakse automaatselt.</p>
                 </div>
 
                 <div>
                     <x-input-label value="Follow-up kiri (step 2)" />
                     <textarea name="outreach_followup_body" rows="8"
-                              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 font-mono text-sm">{{ old('outreach_followup_body', $lead->outreach_followup_body) }}</textarea>
+                              class="draft-editor mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 font-mono text-sm">{{ old('outreach_followup_body', $lead->outreach_followup_body) }}</textarea>
                 </div>
 
                 <div class="flex items-center justify-between border-t pt-4">
@@ -217,6 +234,32 @@
     </div>
 
     @push('scripts')
+    {{-- Rich text editor on both body textareas so bold/italic/list/link
+         work end-to-end (draft → send). Same setup as reply-templates:
+         sync content to underlying textarea on every keystroke so the
+         auto-sync-on-submit hook can never race. --}}
+    <script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script>
+        window.addEventListener('load', function () {
+            if (! window.tinymce) return;
+            tinymce.init({
+                selector: 'textarea.draft-editor',
+                plugins: 'lists link code',
+                toolbar: 'undo redo | bold italic underline | bullist numlist | link | code',
+                menubar: false,
+                branding: false,
+                statusbar: false,
+                height: 320,
+                convert_urls: false,
+                promotion: false,
+                license_key: 'gpl',
+                content_style: 'body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size: 14px; }',
+                setup: (editor) => {
+                    editor.on('change keyup', () => editor.save());
+                },
+            });
+        });
+    </script>
     <script>
         // Small keyboard shortcuts: J/K navigate, R regenerate, A save+next.
         // Ignored when the user is typing into an input/textarea.
