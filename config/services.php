@@ -45,6 +45,19 @@ return [
 
         // Workspace id — the first number in an app.clickup.com URL.
         'team_id' => env('CLICKUP_TEAM_ID'),
+
+        // One-click sources shown on /outreach/clickup. Any list or view URL
+        // can still be pasted by hand; these are just the ones we use often.
+        'lists' => [
+            [
+                'label' => 'Külmad kontaktid — MÜÜK (MAR)',
+                'url'   => 'https://app.clickup.com/9015331367/v/li/901519221606',
+            ],
+            [
+                'label' => 'Külmad kontaktid — MÜÜK (Kristina)',
+                'url'   => 'https://app.clickup.com/9015331367/v/l/li/901523799837',
+            ],
+        ],
     ],
 
     'pagespeed' => [

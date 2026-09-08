@@ -30,6 +30,9 @@
                         <x-nav-link :href="route('outreach.reply-templates.index')" :active="request()->routeIs('outreach.reply-templates.*')">
                             {{ __('Vastuste mallid') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('outreach.clickup.index')" :active="request()->routeIs('outreach.clickup.*')">
+                            {{ __('ClickUp') }}
+                        </x-nav-link>
                     @else
                         <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                             {{ __('Töölaud') }}
@@ -85,6 +88,9 @@
                             </x-nav-dropdown-link>
                             <x-nav-dropdown-link :href="route('outreach.dashboard')" :active="request()->routeIs('outreach.*')">
                                 {{ __('Outreach') }}
+                            </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="route('outreach.clickup.index')" :active="request()->routeIs('outreach.clickup.*')">
+                                {{ __('ClickUpi import') }}
                             </x-nav-dropdown-link>
                         </x-nav-dropdown>
                     @endif
@@ -192,6 +198,9 @@
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('outreach.reply-templates.index')" :active="request()->routeIs('outreach.reply-templates.*')">
                     {{ __('Vastuste mallid') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('outreach.clickup.index')" :active="request()->routeIs('outreach.clickup.*')">
+                    {{ __('ClickUp') }}
                 </x-responsive-nav-link>
             @else
                 <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">

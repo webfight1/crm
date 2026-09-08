@@ -58,6 +58,122 @@ class ClickUpService
             ->baseUrl(self::BASE);
     }
 
+    /**
+     * The columns we emit, in order. Deliberately named to match
+     * OutreachCsvImportService's supported headers so a file produced here can
+     * be fed straight back through the normal CSV import.
+     */
+    public const CSV_HEADERS = ['company', 'email', 'first_name', 'last_name', 'website', 'industry', 'notes'];
+
+    /**
+     * Turn whatever the user pasted — a bare id or any app.clickup.com URL —
+     * into the id we should query and whether it addresses a list.
+     *
+     * @return array{0: string, 1: bool} [id, isList]
+     */
+    public function resolveSource(string $source, bool $forceList = false): array
+    {
+        $source = trim($source);
+
+        if (! str_contains($source, 'clickup.com')) {
+            return [$source, $forceList];
+        }
+
+        // A list is addressed as /v/li/<id> or /v/l/li/<id>; the `li` marker is
+        // what identifies it, not its position in the path.
+        if (preg_match('~/v/(?:[a-z]{1,3}/)?li/(\d+)~', $source, $m)) {
+            return [$m[1], true];
+        }
+
+        // Everything else after /v/ is a view id: /v/l/, /v/b/, /v/cn/, ...
+        if (preg_match('~/v/[a-z]{1,3}/([^/?\#]+)~', $source, $m)) {
+            return [$m[1], $forceList];
+        }
+
+        if (preg_match('~clickup\.com/\d+/v/([^/?\#]+)~', $source, $m)) {
+            return [$m[1], $forceList];
+        }
+
+        throw new \InvalidArgumentException("URList ei õnnestunud ClickUpi id-d leida: {$source}");
+    }
+
+    /**
+     * Fetch a source and flatten it to the rows we import/export.
+     *
+     * @param  bool $perContact  one row per contact (Email/Email2/Email3)
+     *                           instead of one row per company
+     * @param  bool $withEmpty   keep rows that have no email address
+     * @return array{rows: array<int, array<string, mixed>>, tasks: int, isList: bool, id: string}
+     */
+    public function fetchRows(string $source, bool $perContact = true, bool $withEmpty = false, bool $forceList = false): array
+    {
+        [$id, $isList] = $this->resolveSource($source, $forceList);
+
+        $tasks = $isList ? $this->tasksFromList($id) : $this->tasksFromView($id);
+
+        $rows = [];
+
+        foreach ($tasks as $task) {
+            foreach ($perContact ? $this->extractRows($task) : [$this->extractRow($task)] as $row) {
+                if ($withEmpty || filled($row['email'])) {
+                    $rows[] = $row;
+                }
+            }
+        }
+
+        return ['rows' => $rows, 'tasks' => count($tasks), 'isList' => $isList, 'id' => $id];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>> $rows
+     * @return array<int, string> one CSV field set per row, header excluded
+     */
+    public function csvRow(array $row): array
+    {
+        return [
+            $row['company'] ?? '',
+            $row['email'] ?? '',
+            $row['first_name'] ?? '',
+            $row['last_name'] ?? '',
+            $row['website'] ?? '',
+            $row['industry'] ?? '',
+            trim(sprintf(
+                'ClickUp: %s %s %s',
+                $row['status'] ?? '',
+                $row['job_title'] ?? '',
+                $row['url'] ?? ''
+            )),
+        ];
+    }
+
+    /**
+     * Write rows to a CSV file at $path, creating parent directories.
+     *
+     * @param  array<int, array<string, mixed>> $rows
+     */
+    public function writeCsv(array $rows, string $path): void
+    {
+        if (! is_dir(dirname($path))) {
+            mkdir(dirname($path), 0775, true);
+        }
+
+        $handle = fopen($path, 'w');
+
+        if ($handle === false) {
+            throw new RuntimeException("Ei saa CSV faili kirjutada: {$path}");
+        }
+
+        // Escape args passed explicitly: PHP 8.4 deprecates relying on the
+        // defaults, and we want today's behaviour pinned, not tomorrow's.
+        fputcsv($handle, self::CSV_HEADERS, ',', '"', '\\');
+
+        foreach ($rows as $row) {
+            fputcsv($handle, $this->csvRow($row), ',', '"', '\\');
+        }
+
+        fclose($handle);
+    }
+
     /** Workspaces the token can see — handy as a connectivity smoke test. */
     public function teams(): array
     {

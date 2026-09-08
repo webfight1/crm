@@ -12,16 +12,15 @@ use Illuminate\Support\Str;
  * Pulls rows (company name + email) out of a ClickUp list or view.
  *
  * Usage:
- *   php artisan clickup:fetch https://app.clickup.com/9015331367/v/cn/8cnp2h7-1595
- *   php artisan clickup:fetch 8cnp2h7-1595
- *   php artisan clickup:fetch 901234567 --list
+ *   php artisan clickup:fetch https://app.clickup.com/9015331367/v/l/li/901523799837
+ *   php artisan clickup:fetch 901523799837 --list
  *   php artisan clickup:fetch <id> --contacts --csv=storage/app/clickup.csv
  *   php artisan clickup:fetch <id> --import=3          # → outreach campaign #3
  *   php artisan clickup:fetch <id> --fields            # what columns does this list have?
  *   php artisan clickup:fetch --teams                  # token smoke test
  *
- * The ClickUp URL segment after /v/<type>/ is the view id; /v/li/<id> is a list.
- * Pass the whole URL and the command figures out which one it got.
+ * The same fetch is available in the UI at /outreach/clickup, which shares
+ * ClickUpService with this command — keep behaviour changes in the service.
  */
 class ClickUpFetchCommand extends Command
 {
@@ -48,61 +47,60 @@ class ClickUpFetchCommand extends Command
             $source = (string) $this->argument('source');
 
             if ($source === '') {
-                $this->error('Anna ClickUp view/list id või URL. Näide: php artisan clickup:fetch 8cnp2h7-1595');
+                $this->error('Anna ClickUp view/list id või URL. Näide: php artisan clickup:fetch 901523799837 --list');
                 return self::FAILURE;
             }
 
-            [$id, $isList] = $this->resolveSource($source);
+            // --fields / --raw need the untouched task payload, not our rows.
+            if ($this->option('fields') || $this->option('raw')) {
+                return $this->inspect($clickup, $source);
+            }
 
+            [$id, $isList] = $clickup->resolveSource($source, (bool) $this->option('list'));
             $this->line(sprintf('<comment>Küsin ClickUpist %s id=%s …</comment>', $isList ? 'list' : 'view', $id));
 
-            $tasks = $isList ? $clickup->tasksFromList($id) : $clickup->tasksFromView($id);
+            $result = $clickup->fetchRows(
+                $source,
+                perContact: (bool) $this->option('contacts'),
+                withEmpty: (bool) $this->option('with-empty'),
+                forceList: (bool) $this->option('list'),
+            );
 
-            if ($tasks === []) {
+            $rows = $result['rows'];
+
+            if ($result['tasks'] === 0) {
                 $this->warn('ClickUp tagastas 0 rida. Kontrolli, kas id on õige ja token näeb seda workspace’i.');
                 return self::SUCCESS;
             }
 
-            if ($this->option('raw')) {
-                $this->line(json_encode($tasks[0], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-                return self::SUCCESS;
-            }
-
-            if ($this->option('fields')) {
-                return $this->showFields($tasks[0]);
-            }
-
-            $rows = collect($tasks)
-                ->flatMap(fn (array $task) => $this->option('contacts')
-                    ? $clickup->extractRows($task)
-                    : [$clickup->extractRow($task)])
-                ->when(! $this->option('with-empty'), fn ($rows) => $rows->filter(fn ($r) => filled($r['email'])))
-                ->values();
-
             $this->info(sprintf(
                 '%d taski → %d rida%s.',
-                count($tasks),
-                $rows->count(),
+                $result['tasks'],
+                count($rows),
                 $this->option('with-empty') ? '' : ' (emailita read välja filtreeritud)'
             ));
 
             if ($campaignId = $this->option('import')) {
-                return $this->import($rows->all(), (int) $campaignId, $importer);
+                return $this->import($clickup, $rows, (int) $campaignId, $importer);
             }
 
             if ($path = $this->option('csv')) {
-                return $this->writeCsv($rows->all(), $path);
+                $path = str_starts_with($path, '/') ? $path : base_path($path);
+                $clickup->writeCsv($rows, $path);
+                $this->info("CSV kirjutatud: {$path}");
+
+                return self::SUCCESS;
             }
 
             $this->table(
                 ['Firma', 'Kontakt', 'Email', 'Veeb', 'Staatus'],
-                $rows->map(fn ($r) => [
-                    Str::limit($r['company'], 40),
+                array_map(fn ($r) => [
+                    Str::limit((string) $r['company'], 40),
                     trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? '')) ?: '—',
                     $r['email'] ?? '—',
                     Str::limit((string) ($r['website'] ?? '—'), 40),
                     $r['status'] ?? '—',
-                ])->all()
+                ], $rows)
             );
 
             return self::SUCCESS;
@@ -112,36 +110,38 @@ class ClickUpFetchCommand extends Command
         }
     }
 
-    /**
-     * Accepts a bare id or a full ClickUp URL and works out whether we are
-     * looking at a list (/v/li/<id>) or a view (/v/cn/<id>, /v/l/<id>, …).
-     *
-     * @return array{0: string, 1: bool}  [id, isList]
-     */
-    private function resolveSource(string $source): array
+    /** --fields / --raw: show what the source's first task actually looks like. */
+    private function inspect(ClickUpService $clickup, string $source): int
     {
-        $isList = (bool) $this->option('list');
+        [$id, $isList] = $clickup->resolveSource($source, (bool) $this->option('list'));
 
-        if (str_contains($source, 'clickup.com')) {
-            // A list can be addressed as /v/li/<id> or /v/l/li/<id>; the `li`
-            // marker is what identifies it, not its position in the path.
-            if (preg_match('~/v/(?:[a-z]{1,3}/)?li/(\d+)~', $source, $m)) {
-                return [$m[1], true];
-            }
+        $tasks = $isList ? $clickup->tasksFromList($id) : $clickup->tasksFromView($id);
 
-            // Everything else after /v/ is a view id: /v/l/, /v/b/, /v/cn/, ...
-            if (preg_match('~/v/[a-z]{1,3}/([^/?\#]+)~', $source, $m)) {
-                return [$m[1], $isList];
-            }
-
-            if (preg_match('~clickup\.com/\d+/v/([^/?\#]+)~', $source, $m)) {
-                return [$m[1], $isList];
-            }
-
-            throw new \InvalidArgumentException("URList ei õnnestunud id-d leida: {$source}");
+        if ($tasks === []) {
+            $this->warn('ClickUp tagastas 0 taski.');
+            return self::SUCCESS;
         }
 
-        return [$source, $isList];
+        if ($this->option('raw')) {
+            $this->line(json_encode($tasks[0], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            return self::SUCCESS;
+        }
+
+        $rows = [];
+
+        foreach ($tasks[0]['custom_fields'] ?? [] as $field) {
+            $value = $field['value'] ?? null;
+            $rows[] = [
+                $field['name'] ?? '',
+                $field['type'] ?? '',
+                mb_substr(is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string) $value, 0, 60),
+            ];
+        }
+
+        $this->line('Task name: ' . ($tasks[0]['name'] ?? ''));
+        $this->table(['Custom field', 'Tüüp', 'Näidisväärtus'], $rows);
+
+        return self::SUCCESS;
     }
 
     private function showTeams(ClickUpService $clickup): int
@@ -158,71 +158,8 @@ class ClickUpFetchCommand extends Command
         return self::SUCCESS;
     }
 
-    private function showFields(array $task): int
-    {
-        $rows = [];
-
-        foreach ($task['custom_fields'] ?? [] as $field) {
-            $value = $field['value'] ?? null;
-            $rows[] = [
-                $field['name'] ?? '',
-                $field['type'] ?? '',
-                mb_substr(is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string) $value, 0, 60),
-            ];
-        }
-
-        $this->line('Task name: ' . ($task['name'] ?? ''));
-        $this->table(['Custom field', 'Tüüp', 'Näidisväärtus'], $rows);
-
-        return self::SUCCESS;
-    }
-
     /** @param array<int, array<string, mixed>> $rows */
-    private function writeCsv(array $rows, string $path): int
-    {
-        if (! str_starts_with($path, '/')) {
-            $path = base_path($path);
-        }
-
-        @mkdir(dirname($path), 0775, true);
-
-        $handle = fopen($path, 'w');
-
-        if ($handle === false) {
-            $this->error("Ei saa faili kirjutada: {$path}");
-            return self::FAILURE;
-        }
-
-        // Header names match OutreachCsvImportService's supported columns so
-        // the same file can be fed straight back through the CSV importer.
-        fputcsv($handle, ['company', 'email', 'first_name', 'last_name', 'website', 'industry', 'notes']);
-
-        foreach ($rows as $row) {
-            fputcsv($handle, [
-                $row['company'],
-                $row['email'],
-                $row['first_name'] ?? null,
-                $row['last_name'] ?? null,
-                $row['website'],
-                $row['industry'] ?? null,
-                trim(sprintf(
-                    'ClickUp: %s %s %s',
-                    $row['status'] ?? '',
-                    $row['job_title'] ?? '',
-                    $row['url'] ?? ''
-                )),
-            ]);
-        }
-
-        fclose($handle);
-
-        $this->info("CSV kirjutatud: {$path}");
-
-        return self::SUCCESS;
-    }
-
-    /** @param array<int, array<string, mixed>> $rows */
-    private function import(array $rows, int $campaignId, OutreachCsvImportService $importer): int
+    private function import(ClickUpService $clickup, array $rows, int $campaignId, OutreachCsvImportService $importer): int
     {
         $campaign = OutreachCampaign::find($campaignId);
 
@@ -234,10 +171,7 @@ class ClickUpFetchCommand extends Command
         // Reuse the CSV importer so ClickUp rows go through exactly the same
         // dedupe/validation path as a manual upload.
         $tmp = tempnam(sys_get_temp_dir(), 'clickup_') . '.csv';
-
-        if ($this->writeCsv($rows, $tmp) !== self::SUCCESS) {
-            return self::FAILURE;
-        }
+        $clickup->writeCsv($rows, $tmp);
 
         $count = $importer->import($tmp, $campaignId);
 

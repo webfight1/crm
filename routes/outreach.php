@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Outreach\ClickUpImportController;
 use App\Http\Controllers\Outreach\OutreachController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +16,14 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
 
     // Dashboard
     Route::get('/', [OutreachController::class, 'dashboard'])->name('dashboard');
+
+    // ── ClickUp import ──────────────────────────────────────────────────────
+    Route::prefix('clickup')->name('clickup.')->group(function () {
+        Route::get ('/',          [ClickUpImportController::class, 'index'])->name('index');
+        Route::post('/preview',   [ClickUpImportController::class, 'preview'])->name('preview');
+        Route::post('/download',  [ClickUpImportController::class, 'download'])->name('download');
+        Route::post('/import',    [ClickUpImportController::class, 'import'])->name('import');
+    });
 
     // ── Email Accounts ──────────────────────────────────────────────────────
     Route::prefix('accounts')->name('accounts.')->group(function () {
