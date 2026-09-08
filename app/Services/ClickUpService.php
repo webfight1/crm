@@ -328,8 +328,13 @@ class ClickUpService
 
     private function pickCompany(array $task, array $custom): string
     {
-        return (string) ($this->pickByName($custom, '/(firma|ettev|company|klient|customer|nimi)/i')
-            ?: ($task['name'] ?? ''));
+        $name = $this->pickByName($custom, '/(firma|ettev|company|klient|customer|nimi)/i')
+            ?: ($task['name'] ?? '');
+
+        // Task names are free text and some carry real newlines, which turn
+        // one CSV row into two visual lines. Custom field values already get
+        // this treatment in customFieldValue().
+        return trim(preg_replace('/\s+/u', ' ', (string) $name));
     }
 
     private function pickEmail(array $task, array $custom): ?string
