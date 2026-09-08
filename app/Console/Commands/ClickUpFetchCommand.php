@@ -6,6 +6,7 @@ use App\Outreach\Models\OutreachCampaign;
 use App\Outreach\Services\OutreachCsvImportService;
 use App\Services\ClickUpService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Str;
 
 /**
  * Pulls rows (company name + email) out of a ClickUp list or view.
@@ -14,7 +15,7 @@ use Illuminate\Console\Command;
  *   php artisan clickup:fetch https://app.clickup.com/9015331367/v/cn/8cnp2h7-1595
  *   php artisan clickup:fetch 8cnp2h7-1595
  *   php artisan clickup:fetch 901234567 --list
- *   php artisan clickup:fetch <id> --csv=storage/app/clickup.csv
+ *   php artisan clickup:fetch <id> --contacts --csv=storage/app/clickup.csv
  *   php artisan clickup:fetch <id> --import=3          # → outreach campaign #3
  *   php artisan clickup:fetch <id> --fields            # what columns does this list have?
  *   php artisan clickup:fetch --teams                  # token smoke test
@@ -30,6 +31,7 @@ class ClickUpFetchCommand extends Command
                             {--teams : Just list the workspaces the token can see, then exit}
                             {--fields : Show the custom-field names found on the first task}
                             {--raw : Dump the raw JSON of the first task (field discovery)}
+                            {--contacts : One row per contact (Email/Email2/Email3) instead of per company}
                             {--with-empty : Keep rows that have no email}
                             {--csv= : Write the rows to this CSV path instead of a table}
                             {--import= : Import the rows into this outreach campaign id}';
@@ -71,11 +73,18 @@ class ClickUpFetchCommand extends Command
             }
 
             $rows = collect($tasks)
-                ->map(fn (array $task) => $clickup->extractRow($task))
+                ->flatMap(fn (array $task) => $this->option('contacts')
+                    ? $clickup->extractRows($task)
+                    : [$clickup->extractRow($task)])
                 ->when(! $this->option('with-empty'), fn ($rows) => $rows->filter(fn ($r) => filled($r['email'])))
                 ->values();
 
-            $this->info(sprintf('%d rida (%d ilma emailita välja filtreeritud).', $rows->count(), count($tasks) - $rows->count()));
+            $this->info(sprintf(
+                '%d taski → %d rida%s.',
+                count($tasks),
+                $rows->count(),
+                $this->option('with-empty') ? '' : ' (emailita read välja filtreeritud)'
+            ));
 
             if ($campaignId = $this->option('import')) {
                 return $this->import($rows->all(), (int) $campaignId, $importer);
@@ -86,8 +95,14 @@ class ClickUpFetchCommand extends Command
             }
 
             $this->table(
-                ['Firma', 'Email', 'Veeb', 'Staatus'],
-                $rows->map(fn ($r) => [$r['company'], $r['email'] ?? '—', $r['website'] ?? '—', $r['status'] ?? '—'])->all()
+                ['Firma', 'Kontakt', 'Email', 'Veeb', 'Staatus'],
+                $rows->map(fn ($r) => [
+                    Str::limit($r['company'], 40),
+                    trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? '')) ?: '—',
+                    $r['email'] ?? '—',
+                    Str::limit((string) ($r['website'] ?? '—'), 40),
+                    $r['status'] ?? '—',
+                ])->all()
             );
 
             return self::SUCCESS;
@@ -172,14 +187,24 @@ class ClickUpFetchCommand extends Command
             return self::FAILURE;
         }
 
-        fputcsv($handle, ['company', 'email', 'website', 'notes']);
+        // Header names match OutreachCsvImportService's supported columns so
+        // the same file can be fed straight back through the CSV importer.
+        fputcsv($handle, ['company', 'email', 'first_name', 'last_name', 'website', 'industry', 'notes']);
 
         foreach ($rows as $row) {
             fputcsv($handle, [
                 $row['company'],
                 $row['email'],
+                $row['first_name'] ?? null,
+                $row['last_name'] ?? null,
                 $row['website'],
-                $row['url'],
+                $row['industry'] ?? null,
+                trim(sprintf(
+                    'ClickUp: %s %s %s',
+                    $row['status'] ?? '',
+                    $row['job_title'] ?? '',
+                    $row['url'] ?? ''
+                )),
             ]);
         }
 
