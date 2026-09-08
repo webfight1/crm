@@ -39,6 +39,14 @@ return [
         'key' => env('OPENAI_API_KEY'),
     ],
 
+    'clickup' => [
+        // Personal API token from ClickUp → Settings → Apps ("pk_...").
+        'token' => env('CLICKUP_API_TOKEN'),
+
+        // Workspace id — the first number in an app.clickup.com URL.
+        'team_id' => env('CLICKUP_TEAM_ID'),
+    ],
+
     'pagespeed' => [
         'key' => env('PAGESPEED_API_KEY'),
     ],
