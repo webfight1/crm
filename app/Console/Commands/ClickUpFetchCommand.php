@@ -123,9 +123,15 @@ class ClickUpFetchCommand extends Command
         $isList = (bool) $this->option('list');
 
         if (str_contains($source, 'clickup.com')) {
-            if (preg_match('~/v/(li|l|b|cn|g|t|gr|em|f|doc)/([^/?\#]+)~', $source, $m)) {
-                // /v/li/<id> is a plain list; every other view type is a view id.
-                return [$m[2], $isList || $m[1] === 'li'];
+            // A list can be addressed as /v/li/<id> or /v/l/li/<id>; the `li`
+            // marker is what identifies it, not its position in the path.
+            if (preg_match('~/v/(?:[a-z]{1,3}/)?li/(\d+)~', $source, $m)) {
+                return [$m[1], true];
+            }
+
+            // Everything else after /v/ is a view id: /v/l/, /v/b/, /v/cn/, ...
+            if (preg_match('~/v/[a-z]{1,3}/([^/?\#]+)~', $source, $m)) {
+                return [$m[1], $isList];
             }
 
             if (preg_match('~clickup\.com/\d+/v/([^/?\#]+)~', $source, $m)) {
