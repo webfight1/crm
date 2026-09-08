@@ -54,6 +54,13 @@
                                 <textarea id="description" name="description" rows="2"
                                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">{{ old('description', $campaign->description) }}</textarea>
                             </div>
+                            <div>
+                                <x-input-label for="unsubscribe_html" value="Loobumisrida (kirja kõige all, allkirja järel)" />
+                                <textarea id="unsubscribe_html" name="unsubscribe_html" rows="2"
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 font-mono text-xs"
+                                    placeholder="Nt: Kui te ei soovi rohkem kirju, vastake STOP.">{{ old('unsubscribe_html', $campaign->unsubscribe_html) }}</textarea>
+                                <p class="text-xs text-gray-500 mt-1">Kuvatakse iga saadetava kirja kõige all — allkirja järel — väikeses hallis kirjas. HTML lubatud (nt loobumislink).</p>
+                            </div>
                             <div class="flex flex-col gap-3">
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" name="reply_stop_enabled" value="1" @checked(old('reply_stop_enabled', $campaign->reply_stop_enabled)) class="rounded border-gray-300 text-indigo-600">
@@ -70,6 +77,23 @@
                                     <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $campaign->is_active)) class="rounded border-gray-300 text-indigo-600">
                                     <span class="text-sm text-gray-700">Aktiivne</span>
                                 </label>
+                            </div>
+                            <div>
+                                <x-input-label value="Saatja-postkastid" />
+                                <div class="mt-1 space-y-1">
+                                    @forelse($accounts as $acc)
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                            <input type="checkbox" name="sending_account_ids[]" value="{{ $acc->id }}"
+                                                   @checked(in_array($acc->id, old('sending_account_ids', $selectedAccounts ?? [])))
+                                                   class="rounded border-gray-300 text-indigo-600">
+                                            <span class="text-gray-700">{{ $acc->name }}</span>
+                                            <span class="text-gray-400 text-xs">{{ $acc->email }}</span>
+                                        </label>
+                                    @empty
+                                        <p class="text-xs text-gray-400">Aktiivseid postkaste pole.</p>
+                                    @endforelse
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Vali, milliste postkastide alt see kampaania saadab. <strong>Tühjaks jättes</strong> kasutab kõiki aktiivseid postkaste (rotatsioon).</p>
                             </div>
                             <div>
                                 <x-input-label for="ai_prompt" value="AI prompt (valikuline)" />
@@ -129,7 +153,7 @@
                                     </div>
                                     <textarea name="body_template" rows="4"
                                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm font-mono text-sm focus:ring-indigo-500 focus:border-indigo-500">{{ $step->body_template }}</textarea>
-                                    <p class="text-xs text-gray-400 mt-1">Muutujad: &#123;&#123;first_name&#125;&#125; &#123;&#123;last_name&#125;&#125; &#123;&#123;company&#125;&#125; &#123;&#123;website&#125;&#125; &#123;&#123;lcp_mobile&#125;&#125; &#123;&#123;performance_score&#125;&#125; &#123;&#123;ai_line&#125;&#125;</p>
+                                    <p class="text-xs text-gray-400 mt-1">Muutujad: &#123;&#123;first_name&#125;&#125; &#123;&#123;last_name&#125;&#125; &#123;&#123;company&#125;&#125; &#123;&#123;company_short&#125;&#125; &#123;&#123;website&#125;&#125; &#123;&#123;lcp_mobile&#125;&#125; &#123;&#123;performance_score&#125;&#125; &#123;&#123;ai_line&#125;&#125;</p>
                                 </div>
                                 <div class="flex items-center gap-3">
                                     <x-primary-button>Salvesta samm</x-primary-button>
@@ -140,6 +164,37 @@
                                     " class="text-red-600 hover:text-red-900 text-sm">Kustuta</button>
                                 </div>
                             </form>
+
+                            {{-- Manused: eraldi vormid, sest HTML ei luba vorme pesastada --}}
+                            <div class="mt-3 pt-3 border-t border-gray-100">
+                                <p class="text-xs font-medium text-gray-600 mb-2">Manused (lisatakse igasse selle sammu kirja)</p>
+                                @if(!empty($step->attachments))
+                                    <ul class="mb-2 space-y-1">
+                                        @foreach($step->attachments as $i => $att)
+                                            <li class="flex items-center justify-between text-sm bg-gray-50 border border-gray-200 rounded px-2 py-1">
+                                                <span class="truncate">📎 {{ $att['name'] ?? 'fail' }}
+                                                    <span class="text-gray-400 text-xs">({{ number_format(($att['size'] ?? 0) / 1024, 0) }} KB)</span>
+                                                </span>
+                                                <form method="POST" action="{{ route('outreach.campaigns.steps.attachments.destroy', [$campaign, $step, $i]) }}"
+                                                      onsubmit="return confirm('Eemalda manus?')" class="ml-2 shrink-0">
+                                                    @csrf @method('DELETE')
+                                                    <button class="text-red-600 hover:text-red-800 text-xs">Eemalda</button>
+                                                </form>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                @endif
+                                <form method="POST" action="{{ route('outreach.campaigns.steps.attachments.store', [$campaign, $step]) }}"
+                                      enctype="multipart/form-data" class="flex items-center gap-2">
+                                    @csrf
+                                    <input type="file" name="attachment" required
+                                           class="text-xs text-gray-600 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-indigo-50 file:text-indigo-700 file:cursor-pointer">
+                                    <x-input-error :messages="$errors->get('attachment')" class="mt-0" />
+                                    <button class="text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 whitespace-nowrap">Lae manus</button>
+                                </form>
+                                <p class="text-xs text-gray-400 mt-1">Lubatud: PDF, pildid, Word/Excel/PPT, CSV, TXT, ZIP · max 10 MB</p>
+                            </div>
+
                             <form id="delete-step-{{ $step->id }}" method="POST" action="{{ route('outreach.campaigns.steps.destroy', [$campaign, $step]) }}" class="hidden">
                                 @csrf @method('DELETE')
                             </form>
@@ -175,8 +230,11 @@
                                             Eelvaade
                                         </button>
                                     </div>
+                                    {{-- NB: ilma HTML5 `required`-ita, sest TinyMCE peidab textarea
+                                         (display:none) → peidetud kohustuslikku välja ei saa fookustada
+                                         ja vorm ei salvestu. Kohustuslikkust valideerib server (stepsStore). --}}
                                     <textarea name="body_template" rows="4"
-                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm font-mono text-sm focus:ring-indigo-500 focus:border-indigo-500" required></textarea>
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm font-mono text-sm focus:ring-indigo-500 focus:border-indigo-500"></textarea>
                                 </div>
                                 <x-primary-button>Lisa samm</x-primary-button>
                             </form>
@@ -348,6 +406,7 @@
 
             document.querySelectorAll('.preview-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
+                    if (window.tinymce) tinymce.triggerSave();
                     const form = btn.closest('form');
                     if (!form) return;
                     const subjectEl = form.querySelector('[name="subject"]');
@@ -393,4 +452,37 @@
         })();
     </script>
     @endverbatim
+
+    {{-- WYSIWYG-redaktor kirja sisule. "<>" (Source code) nupp toolbaris
+         avab toore HTML-i, nii saab klient nii visuaalselt ehitada kui ka
+         HTML-i käsitsi muuta. Sama TinyMCE CDN, mida ülesannete moodul juba kasutab. --}}
+    @push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script>
+        window.addEventListener('load', function () {
+            if (!window.tinymce) return;
+            tinymce.init({
+                selector: 'textarea[name="body_template"]',
+                plugins: 'lists link image code fullscreen table',
+                toolbar: 'undo redo | blocks | bold italic underline forecolor backcolor | bullist numlist | link image table | code | fullscreen',
+                // Wrap teeb kõik nupud (sh "<>" HTML-vaate) alati nähtavaks,
+                // mitte "..." menüüsse peidetuks.
+                toolbar_mode: 'wrap',
+                menubar: false,
+                branding: false,
+                promotion: false,
+                license_key: 'gpl',
+                statusbar: true,
+                height: 280,
+                convert_urls: false,
+                // E-kirja HTML tuleb sailitada nii nagu on (tabelid, inline-stiilid,
+                // muutuja-kohatäited) — ära lase TinyMCE-l seda ümber kirjutada.
+                valid_elements: '*[*]',
+                extended_valid_elements: '*[*]',
+                verify_html: false,
+                content_style: 'body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;}',
+            });
+        });
+    </script>
+    @endpush
 </x-app-layout>

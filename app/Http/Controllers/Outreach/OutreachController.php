@@ -52,6 +52,64 @@ class OutreachController extends Controller
         return view('outreach.dashboard', compact('stats'));
     }
 
+    // ─── Hosted files ─────────────────────────────────────────────────────────
+    // Upload a file to public storage and get a stable public URL to paste into
+    // campaign emails as a link — instead of a heavy inline attachment.
+
+    public function filesIndex(): View
+    {
+        $disk = Storage::disk('public');
+
+        $files = collect($disk->files('outreach-files'))
+            ->map(fn ($path) => [
+                'name' => basename($path),
+                'url'  => $disk->url($path),
+                'size' => $disk->size($path),
+                'time' => $disk->lastModified($path),
+            ])
+            ->sortByDesc('time')
+            ->values();
+
+        return view('outreach.files.index', compact('files'));
+    }
+
+    public function filesStore(Request $request): RedirectResponse
+    {
+        $request->validate([
+            // 20 MB ceiling — these are hosted, not emailed, so they can be a
+            // bit larger than inline attachments.
+            'file' => [
+                'required', 'file', 'max:20480',
+                'mimes:pdf,png,jpg,jpeg,gif,webp,doc,docx,xls,xlsx,ppt,pptx,csv,txt,zip',
+            ],
+        ]);
+
+        $file = $request->file('file');
+
+        // Keep a readable, URL-safe name and prefix a short random token so two
+        // uploads of the same name never collide.
+        $base = \Illuminate\Support\Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'fail';
+        $name = \Illuminate\Support\Str::random(6) . '-' . $base . '.' . strtolower($file->getClientOriginalExtension());
+
+        $file->storeAs('outreach-files', $name, 'public');
+
+        return back()
+            ->with('success', 'Fail üles laetud — link on nimekirjas.')
+            ->with('uploaded_url', Storage::disk('public')->url('outreach-files/' . $name));
+    }
+
+    public function filesDestroy(Request $request): RedirectResponse
+    {
+        // basename() strips any path component, guarding against traversal.
+        $name = basename((string) $request->input('name'));
+
+        if ($name !== '' && $name !== '.') {
+            Storage::disk('public')->delete('outreach-files/' . $name);
+        }
+
+        return back()->with('success', 'Fail kustutatud.');
+    }
+
     // ─── Email Accounts ──────────────────────────────────────────────────────
 
     public function accountsIndex(): View
@@ -188,6 +246,7 @@ class OutreachController extends Controller
         $data = $request->validate([
             'name'               => 'required|string|max:200',
             'description'        => 'nullable|string',
+            'unsubscribe_html'   => 'nullable|string|max:10000',
             'ai_prompt'          => 'nullable|string',
             'daily_limit'        => 'nullable|integer|min:1',
             'reply_stop_enabled' => 'boolean',
@@ -195,7 +254,13 @@ class OutreachController extends Controller
             'is_active'          => 'boolean',
         ]);
 
+        $request->validate([
+            'sending_account_ids'   => 'nullable|array',
+            'sending_account_ids.*' => 'integer|exists:outreach_email_accounts,id',
+        ]);
+
         $campaign = OutreachCampaign::create($data);
+        $campaign->sendingAccounts()->sync($request->input('sending_account_ids', []));
 
         return redirect()->route('outreach.campaigns.show', $campaign)
                          ->with('success', 'Campaign created.');
@@ -203,14 +268,19 @@ class OutreachController extends Controller
 
     public function campaignsShow(OutreachCampaign $campaign): View
     {
-        $campaign->loadMissing(['steps', 'leads']);
+        $campaign->loadMissing(['steps', 'leads', 'sendingAccounts']);
         $recentLogs = OutreachSendLog::where('campaign_id', $campaign->id)
             ->with('lead')
             ->orderByDesc('created_at')
             ->limit(50)
             ->get();
 
-        return view('outreach.campaigns.show', compact('campaign', 'recentLogs'));
+        // Active mailboxes for the "send from" picker. Selected ids let the
+        // form pre-check the campaign's current choices.
+        $accounts        = OutreachEmailAccount::where('is_active', true)->orderBy('name')->get();
+        $selectedAccounts = $campaign->sendingAccounts->pluck('id')->all();
+
+        return view('outreach.campaigns.show', compact('campaign', 'recentLogs', 'accounts', 'selectedAccounts'));
     }
 
     public function campaignsUpdate(Request $request, OutreachCampaign $campaign): RedirectResponse
@@ -227,6 +297,7 @@ class OutreachController extends Controller
         $data = $request->validate([
             'name'               => 'required|string|max:200',
             'description'        => 'nullable|string',
+            'unsubscribe_html'   => 'nullable|string|max:10000',
             'ai_prompt'          => 'nullable|string',
             'daily_limit'        => 'nullable|integer|min:1',
             'reply_stop_enabled' => 'boolean',
@@ -234,7 +305,13 @@ class OutreachController extends Controller
             'is_active'          => 'boolean',
         ]);
 
+        $request->validate([
+            'sending_account_ids'   => 'nullable|array',
+            'sending_account_ids.*' => 'integer|exists:outreach_email_accounts,id',
+        ]);
+
         $campaign->update($data);
+        $campaign->sendingAccounts()->sync($request->input('sending_account_ids', []));
 
         return back()->with('success', 'Campaign updated.');
     }
@@ -278,8 +355,71 @@ class OutreachController extends Controller
 
     public function stepsDestroy(OutreachCampaign $campaign, OutreachCampaignStep $step): RedirectResponse
     {
+        // Remove any attachment files this step owns before deleting the row.
+        foreach ($step->attachments ?? [] as $a) {
+            if (! empty($a['path'])) {
+                Storage::disk('local')->delete($a['path']);
+            }
+        }
+
         $step->delete();
         return back()->with('success', 'Step removed.');
+    }
+
+    /**
+     * Upload one attachment file for a campaign step. The file is stored on the
+     * local disk under outreach/attachments/{campaign} and appended to the
+     * step's attachments JSON. OutreachMailer already knows how to attach it.
+     */
+    public function stepAttachmentsStore(Request $request, OutreachCampaign $campaign, OutreachCampaignStep $step): RedirectResponse
+    {
+        $request->validate([
+            // 10 MB ceiling keeps total message size well under Gmail's 25 MB
+            // limit even with several attachments plus the encoded body.
+            'attachment' => [
+                'required', 'file', 'max:10240',
+                'mimes:pdf,png,jpg,jpeg,gif,webp,doc,docx,xls,xlsx,ppt,pptx,csv,txt,zip',
+            ],
+        ]);
+
+        $file = $request->file('attachment');
+        $path = $file->store("outreach/attachments/{$campaign->id}", 'local');
+
+        $attachments   = $step->attachments ?? [];
+        $attachments[] = [
+            'path' => $path,
+            'name' => $file->getClientOriginalName(),
+            'mime' => $file->getClientMimeType(),
+            'size' => $file->getSize(),
+        ];
+
+        $step->update(['attachments' => $attachments]);
+
+        return back()->with('success', "Manus lisatud: {$file->getClientOriginalName()}");
+    }
+
+    /**
+     * Remove a single attachment (by its index in the step's attachments list)
+     * and delete the underlying file.
+     */
+    public function stepAttachmentsDestroy(OutreachCampaign $campaign, OutreachCampaignStep $step, int $index): RedirectResponse
+    {
+        $attachments = $step->attachments ?? [];
+
+        if (! array_key_exists($index, $attachments)) {
+            return back()->with('error', 'Manust ei leitud.');
+        }
+
+        if (! empty($attachments[$index]['path'])) {
+            Storage::disk('local')->delete($attachments[$index]['path']);
+        }
+
+        $name = $attachments[$index]['name'] ?? 'fail';
+        unset($attachments[$index]);
+        // Re-index so the JSON stays a clean list (indices used by the delete route).
+        $step->update(['attachments' => array_values($attachments)]);
+
+        return back()->with('success', "Manus eemaldatud: {$name}");
     }
 
     /**
@@ -326,6 +466,8 @@ class OutreachController extends Controller
                 'Test Recipient',
                 $subject,
                 $body,
+                attachments: $step->attachmentsForMailer(),
+                footer:      trim((string) ($campaign->unsubscribe_html ?? '')) ?: null,
             );
         } catch (\Throwable $e) {
             \Log::error('[Outreach] Test send failed', [
@@ -576,6 +718,14 @@ class OutreachController extends Controller
             ->groupBy('group_email')
             ->orderByDesc('last_received_at');
 
+        // Optional filter by the mailbox that received the reply — i.e. which
+        // sender the thread belongs to (Marius vs Kristina). Applied before the
+        // group-by so counts/pagination reflect the filtered set.
+        $mailboxId = (int) $request->query('mailbox', 0);
+        if ($mailboxId > 0) {
+            $query->where('email_account_id', $mailboxId);
+        }
+
         if ($search !== '') {
             $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $search) . '%';
             $query->where(function ($q) use ($like) {
@@ -768,6 +918,9 @@ class OutreachController extends Controller
             'leads'          => null,
             'crmLink'        => null,
             'watchedAll'     => $watchedAll,
+            // Mailbox filter (which sender the reply came back to).
+            'mailboxes'       => OutreachEmailAccount::where('is_active', true)->orderBy('name')->get(),
+            'selectedMailbox' => $mailboxId ?: null,
         ];
 
         return $data;
@@ -1032,14 +1185,6 @@ class OutreachController extends Controller
             'scheduled_at' => 'nullable|date',
         ]);
 
-        $primary = OutreachEmailAccount::primaryReplyAccount();
-        if (! $primary) {
-            return back()->with('error', 'Lisa enne põhi-postkast (Postkastid → muuda → "Põhipostkast vastusteks").');
-        }
-        if (! $primary->is_active) {
-            return back()->with('error', 'Põhipostkast on välja lülitatud — aktiveeri see enne vastamist.');
-        }
-
         $emailLower = strtolower($email);
 
         // Look up every attribution channel for this email. The thread can
@@ -1078,6 +1223,29 @@ class OutreachController extends Controller
             ->where('direction', OutreachMessage::DIRECTION_INBOUND)
             ->exists();
         abort_if(! $lead && ! $customer && ! $contact && ! $hasInboundHistory, 404);
+
+        // Reply FROM the mailbox that owns this thread — the account that
+        // received the client's message. Keeps a multi-sender setup correct:
+        // a conversation Marius started is answered from Marius, Kristina's
+        // from Kristina. Falls back to the account that sent the original,
+        // then to any active mailbox.
+        $replyAccount = null;
+        if ($ownerMsg = OutreachMessage::whereRaw('LOWER(from_email) = ?', [$emailLower])
+                ->where('direction', OutreachMessage::DIRECTION_INBOUND)
+                ->whereNotNull('email_account_id')
+                ->orderByDesc('received_at')->first()) {
+            $replyAccount = OutreachEmailAccount::find($ownerMsg->email_account_id);
+        }
+        if (! $replyAccount && $lead && $lead->assigned_email_account_id) {
+            $replyAccount = OutreachEmailAccount::find($lead->assigned_email_account_id);
+        }
+        if (! $replyAccount) {
+            $replyAccount = OutreachEmailAccount::where('is_active', true)
+                ->orderByDesc('is_primary_reply_account')->orderBy('id')->first();
+        }
+        if (! $replyAccount || ! $replyAccount->is_active) {
+            return back()->with('error', 'Vastamiseks pole aktiivset postkasti — aktiveeri mõni postkast.');
+        }
 
         // Build the In-Reply-To / References chain across all attribution
         // channels. Pick the newest prior message (lead inbound, lead outbound,
@@ -1154,7 +1322,7 @@ class OutreachController extends Controller
                 'body'               => $data['body'],
                 'in_reply_to'        => $inReplyTo,
                 'references_header'  => $references !== '' ? $references : null,
-                'account_id'         => $primary->id,
+                'account_id'         => $replyAccount->id,
                 'scheduled_at'       => $scheduledAt,
                 'status'             => OutreachScheduledReply::STATUS_PENDING,
                 'created_by_user_id' => auth()->id(),
@@ -1167,7 +1335,7 @@ class OutreachController extends Controller
 
         try {
             $sentMessageId = $mailer->send(
-                account:    $primary,
+                account:    $replyAccount,
                 toEmail:    $email,
                 toName:     $contactName !== '' ? $contactName : $email,
                 subject:    $data['subject'],
@@ -1192,13 +1360,13 @@ class OutreachController extends Controller
             'lead_id'           => $lead?->id,
             'customer_id'       => $customer?->id,
             'contact_id'        => $contact?->id,
-            'email_account_id'  => $primary->id,
+            'email_account_id'  => $replyAccount->id,
             'direction'         => OutreachMessage::DIRECTION_OUTBOUND,
             'message_id'        => $sentMessageId,
             'in_reply_to'       => $inReplyTo,
             'references_header' => $references !== '' ? $references : null,
-            'from_email'        => $primary->email,
-            'from_name'         => $primary->name,
+            'from_email'        => $replyAccount->email,
+            'from_name'         => $replyAccount->name,
             'subject'           => $data['subject'],
             'body_text'         => $data['body'],
             'body_html'         => null,

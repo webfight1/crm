@@ -38,7 +38,7 @@ class ProcessOutreachLeadsJob implements ShouldQueue
     // Working-hours window — cold-outreach best practice is to send only during
     // business hours in the recipient's region. Outside this window the cron
     // keeps running but no new jobs are dispatched; leads simply wait.
-    const WORK_HOUR_START = 9;   // inclusive (09:00)
+    const WORK_HOUR_START = 11;  // inclusive (11:00)
     const WORK_HOUR_END   = 17;  // exclusive (last dispatch minute is 16:59)
     // Days-of-week allowed (ISO: 1=Mon … 7=Sun)
     const WORK_DAYS = [1, 2, 3, 4, 5];

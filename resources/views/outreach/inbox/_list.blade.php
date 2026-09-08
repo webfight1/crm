@@ -9,10 +9,27 @@
     <div class="p-3 border-b border-gray-200 space-y-3 shrink-0">
         <form method="GET" action="{{ route('outreach.inbox.index') }}">
             <input type="hidden" name="filter" value="{{ $filter }}">
+            @if(!empty($selectedMailbox))<input type="hidden" name="mailbox" value="{{ $selectedMailbox }}">@endif
             <input type="text" name="q" value="{{ $search }}"
                    placeholder="Otsi…"
                    class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
         </form>
+
+        {{-- Mailbox filter — which sender the replies came back to (Marius / Kristina).
+             Shown only when more than one mailbox exists. Auto-submits on change. --}}
+        @if(isset($mailboxes) && $mailboxes->count() > 1)
+            <form method="GET" action="{{ route('outreach.inbox.index') }}">
+                <input type="hidden" name="filter" value="{{ $filter }}">
+                @if($search !== '')<input type="hidden" name="q" value="{{ $search }}">@endif
+                <select name="mailbox" onchange="this.form.submit()"
+                        class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                    <option value="">Kõik postkastid</option>
+                    @foreach($mailboxes as $mb)
+                        <option value="{{ $mb->id }}" @selected((int)($selectedMailbox ?? 0) === $mb->id)>{{ $mb->name }} ({{ $mb->email }})</option>
+                    @endforeach
+                </select>
+            </form>
+        @endif
 
         @php
             $chips = [
@@ -29,8 +46,9 @@
             @foreach($chips as $key => $label)
                 @php
                     $url = route('outreach.inbox.index', array_filter([
-                        'filter' => $key,
-                        'q'      => $search ?: null,
+                        'filter'  => $key,
+                        'q'       => $search ?: null,
+                        'mailbox' => $selectedMailbox ?? null,
                     ]));
                     $active = $filter === $key;
                 @endphp

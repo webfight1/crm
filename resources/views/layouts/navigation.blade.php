@@ -30,6 +30,12 @@
                         <x-nav-link :href="route('outreach.reply-templates.index')" :active="request()->routeIs('outreach.reply-templates.*')">
                             {{ __('Vastuste mallid') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('outreach.files.index')" :active="request()->routeIs('outreach.files.*')">
+                            {{ __('Failid') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('meriti.index')" :active="request()->routeIs('meriti.*')">
+                            {{ __('Meeldetuletused') }}
+                        </x-nav-link>
                     @else
                         <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                             {{ __('Töölaud') }}
@@ -192,6 +198,9 @@
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('outreach.reply-templates.index')" :active="request()->routeIs('outreach.reply-templates.*')">
                     {{ __('Vastuste mallid') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('meriti.index')" :active="request()->routeIs('meriti.*')">
+                    {{ __('Meeldetuletused') }}
                 </x-responsive-nav-link>
             @else
                 <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">

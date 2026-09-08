@@ -136,4 +136,7 @@ Route::middleware('auth')->group(function () {
 
     // ── Outreach Engine ──────────────────────────────────────────────────────
     require __DIR__ . '/outreach.php';
+
+    // ── Merit Aktiva: võlgnike meeldetuletused ────────────────────────────────
+    require __DIR__ . '/meriti.php';
 });

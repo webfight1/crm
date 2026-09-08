@@ -44,12 +44,14 @@ class OutreachMailer
         ?string              $inReplyTo = null,
         ?string              $references = null,
         array                $attachments = [],
+        ?string              $footer = null,
     ): string {
         // Append the account-level HTML signature (if set) before any branch.
         // Both the SMTP path and the Zone Relay path use the same body, so
         // doing it once here guarantees consistency across all send routes
         // and across all callers (campaign sends + manual CRM replies).
         $htmlBody = $this->withSignature($htmlBody, $account);
+        $htmlBody = $this->withFooter($htmlBody, $footer);
 
         // Branch on provider — Zone Relay accounts cannot reach SMTP from a
         // remote VPS, so route through an HMAC-authenticated HTTP endpoint
@@ -272,5 +274,24 @@ class OutreachMailer
             return $htmlBody;
         }
         return rtrim($htmlBody) . '<br><br>' . $sig;
+    }
+
+    /**
+     * Append the campaign's unsubscribe / opt-out line at the very bottom —
+     * AFTER the signature (final order: body → signature → unsubscribe).
+     * Rendered as small muted text so it reads as a legal footer rather than
+     * body copy. Skipped silently when the campaign has no footer set.
+     */
+    private function withFooter(string $htmlBody, ?string $footer): string
+    {
+        $footer = trim((string) $footer);
+        if ($footer === '') {
+            return $htmlBody;
+        }
+
+        return rtrim($htmlBody)
+            . '<br><br><div style="font-size:12px;line-height:1.4;color:#999;">'
+            . $footer
+            . '</div>';
     }
 }

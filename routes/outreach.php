@@ -16,6 +16,13 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
     // Dashboard
     Route::get('/', [OutreachController::class, 'dashboard'])->name('dashboard');
 
+    // ── Hosted files (public links to paste into campaign emails) ───────────
+    Route::prefix('files')->name('files.')->group(function () {
+        Route::get('/',    [OutreachController::class, 'filesIndex'])->name('index');
+        Route::post('/',   [OutreachController::class, 'filesStore'])->name('store');
+        Route::delete('/', [OutreachController::class, 'filesDestroy'])->name('destroy');
+    });
+
     // ── Email Accounts ──────────────────────────────────────────────────────
     Route::prefix('accounts')->name('accounts.')->group(function () {
         Route::get('/',              [OutreachController::class, 'accountsIndex'])->name('index');
@@ -40,6 +47,8 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
         Route::patch('/{campaign}/steps/{step}',               [OutreachController::class, 'stepsUpdate'])->name('steps.update');
         Route::delete('/{campaign}/steps/{step}',              [OutreachController::class, 'stepsDestroy'])->name('steps.destroy');
         Route::post('/{campaign}/steps/{step}/test-send',      [OutreachController::class, 'stepsTestSend'])->name('steps.test-send');
+        Route::post('/{campaign}/steps/{step}/attachments',            [OutreachController::class, 'stepAttachmentsStore'])->name('steps.attachments.store');
+        Route::delete('/{campaign}/steps/{step}/attachments/{index}',  [OutreachController::class, 'stepAttachmentsDestroy'])->name('steps.attachments.destroy');
 
         // Leads (nested under campaign)
         Route::get('/{campaign}/leads',                        [OutreachController::class, 'leadsIndex'])->name('leads.index');

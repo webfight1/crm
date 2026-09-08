@@ -39,8 +39,36 @@ return [
         'key' => env('OPENAI_API_KEY'),
     ],
 
+    'clickup' => [
+        // Personal API token from ClickUp → Settings → Apps ("pk_...").
+        'token' => env('CLICKUP_API_TOKEN'),
+
+        // Workspace id — the first number in an app.clickup.com URL.
+        'team_id' => env('CLICKUP_TEAM_ID'),
+    ],
+
     'pagespeed' => [
         'key' => env('PAGESPEED_API_KEY'),
+    ],
+
+    // Merit Aktiva (raamatupidamine) — võlgnike meeldetuletuste moodul.
+    // Võtmed genereeritakse Meritis: Seaded » Üldine » Andmevahetus » API.
+    'merit' => [
+        'api_id'   => env('MERIT_API_ID'),
+        'api_key'  => env('MERIT_API_KEY'),
+        'base_url' => env('MERIT_API_URL', 'https://aktiva.merit.ee/api/v1'),
+
+        // Meeldetuletuste oma saatja (eraldi outreach'ist), nt arved@kind.ee.
+        // Kui täidetud, saadetakse kirjad selle SMTP kaudu; muidu langetakse
+        // tagasi aktiivsele outreach-postkastile.
+        'mail' => [
+            'host'       => env('MERIT_MAIL_HOST'),
+            'port'       => env('MERIT_MAIL_PORT', 587),
+            'encryption' => env('MERIT_MAIL_ENCRYPTION', 'tls'),
+            'username'   => env('MERIT_MAIL_USERNAME'),
+            'password'   => env('MERIT_MAIL_PASSWORD'),
+            'from_name'  => env('MERIT_MAIL_FROM_NAME', 'KIND'),
+        ],
     ],
 
 ];

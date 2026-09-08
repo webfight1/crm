@@ -17,6 +17,7 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Allow-list (paths that remain accessible):
  *   - /outreach/*           — the feature itself
+ *   - /meriti/*             — Merit Aktiva debtor-reminder module
  *   - /login, /logout       — auth
  *   - /profile, /password   — Breeze account management
  *   - /settings/*           — app-level settings the operator may need
@@ -32,6 +33,7 @@ class EnforceOutreachOnly
     /** @var string[] Allowed top-level path prefixes when outreach-only mode is on. */
     private const ALLOWED_PREFIXES = [
         'outreach',
+        'meriti',
         'login',
         'logout',
         'profile',

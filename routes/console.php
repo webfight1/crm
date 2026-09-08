@@ -58,3 +58,25 @@ Schedule::command('outreach:send-scheduled-replies')
     ->onFailure(function () {
         \Illuminate\Support\Facades\Log::error('[Outreach] send-scheduled-replies run failed.');
     });
+
+// ─── Merit Aktiva: võlgnike meeldetuletused ───────────────────────────────────
+
+// Iga tund: kui automaatika on sees ja käes on seatud saatmistund, saada
+// üle tähtaja võlgnikele astmelised meeldetuletused. enabled/tund kontroll
+// on all (command teeb sama kontrolli topelt kaitseks).
+Schedule::command('merit:send-overdue-reminders')
+    ->hourly()
+    ->when(function (): bool {
+        try {
+            $s = \App\Models\MeritReminderSetting::first();
+
+            return $s !== null && $s->enabled && (int) now()->hour === (int) $s->send_hour;
+        } catch (\Throwable) {
+            return false; // tabel puudub / DB pole valmis
+        }
+    })
+    ->name('merit:send-overdue-reminders')
+    ->withoutOverlapping()
+    ->onFailure(function () {
+        \Illuminate\Support\Facades\Log::error('[Merit] send-overdue-reminders scheduled run failed.');
+    });
