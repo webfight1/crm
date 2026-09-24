@@ -93,6 +93,10 @@ class ProcessOutreachLeadsJob implements ShouldQueue, ShouldBeUnique
                 ->where('replied', false)
                 ->where('qualification', '!=', OutreachLead::QUALIFICATION_SKIP)
                 ->where('next_send_at', '<=', now())
+                // Only campaigns that can actually send: active and with at
+                // least one step. Otherwise every lead of a paused campaign is
+                // re-dispatched every few minutes just to be rejected.
+                ->whereHas('campaign', fn ($q) => $q->where('is_active', true)->whereHas('steps'))
                 ->where(function ($q) use ($staleCutoff) {
                     // Not currently being processed, or lock has gone stale
                     $q->whereNull('processing_since')

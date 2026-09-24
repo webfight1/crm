@@ -80,6 +80,19 @@ class OutreachEmailService
         $stepOrder = $lead->current_step + 1;
         $step      = $campaign->getStepAt($stepOrder);
 
+        if (! $step && $lead->current_step === 0) {
+            // Nothing sent yet and the campaign has no step 1 (e.g. leads were
+            // imported before the emails were written). Wait instead of
+            // closing the lead, so it goes out once the step exists.
+            $this->logger->info('[Outreach] Campaign has no first step yet, lead waits', [
+                'lead_id'     => $lead->id,
+                'campaign_id' => $campaign->id,
+            ]);
+            $lead->update(['next_send_at' => now()->addMinutes(15)]);
+            $lead->releaseProcessingLock();
+            return false;
+        }
+
         if (! $step) {
             $this->logger->info('[Outreach] No step at order, marking lead completed', [
                 'lead_id'    => $lead->id,
