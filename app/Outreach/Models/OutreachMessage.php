@@ -60,15 +60,36 @@ class OutreachMessage extends Model
                 return;
             }
 
-            $from = $msg->from_name ? "{$msg->from_name} <{$msg->from_email}>" : $msg->from_email;
+            $from    = $msg->from_name ? "{$msg->from_name} <{$msg->from_email}>" : $msg->from_email;
+            $mailbox = $msg->emailAccount?->email;
+            $context = $msg->lead?->campaign?->name
+                ? 'Kampaania: ' . $msg->lead->campaign->name
+                : ($msg->customer_id || $msg->contact_id ? 'CRM klient' : null);
 
             \App\Support\Telegram::send(
                 "📩 Uus kiri (" . config('app.name') . ")\n"
                 . "Kellelt: {$from}\n"
+                . ($mailbox ? "Postkast: {$mailbox}\n" : '')
+                . ($context ? "{$context}\n" : '')
                 . 'Teema: ' . ($msg->subject ?: '(teemata)') . "\n"
-                . route('outreach.inbox.index')
+                . self::inboxThreadUrl($msg->from_email)
             );
         });
+    }
+
+    /**
+     * Deep link to the inbox thread for a sender — same base64url encoding
+     * the inbox index view uses for the {emailEncoded} route segment.
+     */
+    public static function inboxThreadUrl(?string $email): string
+    {
+        if (! $email) {
+            return route('outreach.inbox.index');
+        }
+
+        $encoded = rtrim(strtr(base64_encode(strtolower($email)), '+/', '-_'), '=');
+
+        return route('outreach.inbox.thread', $encoded);
     }
 
     public function lead(): BelongsTo

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Support\Telegram;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -40,6 +41,15 @@ class AppServiceProvider extends ServiceProvider
                 . Str::limit($event->message, 300)
                 . ($detail && $detail !== $event->message ? "\n" . Str::limit((string) $detail, 500) : '')
             );
+        });
+
+        // Hourly Telegram digest. Registered here rather than in
+        // routes/console.php so the same patch applies to every CRM instance.
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            $schedule->command('outreach:telegram-summary')
+                ->hourly()
+                ->name('outreach:telegram-summary')
+                ->withoutOverlapping();
         });
     }
 }
