@@ -23,8 +23,10 @@ Schedule::job(new ProcessOutreachLeadsJob, 'outreach')
         \Illuminate\Support\Facades\Log::error('[Outreach] ProcessOutreachLeadsJob scheduled run failed.');
     });
 
-// Every 5 minutes: check all inboxes via IMAP for lead replies
-Schedule::job(new CheckOutreachRepliesJob, 'outreach')
+// Every 5 minutes: check all inboxes via IMAP for lead replies.
+// IMAP jobs run on the outreach-inbox worker: a slow/broken mailbox can take
+// minutes and must not block SendOutreachEmailJob on the 'outreach' queue.
+Schedule::job(new CheckOutreachRepliesJob, 'outreach-inbox')
     ->everyFiveMinutes()
     ->name('outreach:check-replies')
     ->withoutOverlapping(10)
@@ -33,7 +35,7 @@ Schedule::job(new CheckOutreachRepliesJob, 'outreach')
     });
 
 // Every 15 minutes: scan inboxes for NDRs and mark bounced leads
-Schedule::job(new CheckOutreachBouncesJob, 'outreach')
+Schedule::job(new CheckOutreachBouncesJob, 'outreach-inbox')
     ->everyFifteenMinutes()
     ->name('outreach:check-bounces')
     ->withoutOverlapping(10)
