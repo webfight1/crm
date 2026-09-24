@@ -307,18 +307,28 @@ class OutreachController extends Controller
             return back()->with('error', 'Aktiivset e-posti kontot ei leitud. Lisa/aktiveeri konto.');
         }
 
-        // Populate an unsaved lead with sample data for realistic rendering.
-        $sampleLead = new OutreachLead([
-            'first_name'        => 'Mari',
-            'last_name'         => 'Maasikas',
-            'email'             => $data['test_email'],
-            'company'           => 'Näidis OÜ',
-            'website'           => 'https://naide.ee',
-            'industry'          => 'E-kaubandus',
-            'lcp_mobile'        => '2.8s',
-            'performance_score' => 45,
-            'ai_line'           => 'Märkasin, et teie avaleht laeb mobiilis aeglaselt.',
-        ]);
+        // Render with the campaign's first real lead so campaign-specific
+        // fields (ranking, design age, ai_line…) show up as they will live.
+        // Fall back to an unsaved sample lead when the campaign is empty.
+        $sampleLead = $campaign->leads()
+            ->where('qualification', OutreachLead::QUALIFICATION_LEAD)
+            ->orderBy('id')
+            ->first()
+            ?? new OutreachLead([
+                'first_name'        => 'Mari',
+                'last_name'         => 'Maasikas',
+                'email'             => $data['test_email'],
+                'company'           => 'Näidis OÜ',
+                'website'           => 'https://naide.ee',
+                'industry'          => 'E-kaubandus',
+                'lcp_mobile'        => '2.8s',
+                'performance_score' => 45,
+                'serp_keyword'      => 'elektritööd tartus',
+                'serp_position'     => 14,
+                'serp_page'         => 2,
+                'serp_competitors'  => 'elektriktartus.ee, areselekter.ee, tartuelekter.ee',
+                'ai_line'           => 'Märkasin, et teie avaleht laeb mobiilis aeglaselt.',
+            ]);
 
         $subject = '[TEST] ' . $step->renderSubject($sampleLead);
         $body    = $step->renderBody($sampleLead);
@@ -491,6 +501,10 @@ class OutreachController extends Controller
             'industry',
             'lcp_mobile',
             'performance_score',
+            'keyword',
+            'position',
+            'google_page',
+            'competitors',
             'notes',
             'qualification',
             'custom_line',
@@ -505,6 +519,10 @@ class OutreachController extends Controller
             'E-kaubandus',
             '2.8s',
             '45',
+            'elektritööd tartus',
+            '14',
+            '2',
+            'elektriktartus.ee, areselekter.ee',
             'Aeglane mobiilis',
             'lead',
             'Märkasin, et teie avaleht laeb mobiilis aeglaselt.',
