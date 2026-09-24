@@ -49,6 +49,28 @@ class OutreachMessage extends Model
         'imap_uid'        => 'integer',
     ];
 
+    protected static function booted(): void
+    {
+        // Telegram alert for a freshly received reply. The received_at guard
+        // keeps IMAP backfills of old mail from flooding the chat.
+        static::created(function (OutreachMessage $msg) {
+            if ($msg->direction !== self::DIRECTION_INBOUND
+                || ($msg->received_at && $msg->received_at->lt(now()->subHours(2)))
+            ) {
+                return;
+            }
+
+            $from = $msg->from_name ? "{$msg->from_name} <{$msg->from_email}>" : $msg->from_email;
+
+            \App\Support\Telegram::send(
+                "📩 Uus kiri\n"
+                . "Kellelt: {$from}\n"
+                . 'Teema: ' . ($msg->subject ?: '(teemata)') . "\n"
+                . route('outreach.inbox.index')
+            );
+        });
+    }
+
     public function lead(): BelongsTo
     {
         return $this->belongsTo(OutreachLead::class, 'lead_id');

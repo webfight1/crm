@@ -35,6 +35,11 @@ return [
         ],
     ],
 
+    'telegram' => [
+        'token'   => env('TELEGRAM_BOT_TOKEN'),
+        'chat_id' => env('TELEGRAM_CHAT_ID'),
+    ],
+
     'openai' => [
         'key' => env('OPENAI_API_KEY'),
     ],
