@@ -68,6 +68,7 @@ class OutreachCampaignStep extends Model
             '{{company}}'           => $lead->company ?? '',
             '{{company_short}}'     => $lead->companyShort(),
             '{{website}}'           => $lead->website ?? '',
+            '{{domain}}'            => $this->domainOf($lead->website),
             '{{industry}}'          => $lead->industry ?? '',
             '{{email}}'             => $lead->email,
             '{{lcp}}'               => $lead->lcp_mobile ?? '',
@@ -81,6 +82,14 @@ class OutreachCampaignStep extends Model
             '{{design_age}}'        => $lead->design_age !== null
                                         ? (string) $lead->design_age
                                         : '',
+            '{{keyword}}'           => $lead->serp_keyword ?? '',
+            '{{position}}'          => $lead->serp_position !== null
+                                        ? (string) $lead->serp_position
+                                        : '',
+            '{{google_page}}'       => $lead->serp_page !== null
+                                        ? (string) $lead->serp_page
+                                        : '',
+            '{{competitors}}'       => $lead->serp_competitors ?? '',
             // ai_line is written to lead.ai_line by OutreachEmailService
             // before render is called, so reading it here is always safe.
             '{{ai_line}}'           => $lead->ai_line ?? '',
@@ -90,5 +99,17 @@ class OutreachCampaignStep extends Model
         // substitutions in a single pass with no risk of one replacement
         // containing a placeholder that gets substituted again.
         return strtr($template, $variables);
+    }
+
+    /** "https://www.elin.ee/foo" → "elin.ee" */
+    private function domainOf(?string $website): string
+    {
+        if (! $website) {
+            return '';
+        }
+
+        $host = parse_url(str_contains($website, '://') ? $website : "https://{$website}", PHP_URL_HOST);
+
+        return $host ? preg_replace('/^www\./i', '', $host) : $website;
     }
 }

@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
  *   Required : email
  *   Optional : first_name, last_name, company, website, industry,
  *              lcp_mobile, performance_score, design_year, design_age,
+ *              keyword, position, google_page, competitors,
  *              notes, qualification
  *   Special  : custom_line — if present and non-empty, its value is stored as
  *              ai_line verbatim, bypassing the OpenAI generation entirely.
@@ -24,6 +25,9 @@ use Illuminate\Support\Facades\DB;
  *                       imported but ignored by the send pipeline.
  *   performance_score — integer 0-100, clamped.
  *   lcp_mobile        — free-form string (e.g. "2.5s") rendered as {{lcp}}.
+ *   keyword / position / google_page / competitors — Google ranking data,
+ *                       rendered as {{keyword}}, {{position}}, {{google_page}},
+ *                       {{competitors}}.
  *
  * Column order does not matter; matching is done by header name.
  * Missing optional columns are silently skipped.
@@ -112,6 +116,7 @@ class OutreachCsvImportService
             'email', 'first_name', 'last_name',
             'company', 'website', 'industry',
             'lcp_mobile', 'performance_score', 'design_year', 'design_age',
+            'keyword', 'position', 'google_page', 'competitors',
             'notes', 'qualification',
             'custom_line',
         ] as $col) {
@@ -166,6 +171,17 @@ class OutreachCsvImportService
                 ? max(0, min(255, (int) $designAgeRaw))
                 : null;
 
+            // Google ranking: position/page are positive integers or null
+            $positionRaw = $this->col($row, $colMap, 'position');
+            $position = is_numeric($positionRaw) && (int) $positionRaw > 0
+                ? min(65535, (int) $positionRaw)
+                : null;
+
+            $pageRaw = $this->col($row, $colMap, 'google_page');
+            $page = is_numeric($pageRaw) && (int) $pageRaw > 0
+                ? min(255, (int) $pageRaw)
+                : null;
+
             $batch[] = [
                 'campaign_id'       => $campaignId,
                 'email'             => $email,
@@ -178,6 +194,10 @@ class OutreachCsvImportService
                 'performance_score' => $performanceScore,
                 'design_year'       => $designYear,
                 'design_age'        => $designAge,
+                'serp_keyword'      => $this->col($row, $colMap, 'keyword'),
+                'serp_position'     => $position,
+                'serp_page'         => $page,
+                'serp_competitors'  => $this->col($row, $colMap, 'competitors'),
                 'notes'             => $this->col($row, $colMap, 'notes'),
                 'qualification'     => $qualification,
                 // custom_line in the CSV pre-fills ai_line, skipping OpenAI generation
