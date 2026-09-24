@@ -36,7 +36,7 @@ class AppServiceProvider extends ServiceProvider
 
             Telegram::sendThrottled(
                 $event->message,
-                "❌ CRM viga (" . config('app.env') . ")\n"
+                "❌ " . config('app.name') . " viga\n"
                 . Str::limit($event->message, 300)
                 . ($detail && $detail !== $event->message ? "\n" . Str::limit((string) $detail, 500) : '')
             );
