@@ -37,6 +37,9 @@ use Throwable;
  */
 class ReplyDetectionService
 {
+    private const INITIAL_SCAN_DAYS = 3;
+    private const MAX_MESSAGES_PER_ACCOUNT = 250;
+
     /**
      * Subject prefixes that indicate a genuine human reply.
      * Intentionally a small, high-precision list.
@@ -142,6 +145,8 @@ class ReplyDetectionService
             $flags,
         );
 
+        self::applyImapTimeouts();
+
         $imap = @imap_open(
             $mailbox,
             $account->imap_username,
@@ -157,74 +162,261 @@ class ReplyDetectionService
         return $imap;
     }
 
+    /**
+     * c-client blocks inside C code, where the queue worker's pcntl timeout
+     * can't interrupt it — a stalled server would hang the job indefinitely.
+     * Bounded socket timeouts make every IMAP call fail fast instead.
+     */
+    public static function applyImapTimeouts(): void
+    {
+        imap_timeout(IMAP_OPENTIMEOUT, 15);
+        imap_timeout(IMAP_READTIMEOUT, 30);
+        imap_timeout(IMAP_WRITETIMEOUT, 30);
+        imap_timeout(IMAP_CLOSETIMEOUT, 10);
+    }
+
     // ─── Detection Logic ────────────────────────────────────────────────────
 
     /** @param resource $imap */
     private function detectReplies($imap, OutreachEmailAccount $account): int
     {
-        $detected = 0;
+        return $this->importRecentMessages($imap, $account);
+    }
 
-        // Selection rules per mailbox role:
-        //
-        //   PRIMARY REPLY ACCOUNT (e.g. veiko@webfight.ee)
-        //     Every conversation we've ever started stays in scope. After
-        //     handoff, clients may keep replying here for weeks; we don't
-        //     filter by replied/status/assignment.
-        //
-        //   COLD-SEND MAILBOX (every other mailbox)
-        //     Two distinct selection paths combined with OR:
-        //       (a) "First-reply detection" — leads still in active sequence
-        //           assigned to THIS mailbox. The first reply flips replied=true.
-        //       (b) "Always-listening" — every qualified lead (replied=true)
-        //           regardless of which mailbox they were originally assigned
-        //           to. This catches the common scenario where a former lead
-        //           writes a fresh email to ANY of our cold mailboxes — even
-        //           one that didn't originally contact them. Without this
-        //           branch, those messages would be silently lost.
+    /**
+     * Fast path: import each new inbox message once, then match locally.
+     *
+     * Gmail IMAP gets slow when asked hundreds of separate FROM searches.
+     * A per-account UID cursor keeps each poll bounded to the messages that
+     * arrived since the last successful run.
+     *
+     * @param resource $imap
+     */
+    private function importRecentMessages($imap, OutreachEmailAccount $account): int
+    {
+        $messageNums = $this->recentMessageNumbers($imap, $account);
+        if (empty($messageNums)) {
+            $account->forceFill(['last_reply_checked_at' => now()])->saveQuietly();
+            return 0;
+        }
+
+        $context = $this->buildMatchingContext($account);
+        $detected = 0;
+        $maxUid = $account->last_reply_check_uid;
+
+        foreach ($messageNums as $msgNum) {
+            $uid = imap_uid($imap, $msgNum);
+            if ($uid !== false) {
+                $maxUid = max((int) ($maxUid ?? 0), (int) $uid);
+            }
+
+            $rawHeaders = @imap_fetchheader($imap, $msgNum);
+            if (! $rawHeaders || $this->isAutomatedSender($rawHeaders)) {
+                continue;
+            }
+
+            if ($this->matchAndPersistMessage($imap, $msgNum, $rawHeaders, $account, $context)) {
+                $detected++;
+            }
+        }
+
+        $account->forceFill([
+            'last_reply_check_uid'  => $maxUid,
+            'last_reply_checked_at' => now(),
+        ])->saveQuietly();
+
+        $this->logger->info('[Outreach] Reply import cursor updated', [
+            'account'  => $account->email,
+            'checked'  => count($messageNums),
+            'detected' => $detected,
+            'last_uid' => $maxUid,
+        ]);
+
+        return $detected;
+    }
+
+    /** @param resource $imap */
+    private function recentMessageNumbers($imap, OutreachEmailAccount $account): array
+    {
+        $lastUid = $account->last_reply_check_uid
+            ?: OutreachMessage::where('email_account_id', $account->id)->max('imap_uid');
+
+        $count = @imap_num_msg($imap);
+        if (! $count) {
+            return [];
+        }
+
+        $start = max(1, $count - self::MAX_MESSAGES_PER_ACCOUNT + 1);
+        $messageNums = range($start, $count);
+
+        if (! $lastUid) {
+            return $messageNums;
+        }
+
+        // One UID FETCH for everything newer than the cursor instead of an
+        // imap_uid() round-trip per message. "n:*" returns the newest message
+        // even when n is past the end, hence the uid > lastUid filter.
+        $overview = @imap_fetch_overview($imap, ((int) $lastUid + 1) . ':*', FT_UID) ?: [];
+
+        $newNums = [];
+        foreach ($overview as $item) {
+            if ((int) $item->uid > (int) $lastUid) {
+                $newNums[] = (int) $item->msgno;
+            }
+        }
+        sort($newNums);
+
+        // Oldest first: when far behind, the cursor catches up over several
+        // polls instead of skipping the backlog.
+        return array_slice($newNums, 0, self::MAX_MESSAGES_PER_ACCOUNT);
+    }
+
+    private function buildMatchingContext(OutreachEmailAccount $account): array
+    {
         $leadQuery = OutreachLead::query()
             ->whereHas('sendLogs', fn($q) => $q->where('status', OutreachSendLog::STATUS_SENT))
             ->with(['sendLogs' => fn($q) => $q->where('status', OutreachSendLog::STATUS_SENT)
-                                              ->orderBy('sent_at')]);
+                ->orderBy('sent_at')]);
 
         if (! $account->is_primary_reply_account) {
             $leadQuery->where(function ($q) use ($account) {
                 $q->where(function ($firstReply) use ($account) {
                     $firstReply->where('assigned_email_account_id', $account->id)
-                               ->where('replied', false)
-                               ->where('status', OutreachLead::STATUS_ACTIVE);
+                        ->where('replied', false);
                 })->orWhere('replied', true);
             });
         }
 
         $leads = $leadQuery->get();
+        $leadsByEmail = $leads->keyBy(fn($lead) => strtolower(trim($lead->email)));
+        $leadsById = $leads->keyBy('id');
+        $messageIds = [];
 
-        // Strategy A + B are lead-scoped — only run them when there's at
-        // least one matching lead, otherwise they'd build empty index maps
-        // and exit anyway. Strategy C is independent (CRM Customers /
-        // Contacts + watched-email allowlist) and MUST run on every poll
-        // regardless of lead state — otherwise a CRM where every campaign
-        // is paused stops listening for direct client mail entirely.
-        if ($leads->isNotEmpty()) {
-            // Strategy A: header-based Message-ID matching (lead-only —
-            // Customers and Contacts have no outbound message_ids to
-            // match against).
-            $detected += $this->detectByMessageId($imap, $leads, $account);
-
-            // Strategy B: sender-address search runs against every lead in
-            // scope. The "always-listening" extension means qualified leads
-            // are deliberately kept in scope on cold mailboxes too, so any
-            // fresh inbound from them (including stand-alone messages with
-            // no In-Reply-To) is captured.
-            $detected += $this->detectBySenderAddress($imap, $leads, $account);
+        foreach ($leads as $lead) {
+            foreach ($lead->sendLogs as $log) {
+                if ($log->message_id) {
+                    $messageIds[$this->stripAngleBrackets($log->message_id)] = $lead;
+                }
+            }
         }
 
-        // Strategy C: scan for inbound from any Customer or Contact whose
-        // email is registered in the main CRM tables, even if they were
-        // never an outreach lead. Captures direct business correspondence
-        // into the unified inbox. Always runs.
-        $detected += $this->detectCrmContacts($imap, $account);
+        OutreachMessage::where('direction', OutreachMessage::DIRECTION_OUTBOUND)
+            ->whereIn('lead_id', $leads->pluck('id'))
+            ->whereNotNull('message_id')
+            ->get(['lead_id', 'message_id'])
+            ->each(function ($msg) use (&$messageIds, $leadsById) {
+                if ($lead = $leadsById->get($msg->lead_id)) {
+                    $messageIds[$this->stripAngleBrackets($msg->message_id)] = $lead;
+                }
+            });
 
-        return $detected;
+        $knownSenders = [];
+
+        Customer::whereNotNull('email')->where('email', '!=', '')
+            ->select('id', 'email')
+            ->get()
+            ->each(function ($customer) use (&$knownSenders) {
+                $knownSenders[strtolower(trim($customer->email))]['customer'] = $customer;
+            });
+
+        Contact::whereNotNull('email')->where('email', '!=', '')
+            ->select('id', 'email')
+            ->get()
+            ->each(function ($contact) use (&$knownSenders) {
+                $knownSenders[strtolower(trim($contact->email))]['contact'] = $contact;
+            });
+
+        OutreachWatchedEmail::select('id', 'email')
+            ->get()
+            ->each(function ($watched) use (&$knownSenders) {
+                $knownSenders[strtolower(trim($watched->email))]['watched'] = $watched;
+            });
+
+        foreach ($knownSenders as $email => $links) {
+            if ($lead = $leadsByEmail->get($email)) {
+                $knownSenders[$email]['lead'] = $lead;
+            }
+        }
+
+        $ownMailboxes = OutreachEmailAccount::pluck('email')
+            ->map(fn($email) => strtolower(trim((string) $email)))
+            ->all();
+
+        foreach ($ownMailboxes as $own) {
+            unset($knownSenders[$own]);
+        }
+
+        return compact('leadsByEmail', 'messageIds', 'knownSenders');
+    }
+
+    /** @param resource $imap */
+    private function matchAndPersistMessage(
+        $imap,
+        int $msgNum,
+        string $rawHeaders,
+        OutreachEmailAccount $account,
+        array $context,
+    ): bool {
+        $fromRaw = $this->extractHeader($rawHeaders, 'From');
+        [, $fromEmail] = $this->parseFromHeader($fromRaw);
+        $fromKey = strtolower(trim((string) $fromEmail));
+        // Hash lookup per referenced ID instead of scanning every sent
+        // Message-ID for every incoming message.
+        $threadHeaders = $this->extractHeader($rawHeaders, 'In-Reply-To') . ' '
+            . $this->extractHeader($rawHeaders, 'References');
+        preg_match_all('/<([^<>\s]+)>/', $threadHeaders, $m);
+        $referencedIds = $m[1] ?: preg_split('/\s+/', trim($threadHeaders), -1, PREG_SPLIT_NO_EMPTY);
+
+        foreach ($referencedIds as $referencedId) {
+            if ($lead = $context['messageIds'][$referencedId] ?? null) {
+                $created = $this->persistMessage($imap, $msgNum, $rawHeaders, $account, lead: $lead);
+                $this->markLeadRepliedOnce($lead, 'message_id', $referencedId);
+                return $created;
+            }
+        }
+
+        if ($fromKey !== '' && isset($context['knownSenders'][$fromKey])) {
+            $links = $context['knownSenders'][$fromKey];
+            $lead = $links['lead'] ?? $context['leadsByEmail']->get($fromKey);
+            $created = $this->persistMessage(
+                $imap,
+                $msgNum,
+                $rawHeaders,
+                $account,
+                lead: $lead,
+                customer: $links['customer'] ?? null,
+                contact: $links['contact'] ?? null,
+            );
+
+            if (isset($links['watched'])) {
+                $links['watched']->forceFill(['last_scanned_at' => now()])->saveQuietly();
+            }
+            if ($lead) {
+                $this->markLeadRepliedOnce($lead, 'known_sender', $fromKey);
+            }
+
+            return $created;
+        }
+
+        if ($fromKey !== '' && ($lead = $context['leadsByEmail']->get($fromKey))) {
+            if ($this->hasReplyHeader($rawHeaders) || $this->hasReplySubject($rawHeaders)) {
+                $created = $this->persistMessage($imap, $msgNum, $rawHeaders, $account, lead: $lead);
+                $this->markLeadRepliedOnce($lead, 'sender_address');
+                return $created;
+            }
+        }
+
+        return false;
+    }
+
+    private function markLeadRepliedOnce(OutreachLead $lead, string $method, ?string $detail = null): void
+    {
+        if ($lead->replied) {
+            return;
+        }
+
+        $lead->markReplied();
+        $this->audit->replyDetected($lead->id, $method, $detail);
     }
 
     // ─── Strategy A ─────────────────────────────────────────────────────────
@@ -670,7 +862,7 @@ class ReplyDetectionService
         ?OutreachLead        $lead     = null,
         ?Customer            $customer = null,
         ?Contact             $contact  = null,
-    ): void {
+    ): bool {
         try {
             $uid = imap_uid($imap, $msgNum);
             if ($uid === false) {
@@ -683,7 +875,7 @@ class ReplyDetectionService
                     ->where('imap_uid', $uid)
                     ->exists()
             ) {
-                return;
+                return false;
             }
 
             $messageId = $this->stripAngleBrackets($this->extractHeader($rawHeaders, 'Message-ID'));
@@ -712,7 +904,7 @@ class ReplyDetectionService
                     'account_id' => $account->id,
                     'msg_num'    => $msgNum,
                 ]);
-                return;
+                return false;
             }
 
             $msg = OutreachMessage::firstOrCreate(
@@ -746,6 +938,8 @@ class ReplyDetectionService
                 OutreachArchivedThread::where('email_lower', strtolower($msg->from_email))
                     ->delete();
             }
+
+            return $msg->wasRecentlyCreated;
         } catch (Throwable $e) {
             $this->logger->error('[Outreach] Failed to persist reply message', [
                 'lead_id'     => $lead?->id,
@@ -755,6 +949,7 @@ class ReplyDetectionService
                 'msg_num'     => $msgNum,
                 'error'       => $e->getMessage(),
             ]);
+            return false;
         }
     }
 

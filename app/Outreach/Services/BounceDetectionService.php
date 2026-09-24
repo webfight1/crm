@@ -140,6 +140,8 @@ class BounceDetectionService
             $flags,
         );
 
+        ReplyDetectionService::applyImapTimeouts();
+
         $imap = @imap_open($mailbox, $account->imap_username, $account->imap_password);
 
         if ($imap === false) {

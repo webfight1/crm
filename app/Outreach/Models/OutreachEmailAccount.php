@@ -42,6 +42,8 @@ class OutreachEmailAccount extends Model
         'consecutive_failures',
         'last_error',
         'disabled_at',
+        'last_reply_check_uid',
+        'last_reply_checked_at',
     ];
 
     protected $casts = [
@@ -54,6 +56,8 @@ class OutreachEmailAccount extends Model
         'last_sent_at'             => 'datetime',
         'consecutive_failures'     => 'integer',
         'disabled_at'              => 'datetime',
+        'last_reply_check_uid'      => 'integer',
+        'last_reply_checked_at'     => 'datetime',
     ];
 
     protected $hidden = ['smtp_password', 'imap_password', 'relay_secret'];
