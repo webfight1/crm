@@ -20,24 +20,25 @@ class Telegram
             && filled(config('services.telegram.chat_id'));
     }
 
-    public static function send(string $text): void
+    public static function send(string $text): bool
     {
         if (! self::enabled()) {
-            return;
+            return false;
         }
 
         try {
-            Http::timeout(5)->post(
+            return Http::timeout(5)->post(
                 'https://api.telegram.org/bot' . config('services.telegram.token') . '/sendMessage',
                 [
                     'chat_id' => config('services.telegram.chat_id'),
                     'text'    => mb_substr($text, 0, 4000), // Telegram hard limit is 4096
                     'disable_web_page_preview' => true,
                 ]
-            );
+            )->successful();
         } catch (Throwable) {
             // Swallow on purpose: an alert failure must never break the app,
             // and logging it would re-trigger the error-log listener.
+            return false;
         }
     }
 

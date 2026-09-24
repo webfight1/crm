@@ -12,6 +12,18 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+Artisan::command('telegram:test', function () {
+    if (! \App\Support\Telegram::enabled()) {
+        $this->error('TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID pole seadistatud.');
+        return 1;
+    }
+    if (! \App\Support\Telegram::send('✅ CRM testteade ' . now()->format('d.m.Y H:i'))) {
+        $this->error('Saatmine ebaõnnestus (vale token/chat_id või võrguviga).');
+        return 1;
+    }
+    $this->info('Testteade saadetud.');
+})->purpose('Send a test message to the Telegram alert chat');
+
 // ─── Outreach Engine Scheduler ────────────────────────────────────────────────
 
 // Every minute: find leads ready to send and dispatch per-lead jobs
