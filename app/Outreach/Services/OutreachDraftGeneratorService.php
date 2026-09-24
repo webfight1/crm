@@ -223,6 +223,10 @@ SYS;
                 '{{email}}'        => (string) ($lead->email ?? ''),
                 '{{design_year}}'  => (string) ($lead->design_year ?? ''),
                 '{{design_age}}'   => (string) ($lead->design_age ?? ''),
+                '{{keyword}}'      => (string) ($lead->serp_keyword ?? ''),
+                '{{position}}'     => (string) ($lead->serp_position ?? ''),
+                '{{google_page}}'  => (string) ($lead->serp_page ?? ''),
+                '{{competitors}}'  => (string) ($lead->serp_competitors ?? ''),
             ]);
             $system .= "\n\nKAMPAANIA-SPETSIIFILISED JUHISED:\n" . $extra;
         }

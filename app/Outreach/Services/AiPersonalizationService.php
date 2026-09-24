@@ -169,6 +169,10 @@ class AiPersonalizationService
                 '{{lcp_mobile}}'        => $lead->lcp_mobile !== null
                                             ? (string) $lead->lcp_mobile
                                             : '',
+                '{{keyword}}'           => $lead->serp_keyword      ?? '',
+                '{{position}}'          => (string) ($lead->serp_position ?? ''),
+                '{{google_page}}'       => (string) ($lead->serp_page ?? ''),
+                '{{competitors}}'       => $lead->serp_competitors  ?? '',
             ]);
 
             // Append universal output-format constraints so the result is always

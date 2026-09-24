@@ -85,6 +85,10 @@
                                     <code class="bg-gray-100 px-1 rounded">&#123;&#123;first_name&#125;&#125;</code>
                                     <code class="bg-gray-100 px-1 rounded">&#123;&#123;last_name&#125;&#125;</code>
                                     <code class="bg-gray-100 px-1 rounded">&#123;&#123;email&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;keyword&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;position&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;google_page&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;competitors&#125;&#125;</code>
                                 </p>
                             </div>
 
@@ -108,6 +112,10 @@
                                     <code class="bg-gray-100 px-1 rounded">&#123;&#123;company&#125;&#125;</code>
                                     <code class="bg-gray-100 px-1 rounded">&#123;&#123;website&#125;&#125;</code>
                                     <code class="bg-gray-100 px-1 rounded">&#123;&#123;first_name&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;keyword&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;position&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;google_page&#125;&#125;</code>
+                                    <code class="bg-gray-100 px-1 rounded">&#123;&#123;competitors&#125;&#125;</code>
                                     <code class="bg-gray-100 px-1 rounded">&#123;&#123;industry&#125;&#125;</code>.
                                     Kehtib ainult AI mustandite genereerimisel — <strong>ai_line</strong> väli seda ei kasuta.
                                 </p>
