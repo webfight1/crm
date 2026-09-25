@@ -210,7 +210,7 @@ SYS;
 
         // SEO Playbook guidelines for leads with ranking data — the
         // operator's evolving house rules, shared by every SEO campaign.
-        $playbook = $lead->serp_keyword ? trim(\App\Seo\Playbook::get('ai.email_guidelines')) : '';
+        $playbook = config('app.seo_pipeline') && $lead->serp_keyword ? trim(\App\Seo\Playbook::get('ai.email_guidelines')) : '';
         if ($playbook !== '') {
             $system .= "\n\nSEO MÜÜGIKIRJA JUHISED (Playbook):\n"
                 . "Märksõna: {$lead->serp_keyword}; Google positsioon: " . ($lead->serp_position ?? '?')

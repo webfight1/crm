@@ -106,7 +106,7 @@ class OutreachLead extends Model
         // create the warm client, audit, draft an offer (App\Seo\Jobs).
         // Delay lets ReplyDetectionService persist the reply message first.
         static::updated(function (OutreachLead $lead) {
-            if ($lead->wasChanged('replied') && $lead->replied && $lead->serp_keyword) {
+            if (config('app.seo_pipeline') && $lead->wasChanged('replied') && $lead->replied && $lead->serp_keyword) {
                 \App\Seo\Jobs\HandleSeoReplyJob::dispatch($lead->id)->delay(now()->addMinutes(2));
             }
         });

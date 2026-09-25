@@ -137,6 +137,8 @@ Route::middleware('auth')->group(function () {
     // ── Outreach Engine ──────────────────────────────────────────────────────
     require __DIR__ . '/outreach.php';
 
-    // ── SEO pipeline (Playbook, audits) ──────────────────────────────────────
-    require __DIR__ . '/seo.php';
+    // ── SEO pipeline (Playbook, audits) — only where enabled ─────────────────
+    if (config('app.seo_pipeline')) {
+        require __DIR__ . '/seo.php';
+    }
 });

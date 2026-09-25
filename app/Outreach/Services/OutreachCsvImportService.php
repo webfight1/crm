@@ -113,7 +113,7 @@ class OutreachCsvImportService
 
         // Normalise: lowercase + trim, then apply the SEO Playbook header
         // aliases ("Märksõna" → keyword) so SEO-monitor exports import as-is.
-        $filter  = SerpLeadFilter::fromPlaybook();
+        $filter  = config('app.seo_pipeline') ? SerpLeadFilter::fromPlaybook() : new SerpLeadFilter();
         $headers = $filter->mapHeaders(array_map(fn($h) => mb_strtolower(trim($h)), $rawHeaders));
 
         // Map column names to their array index

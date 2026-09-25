@@ -92,9 +92,11 @@
                             <x-nav-dropdown-link :href="route('outreach.clickup.index')" :active="request()->routeIs('outreach.clickup.*')">
                                 {{ __('ClickUpi import') }}
                             </x-nav-dropdown-link>
+                            @if(config('app.seo_pipeline'))
                             <x-nav-dropdown-link :href="route('seo.playbook')" :active="request()->routeIs('seo.*')">
                                 {{ __('SEO Playbook') }}
                             </x-nav-dropdown-link>
+                            @endif
                         </x-nav-dropdown>
                     @endif
                 </div>
@@ -262,9 +264,11 @@
                     <x-responsive-nav-link :href="route('email-logs.index')" :active="request()->routeIs('email-logs.*')">
                         {{ __('Logid') }}
                     </x-responsive-nav-link>
+                    @if(config('app.seo_pipeline'))
                     <x-responsive-nav-link :href="route('seo.playbook')" :active="request()->routeIs('seo.*')">
                         {{ __('SEO Playbook') }}
                     </x-responsive-nav-link>
+                    @endif
                 </div>
             @endif
         </div>

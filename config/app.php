@@ -31,6 +31,13 @@ return [
     'outreach_only' => env('OUTREACH_ONLY_MODE', false),
 
     /*
+    | SEO sales pipeline (App\Seo, /seo). Off by default so other instances
+    | built from this repo (e.g. KIND) never run it; webfight CRM sets
+    | SEO_PIPELINE_ENABLED=true.
+    */
+    'seo_pipeline' => (bool) env('SEO_PIPELINE_ENABLED', false),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
