@@ -22,12 +22,13 @@ class SeoAudit extends Model
     public const RESULT_SKIP = 'skip';
 
     protected $fillable = [
-        'lead_id', 'deal_id', 'quotation_id', 'url', 'keyword', 'page_source', 'page_note', 'status',
-        'score', 'results', 'summary', 'error', 'completed_at',
+        'lead_id', 'deal_id', 'quotation_id', 'url', 'keyword', 'page_source', 'page_note', 'site_type', 'site_type_note', 'status',
+        'score', 'results', 'extras', 'summary', 'error', 'completed_at',
     ];
 
     protected $casts = [
         'results'      => 'array',
+        'extras'       => 'array',
         'score'        => 'integer',
         'completed_at' => 'datetime',
     ];

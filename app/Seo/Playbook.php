@@ -26,6 +26,7 @@ class Playbook
         'ai'     => 'AI juhised',
         'auto'   => 'Automaatika',
         'clarify' => 'Täpsustuskiri soojale kliendile',
+        'eshop'   => 'E-pood',
         'offer'  => 'Pakkumine',
     ];
 
@@ -76,6 +77,13 @@ class Playbook
             'default' => "Kirjuta kliendile arusaadavalt, ilma žargoonita. Alusta kõige suurema mõjuga probleemist.\nMax 3 lõiku. Ära hirmuta, ole konkreetne.",
             'label'   => 'Auditi kokkuvõtte juhised',
             'help'    => 'Kuidas AI auditi tulemused kliendile kokku võtab (see tekst läheb pakkumise kirjeldusse).',
+        ],
+
+        'ai.category_guidelines' => [
+            'section' => 'ai', 'type' => 'textarea',
+            'default' => "Hea nimi = sama sõnastus, mida inimesed Google'is kasutavad (levinuim sünonüüm, mitmus/ainsus nagu otsingutes).\nBrändinimed, „Soodustus“, „Uued tooted“, „Muu“ jms: ok=true, neid ei hinda.\nParem nimi olgu lühike ja loomulik, mitte märksõnadega üle kuhjatud.",
+            'label'   => 'E-poe kategooriate hindamise juhised',
+            'help'    => 'Kuidas AI otsustab, kas kategooria nimi vastab sellele, mida inimesed otsivad (võrdleb Google\'i otsingusoovitustega).',
         ],
 
         // ── Automation ──────────────────────────────────────────────────────
@@ -143,6 +151,18 @@ class Playbook
             'default' => 'Ma ei leidnud teie kodulehelt fraasile „{{keyword}}“ eraldi lehte. Kas selline leht on olemas? Kui jah, saatke palun link.',
             'label'   => '{{page_question}}, kui lehte ei leitud',
             'help'    => '',
+        ],
+
+        // ── E-shop ──────────────────────────────────────────────────────────
+        'eshop.max_categories' => [
+            'section' => 'eshop', 'type' => 'int', 'default' => '15',
+            'label'   => 'Mitu kategooriat analüüsida',
+            'help'    => 'Iga kategooria kohta küsitakse Google\'i otsingusoovitused. Rohkem = täpsem, aga aeglasem.',
+        ],
+        'eshop.category_match_pct' => [
+            'section' => 'eshop', 'type' => 'int', 'default' => '70',
+            'label'   => 'Kategooriate kontroll on korras alates (%)',
+            'help'    => 'Kui suur osa kategooriatest peab olema sõnastatud nagu otsingud.',
         ],
 
         // ── Offer ───────────────────────────────────────────────────────────

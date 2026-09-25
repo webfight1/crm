@@ -122,7 +122,7 @@
             <div id="checks" class="bg-white shadow-sm rounded-lg overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-200">
                     <h3 class="text-lg font-semibold">Auditi kontrollnimekiri</h3>
-                    <p class="text-sm text-gray-500">Sisseehitatud kontrollid mõõdab kood. <strong>AI-kontrolli</strong> kirjutad ise tavakeeles küsimusena ja AI vastab lehe sisu põhjal. Kui kontroll kukub läbi ja sellel on hinnaga parandus, läheb parandus pakkumisse eraldi reana.</p>
+                    <p class="text-sm text-gray-500">Sisseehitatud kontrollid mõõdab kood. <strong>AI-kontrolli</strong> kirjutad ise tavakeeles küsimusena ja AI vastab lehe sisu põhjal. Kui kontroll kukub läbi ja sellel on hinnaga parandus, läheb parandus pakkumisse eraldi reana. <strong>Kehtib</strong> määrab, kas kontroll tehakse kõigile, ainult kodulehtedele või ainult e-poodidele (audit tuvastab saidi tüübi ise).</p>
                 </div>
 
                 @foreach($checks as $c)
@@ -130,6 +130,9 @@
                         <summary class="cursor-pointer px-6 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm">
                             <span class="inline-block w-2 h-2 rounded-full {{ $c->enabled ? 'bg-green-500' : 'bg-gray-300' }}"></span>
                             <span class="flex-1 {{ $c->enabled ? 'text-gray-900' : 'text-gray-400' }}">{{ $c->label }}</span>
+                            @if($c->applies_to !== 'all')
+                                <span class="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800">{{ $c->applies_to === 'eshop' ? 'e-pood' : 'koduleht' }}</span>
+                            @endif
                             <span class="text-xs px-2 py-0.5 rounded {{ $c->isBuiltin() ? 'bg-gray-100 text-gray-600' : 'bg-purple-100 text-purple-700' }}">{{ $c->isBuiltin() ? 'sisseehitatud' : 'AI' }}</span>
                             <span class="text-xs text-gray-500 w-16 text-right">kaal {{ $c->weight }}</span>
                             <span class="text-xs text-gray-700 w-24 text-right tabular-nums">{{ $c->fix_price ? number_format((float) $c->fix_price, 0, ',', ' ') . ' €' : '—' }}</span>

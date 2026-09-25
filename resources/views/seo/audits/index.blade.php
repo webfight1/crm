@@ -15,7 +15,7 @@
 
             <div class="bg-white shadow-sm rounded-lg p-6">
                 <h3 class="font-semibold mb-3">Auditeeri leht käsitsi</h3>
-                <form method="POST" action="{{ route('seo.audits.store') }}" class="grid md:grid-cols-5 gap-3">
+                <form method="POST" action="{{ route('seo.audits.store') }}" class="grid md:grid-cols-6 gap-3">
                     @csrf
                     <div class="md:col-span-2">
                         <x-input-label value="Leht" />
@@ -26,11 +26,18 @@
                         <x-input-label value="Märksõna (valikuline)" />
                         <x-text-input name="keyword" class="mt-1 block w-full" placeholder="nt: elektritööd tartus" />
                     </div>
+                    <div>
+                        <x-input-label value="Saidi tüüp" />
+                        <select name="site_type" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm text-sm">
+                            <option value="">Tuvasta ise</option>
+                            @foreach(\App\Seo\Services\SiteTypeDetector::LABELS as $k => $l)<option value="{{ $k }}">{{ $l }}</option>@endforeach
+                        </select>
+                    </div>
                     <div class="flex items-end">
                         <x-primary-button class="w-full justify-center">Käivita</x-primary-button>
                     </div>
                 </form>
-                <p class="mt-2 text-xs text-gray-500">SEO-leadidele, kes vastavad huviga, käivitub audit automaatselt (Playbook → Automaatika).</p>
+                <p class="mt-2 text-xs text-gray-500">Kui annad ainult domeeni ja märksõna, otsib audit ise märksõna lehe. SEO-leadidele, kes vastavad huviga, käivitub audit automaatselt (Playbook → Automaatika).</p>
             </div>
 
             <div class="bg-white shadow-sm rounded-lg overflow-x-auto">

@@ -3,9 +3,17 @@
     @csrf
     @if($method !== 'POST') @method($method) @endif
 
-    <div class="md:col-span-4">
+    <div class="md:col-span-3">
         <x-input-label value="Nimetus" />
         <x-text-input name="label" :value="$check?->label" required class="mt-1 block w-full" placeholder="nt: Teenuste lehtedel on hinnainfo" />
+    </div>
+    <div>
+        <x-input-label value="Kehtib" />
+        <select name="applies_to" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm text-sm">
+            @foreach(\App\Seo\Models\SeoAuditCheck::APPLIES_TO as $k => $l)
+                <option value="{{ $k }}" @selected(($check?->applies_to ?? 'all') === $k)>{{ $l }}</option>
+            @endforeach
+        </select>
     </div>
     <div>
         <x-input-label value="Kaal (1–5)" />

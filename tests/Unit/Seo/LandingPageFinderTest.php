@@ -3,6 +3,7 @@
 namespace Tests\Unit\Seo;
 
 use App\Seo\Services\LandingPageFinder;
+use App\Seo\Services\SiteCrawler;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -27,7 +28,7 @@ class LandingPageFinderTest extends TestCase
             'katus.ee/*' => Http::response($this->page('Katus OÜ', 'Tere tulemast')),
         ]);
 
-        $r = (new LandingPageFinder())->find('katus.ee', 'katusetööd tartu');
+        $r = (new LandingPageFinder(new SiteCrawler()))->find('katus.ee', 'katusetööd tartu');
 
         $this->assertSame('found', $r['source']);
         $this->assertSame('https://katus.ee/teenused/katusetood-tartus', $r['url']);
@@ -43,7 +44,7 @@ class LandingPageFinderTest extends TestCase
             'volt.ee/*'          => Http::response($this->page('Volt OÜ', 'Volt', '<nav><a href="/p/12">Elektritööd</a><a href="/kontakt">Kontakt</a></nav>')),
         ]);
 
-        $r = (new LandingPageFinder())->find('https://volt.ee', 'elektritööd tartus');
+        $r = (new LandingPageFinder(new SiteCrawler()))->find('https://volt.ee', 'elektritööd tartus');
 
         $this->assertSame('found', $r['source']);
         $this->assertSame('https://volt.ee/p/12', $r['url']);
@@ -58,7 +59,7 @@ class LandingPageFinderTest extends TestCase
             'uks.ee/*'          => Http::response($this->page('Uksed Tallinnas – Uks OÜ', 'Uksed')),
         ]);
 
-        $finder = new LandingPageFinder();
+        $finder = new LandingPageFinder(new SiteCrawler());
         $this->assertSame('home', $finder->find('uks.ee', 'uksed tallinn')['source']);
         $this->assertSame('none', $finder->find('uks.ee', 'aknad tartu')['source']);
     }

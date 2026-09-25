@@ -29,6 +29,12 @@
                             @if($audit->page_note)<span class="text-gray-500"> · {{ $audit->page_note }}</span>@endif
                         </p>
                     @endif
+                    @if($audit->site_type)
+                        <p><span class="text-gray-500">Saidi tüüp:</span>
+                            <strong>{{ \App\Seo\Services\SiteTypeDetector::LABELS[$audit->site_type] ?? $audit->site_type }}</strong>
+                            @if($audit->site_type_note)<span class="text-gray-500"> · {{ $audit->site_type_note }}</span>@endif
+                        </p>
+                    @endif
                     @if($audit->lead?->seo_stage)
                         <p><span class="text-gray-500">Täpsustuskiri:</span>
                             {{ ['clarify_drafted' => 'mustand postkastis, saatmata', 'awaiting_answer' => 'saadetud, ootab vastust', 'answered' => 'klient vastas'][$audit->lead->seo_stage] ?? $audit->lead->seo_stage }}
@@ -128,6 +134,35 @@
                                     @if($r['value'] !== null && $r['value'] !== '')<div class="text-xs text-gray-400">{{ \Illuminate\Support\Str::limit($r['value'], 160) }}</div>@endif
                                 </td>
                                 <td class="px-4 py-2 text-right text-gray-500">{{ $r['weight'] }}</td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+
+            @if($audit->extras['categories'] ?? null)
+                <div class="bg-white shadow-sm rounded-lg overflow-x-auto">
+                    <div class="px-4 py-3 border-b border-gray-200">
+                        <h3 class="font-semibold">E-poe kategooriad vs Google'i otsingud</h3>
+                        <p class="text-xs text-gray-500">Otsingusoovitused = mida inimesed Google'isse trükivad (Eesti, eesti keel).</p>
+                    </div>
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50 text-xs text-gray-500 uppercase text-left">
+                            <tr><th class="px-4 py-2 w-20"></th><th class="px-4 py-2">Kategooria</th><th class="px-4 py-2">Parem nimi</th><th class="px-4 py-2">Google'i soovitused</th></tr>
+                        </thead>
+                        <tbody>
+                        @foreach($audit->extras['categories'] as $c)
+                            <tr class="border-t border-gray-100 align-top">
+                                <td class="px-4 py-2">
+                                    @if($c['ok'] === true)<span class="text-green-700 bg-green-50 px-2 py-0.5 rounded text-xs">OK</span>
+                                    @elseif($c['ok'] === false)<span class="text-red-700 bg-red-50 px-2 py-0.5 rounded text-xs">Muuta</span>
+                                    @else<span class="text-gray-500 bg-gray-100 px-2 py-0.5 rounded text-xs">?</span>@endif
+                                </td>
+                                <td class="px-4 py-2"><a href="{{ $c['url'] }}" target="_blank" rel="noopener" class="text-indigo-600">{{ $c['name'] }}</a>
+                                    @if($c['reason'] ?? null)<div class="text-xs text-gray-500">{{ $c['reason'] }}</div>@endif</td>
+                                <td class="px-4 py-2 font-medium">{{ $c['better'] ?? '' }}</td>
+                                <td class="px-4 py-2 text-xs text-gray-500">{{ implode(' · ', $c['suggestions'] ?? []) }}</td>
                             </tr>
                         @endforeach
                         </tbody>

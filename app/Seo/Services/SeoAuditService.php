@@ -29,6 +29,8 @@ class SeoAuditService
         private readonly SeoAi $ai,
         private readonly PageSpeedService $pageSpeed,
         private readonly LandingPageFinder $finder,
+        private readonly SiteTypeDetector $siteType,
+        private readonly EshopAnalyzer $eshop,
     ) {}
 
     /** How the audited page was chosen (seo_audits.page_source). */
@@ -52,6 +54,12 @@ class SeoAuditService
         }
         $url = $this->resolvePage($audit, $url);
 
+        // Branch: e-shop or regular website — decides which checks apply.
+        if (! $audit->site_type) {
+            $t = $this->siteType->detect($url);
+            $audit->update(['site_type' => $t['type'], 'site_type_note' => $t['note']]);
+        }
+
         try {
             $response = Http::withOptions(['allow_redirects' => ['max' => 5], 'verify' => false])
                 ->timeout(self::FETCH_TIMEOUT)
@@ -71,8 +79,9 @@ class SeoAuditService
         $finalUrl = (string) ($response->effectiveUri() ?? $url);
         $analyzer = new PageAnalyzer($response->body(), $finalUrl, $audit->keyword);
 
-        $checks  = SeoAuditCheck::active()->get();
+        $checks  = SeoAuditCheck::active()->forSiteType($audit->site_type)->get();
         $results = [];
+        $extras  = [];
         $aiChecks = [];
 
         foreach ($checks as $check) {
@@ -80,9 +89,12 @@ class SeoAuditService
                 $aiChecks[] = $check;
                 continue;
             }
-            $r = $check->key === 'keyword_landing_page'
-                ? $this->landingCheck($audit)
-                : ($analyzer->check($check->key) ?? $this->networkCheck($check->key, $finalUrl));
+            $r = match ($check->key) {
+                'keyword_landing_page'    => $this->landingCheck($audit),
+                'eshop_product_schema'    => $this->eshop->productSchemaCheck($finalUrl),
+                'eshop_category_keywords' => $this->categoryCheck($audit, $finalUrl, $extras),
+                default => $analyzer->check($check->key) ?? $this->networkCheck($check->key, $finalUrl),
+            };
             $results[$check->key] = $this->row($check, $r);
         }
 
@@ -102,6 +114,7 @@ class SeoAuditService
         $audit->forceFill([
             'url'          => $finalUrl,
             'results'      => $ordered,
+            'extras'       => $extras ?: null,
             'score'        => $this->score($ordered),
         ]);
         $audit->summary      = $this->summarize($audit, $analyzer->facts());
@@ -135,6 +148,14 @@ class SeoAuditService
         $audit->update(['page_source' => $found['source'], 'page_note' => mb_substr($found['note'], 0, 500)]);
 
         return $found['url'] ?? $url;
+    }
+
+    /** E-shop category names vs searches; the per-category table goes to extras. */
+    private function categoryCheck(SeoAudit $audit, string $url, array &$extras): array
+    {
+        [$result, $extras['categories']] = $this->eshop->categoryCheck($url, $audit->keyword);
+
+        return $result;
     }
 
     private function landingCheck(SeoAudit $audit): array
@@ -260,6 +281,7 @@ class SeoAuditService
                 'ettevõte'        => $lead?->company,
                 'leht'            => $audit->url,
                 'lehe_valik'      => self::PAGE_SOURCES[$audit->page_source] ?? null,
+                'saidi_tüüp'      => SiteTypeDetector::LABELS[$audit->site_type] ?? null,
                 'märksõna'        => $audit->keyword,
                 'google_positsioon' => $lead?->serp_position,
                 'google_leht'     => $lead?->serp_page,

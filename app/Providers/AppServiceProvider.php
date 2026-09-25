@@ -18,7 +18,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // One site cache per request / queued job, shared by the SEO services.
+        $this->app->scoped(\App\Seo\Services\SiteCrawler::class);
     }
 
     /**

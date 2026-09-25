@@ -93,7 +93,8 @@ class HandleSeoReplyJob implements ShouldQueue
             $steps[] = $audit->status === SeoAudit::STATUS_DONE
                 ? "Audit: skoor {$audit->score}/100, " . count($audit->failedResults()) . ' puudust'
                 : "Audit ebaõnnestus: {$audit->error}";
-            $steps[] = 'Leht: ' . (SeoAuditService::PAGE_SOURCES[$audit->page_source] ?? '—') . " — {$audit->url}";
+            $steps[] = 'Tüüp: ' . (\App\Seo\Services\SiteTypeDetector::LABELS[$audit->site_type] ?? '—')
+                . ' · leht: ' . (SeoAuditService::PAGE_SOURCES[$audit->page_source] ?? '—') . " — {$audit->url}";
         }
 
         $clarifying = Playbook::bool('clarify.enabled');

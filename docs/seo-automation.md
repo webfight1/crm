@@ -38,6 +38,15 @@ Märksõna leht
    │     → parimad 5 lehte laaditakse, võrreldakse title + H1 märksõnaga
    │  3) ei leitud → auditeeritakse avalehte, kontroll „Märksõnal on oma leht“ kukub läbi
    ▼
+Saidi tüüp: E-POOD või KODULEHT  (hargnemine)
+   │  Tunnused: platvorm (WooCommerce, Shopify…), ostukorv, Product schema,
+   │  toodete sitemap, tooteaadressid → skoor ≥ 4 = e-pood. Käsitsi auditis saab ise valida.
+   │  Kontrolli väli „Kehtib“ (kõik / koduleht / e-pood) otsustab, mis kontrollid jooksevad.
+   │  E-poe lisakontrollid:
+   │   • kategooriate nimed vs Google'i otsingusoovitused (AI pakub parema nime)
+   │   • tootelehel Product schema
+   │   • kategoorialehel tutvustav tekst (AI-kontroll)
+   ▼
 Audit                                        [auto.audit_on_warm]
    │  Kontrollnimekiri (Playbook): sisseehitatud kontrollid + sinu AI-küsimused
    │  → kaalutud skoor 0–100 + kokkuvõte kliendile (AI juhised)
@@ -71,7 +80,9 @@ Telegram: üks kokkuvõttev teade + link auditile
 | CSV filter / veerunimed | `app/Seo/Services/SerpLeadFilter.php` (kasutab `OutreachCsvImportService`) |
 | Vastuse liigitus | `app/Seo/Services/ReplyIntentService.php` |
 | Klient + tehing | `app/Seo/Services/WarmClientService.php` |
-| Märksõna lehe leidmine | `app/Seo/Services/LandingPageFinder.php` |
+| Märksõna lehe leidmine | `app/Seo/Services/LandingPageFinder.php` (saidi lugemine: `SiteCrawler.php`) |
+| E-pood või koduleht | `app/Seo/Services/SiteTypeDetector.php` |
+| E-poe kontrollid (kategooriad, Product schema) | `app/Seo/Services/EshopAnalyzer.php` |
 | Täpsustuskiri + vastuse lugemine | `app/Seo/Services/ClarifyService.php`, `app/Seo/Jobs/HandleSeoClarifyAnswerJob.php` (käivitab `OutreachMessage::booted`) |
 | Audit | `app/Seo/Services/SeoAuditService.php`, HTML-kontrollid `PageAnalyzer.php` |
 | Pakkumine | `app/Seo/Services/SeoOfferService.php` |
@@ -93,6 +104,8 @@ Telegram: üks kokkuvõttev teade + link auditile
 - [ ] **Otsingumaht** (`search_volume`) väljaks + filter „min otsingumaht“ + `{{volume}}` kirjades.
 - [ ] **Kontaktide leidmine**: kui CSV-s pole e-posti, otsi see kodulehe kontaktlehelt või Äriregistrist.
 - [ ] **Lisamärksõnad pakkumisse**: kliendi nimetatud märksõnad, millel pole oma lehte, lisatakse pakkumisse eraldi ridadena („teenuselehe loomine“).
+- [ ] **Otsingumahud kategooriatele**: Google'i soovitused näitavad sõnastust, mitte mahtu. Täpsem oleks Keyword Planner / DataForSEO (tasuline API).
+- [ ] **E-poe täpsustuskiri**: e-poele küsida „kategooria“ asemel „leht“, ja pakkuda kategooriate ümbernimetamist.
 - [ ] **Konkurentide võrdlus auditis**: sama märksõna top 3 lehe sõnade arv ja pealkirjad.
 - [ ] **Pakettide loogika**: skoori või leidude arvu järgi S/M/L pakett üksikridade asemel.
 - [ ] **„Hiljem“ vastajad**: automaatne meeldetuletusülesanne 30/60/90 päeva pärast.
@@ -100,5 +113,6 @@ Telegram: üks kokkuvõttev teade + link auditile
 - [ ] **Kirjamallide A/B**: vastamismäär malli järgi.
 
 ## Muudatuste logi
+- 2026-09-25: Saidi tüübi hargnemine (e-pood / koduleht), kontrollide „Kehtib“, e-poe kategooriate analüüs Google'i otsingusoovitustega, Product schema.
 - 2026-09-25: Märksõna lehe leidmine (CSV `ranking_url` / sitemap / menüü), kontroll „Märksõnal on oma leht“, täpsustuskirja mustand postkastis, kliendi vastusest leht + lisamärksõnad, pakkumine pärast vastust.
 - 2026-09-24: Playbook, CSV filter, vastuste liigitus, soe klient, audit ja pakkumise mustand.

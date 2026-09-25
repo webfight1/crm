@@ -98,11 +98,13 @@ class SeoController extends Controller
             'fix_price'          => 'nullable|numeric|min:0',
             'fix_quantity'       => 'nullable|numeric|min:0',
             'fix_unit'           => 'nullable|string|max:50',
+            'applies_to'         => 'nullable|in:' . implode(',', array_keys(SeoAuditCheck::APPLIES_TO)),
             'sort_order'         => 'nullable|integer|min:0',
         ]);
         $data['enabled']      = $request->boolean('enabled');
         $data['fix_quantity'] = $data['fix_quantity'] ?? 1;
         $data['fix_unit']     = ($data['fix_unit'] ?? null) ?: 'tk';
+        $data['applies_to']   = ($data['applies_to'] ?? null) ?: 'all';
         if (! isset($data['sort_order'])) {
             unset($data['sort_order']);
         }
@@ -123,9 +125,13 @@ class SeoController extends Controller
     {
         $data = $request->validate([
             'url'     => 'required|string|max:255',
-            'keyword' => 'nullable|string|max:255',
-            'deal_id' => 'nullable|exists:deals,id',
+            'keyword'   => 'nullable|string|max:255',
+            'deal_id'   => 'nullable|exists:deals,id',
+            'site_type' => 'nullable|in:eshop,service',
         ]);
+        if (! empty($data['site_type'])) {
+            $data['site_type_note'] = 'Valitud käsitsi.';
+        }
 
         $audit = SeoAudit::create($data);
         RunSeoAuditJob::dispatch($audit->id);
