@@ -10,8 +10,10 @@ use App\Seo\Playbook;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Builds a DRAFT quotation from an audit: Playbook base items + one line per
- * failed check that has a priced fix. Never sends anything.
+ * Builds a DRAFT quotation from an audit: Playbook base items + the priced
+ * fixes of failed checks. With offer.group_items, fixes sharing a fix_group
+ * become one line ("Tehniline SEO korrastus: HTTPS, sitemap …", price = sum).
+ * Never sends anything.
  */
 class SeoOfferService
 {
@@ -87,17 +89,36 @@ class SeoOfferService
             ->orderByDesc('weight')->orderBy('sort_order')
             ->get();
 
+        $group = Playbook::bool('offer.group_items');
         $seen = array_column($items, 'description');
+        $grouped = []; // group => ['works' => string[], 'total' => float], in first-seen order
         foreach ($checks as $check) {
             if (in_array($check->fix_title, $seen, true)) {
                 continue; // several checks can share one fix
             }
             $seen[] = $check->fix_title;
+
+            if ($group && $check->fix_group) {
+                $grouped[$check->fix_group]['works'][] = $check->fix_title;
+                $grouped[$check->fix_group]['total'] = ($grouped[$check->fix_group]['total'] ?? 0)
+                    + (float) $check->fix_price * (float) $check->fix_quantity;
+                continue;
+            }
             $items[] = [
                 'description' => $check->fix_title,
                 'quantity'    => (float) $check->fix_quantity,
                 'unit'        => $check->fix_unit ?: 'tk',
                 'unit_price'  => (float) $check->fix_price,
+            ];
+        }
+
+        foreach ($grouped as $name => $g) {
+            $items[] = [
+                // quotation_items.description is varchar(255)
+                'description' => mb_substr(count($g['works']) === 1 ? $g['works'][0] : $name . ': ' . implode(', ', $g['works']), 0, 255),
+                'quantity'    => 1,
+                'unit'        => count($g['works']) === 1 ? 'tk' : 'komplekt',
+                'unit_price'  => round($g['total'], 2),
             ];
         }
 

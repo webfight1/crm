@@ -176,6 +176,11 @@ class Playbook
             'label'   => 'Alati lisatavad read',
             'help'    => 'Kujul "kirjeldus | kogus | ühik | hind". Lisanduvad auditi leidude ridadele.',
         ],
+        'offer.group_items' => [
+            'section' => 'offer', 'type' => 'bool', 'default' => '1',
+            'label'   => 'Koonda sama grupi parandused üheks reaks',
+            'help'    => 'Grupi määrad iga kontrolli juures („Grupp pakkumises“). Rea hind = grupi paranduste summa, kirjeldusse loetletakse tööd.',
+        ],
         'offer.valid_days' => [
             'section' => 'offer', 'type' => 'int', 'default' => '14',
             'label'   => 'Kehtivus (päeva)',

@@ -149,6 +149,10 @@
                     </details>
                 @endforeach
 
+                <datalist id="seo-fix-groups">
+                    @foreach($checks->pluck('fix_group')->filter()->unique() as $g)<option value="{{ $g }}">@endforeach
+                </datalist>
+
                 <div class="px-6 py-5">
                     <h4 class="font-semibold mb-3">+ Uus AI-kontroll</h4>
                     @include('seo._check_form', ['check' => null, 'action' => route('seo.checks.store'), 'method' => 'POST'])

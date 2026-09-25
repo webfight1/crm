@@ -21,7 +21,7 @@ class SeoAuditCheck extends Model
 
     protected $fillable = [
         'key', 'type', 'applies_to', 'label', 'question', 'client_explanation', 'enabled',
-        'weight', 'fix_title', 'fix_price', 'fix_quantity', 'fix_unit', 'sort_order',
+        'weight', 'fix_title', 'fix_group', 'fix_price', 'fix_quantity', 'fix_unit', 'sort_order',
     ];
 
     protected $casts = [

@@ -113,6 +113,7 @@ Telegram: üks kokkuvõttev teade + link auditile
 - [ ] **Kirjamallide A/B**: vastamismäär malli järgi.
 
 ## Muudatuste logi
+- 2026-09-26: Pakkumise read grupeeritakse (kontrolli „Grupp pakkumises“, Playbook `offer.group_items`).
 - 2026-09-25: Saidi tüübi hargnemine (e-pood / koduleht), kontrollide „Kehtib“, e-poe kategooriate analüüs Google'i otsingusoovitustega, Product schema.
 - 2026-09-25: Märksõna lehe leidmine (CSV `ranking_url` / sitemap / menüü), kontroll „Märksõnal on oma leht“, täpsustuskirja mustand postkastis, kliendi vastusest leht + lisamärksõnad, pakkumine pärast vastust.
 - 2026-09-24: Playbook, CSV filter, vastuste liigitus, soe klient, audit ja pakkumise mustand.

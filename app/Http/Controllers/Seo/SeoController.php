@@ -95,6 +95,7 @@ class SeoController extends Controller
             'client_explanation' => 'nullable|string|max:1000',
             'weight'             => 'required|integer|min:1|max:5',
             'fix_title'          => 'nullable|string|max:255',
+            'fix_group'          => 'nullable|string|max:100',
             'fix_price'          => 'nullable|numeric|min:0',
             'fix_quantity'       => 'nullable|numeric|min:0',
             'fix_unit'           => 'nullable|string|max:50',

@@ -39,9 +39,13 @@
         <x-text-input name="client_explanation" :value="$check?->client_explanation" class="mt-1 block w-full" />
     </div>
 
-    <div class="md:col-span-3">
+    <div class="md:col-span-2">
         <x-input-label value="Parandus pakkumises (rea tekst)" />
         <x-text-input name="fix_title" :value="$check?->fix_title" class="mt-1 block w-full" placeholder="tühi = ei lähe pakkumisse" />
+    </div>
+    <div>
+        <x-input-label value="Grupp pakkumises" />
+        <x-text-input name="fix_group" :value="$check?->fix_group" list="seo-fix-groups" class="mt-1 block w-full" placeholder="tühi = oma rida" />
     </div>
     <div>
         <x-input-label value="Hind €" />
