@@ -58,10 +58,13 @@ class SendScheduledOutreachRepliesCommand extends Command
                 );
 
                 // Mirror the live reply path: persist an outbound message so
-                // the inbox thread view shows it. Attribution stays null
-                // (watched-only threads); the In-Reply-To bridge in
-                // inboxThread picks it up regardless.
+                // the inbox thread view shows it. The lead (if any) is
+                // attributed so lead-level hooks (SEO clarification) see
+                // the send; the In-Reply-To bridge in inboxThread picks up
+                // watched-only threads regardless.
                 OutreachMessage::create([
+                    'lead_id'           => \App\Outreach\Models\OutreachLead::whereRaw('LOWER(email) = ?', [$row->email_lower])
+                        ->orderByDesc('updated_at')->value('id'),
                     'email_account_id'  => $row->account_id,
                     'direction'         => OutreachMessage::DIRECTION_OUTBOUND,
                     'message_id'        => $messageId,

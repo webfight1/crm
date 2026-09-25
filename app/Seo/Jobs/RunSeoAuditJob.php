@@ -16,7 +16,7 @@ class RunSeoAuditJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries   = 1;
-    public int $timeout = 180;
+    public int $timeout = 300; // page finder + audit
 
     public function __construct(public int $auditId)
     {

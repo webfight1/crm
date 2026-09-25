@@ -51,6 +51,23 @@ class OutreachMessage extends Model
 
     protected static function booted(): void
     {
+        // SEO clarification round: our reply to a lead with a clarification
+        // draft = the question went out; the lead's next inbound = the answer.
+        static::created(function (OutreachMessage $msg) {
+            if (! config('app.seo_pipeline') || ! $msg->lead_id || ! $msg->lead) {
+                return;
+            }
+            $lead = $msg->lead;
+
+            if ($msg->direction === self::DIRECTION_OUTBOUND && $lead->seo_stage === 'clarify_drafted') {
+                $lead->update(['seo_stage' => 'awaiting_answer']);
+            } elseif ($msg->direction === self::DIRECTION_INBOUND && $lead->seo_stage === 'awaiting_answer'
+                && (! $msg->received_at || $msg->received_at->gt(now()->subDays(2)))
+            ) {
+                \App\Seo\Jobs\HandleSeoClarifyAnswerJob::dispatch($lead->id)->delay(now()->addMinutes(2));
+            }
+        });
+
         // Telegram alert for a freshly received reply. The received_at guard
         // keeps IMAP backfills of old mail from flooding the chat.
         static::created(function (OutreachMessage $msg) {

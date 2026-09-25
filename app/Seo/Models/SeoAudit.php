@@ -22,7 +22,7 @@ class SeoAudit extends Model
     public const RESULT_SKIP = 'skip';
 
     protected $fillable = [
-        'lead_id', 'deal_id', 'quotation_id', 'url', 'keyword', 'status',
+        'lead_id', 'deal_id', 'quotation_id', 'url', 'keyword', 'page_source', 'page_note', 'status',
         'score', 'results', 'summary', 'error', 'completed_at',
     ];
 

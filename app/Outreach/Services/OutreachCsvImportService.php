@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
  *   Required : email
  *   Optional : first_name, last_name, company, website, industry,
  *              lcp_mobile, performance_score, design_year, design_age,
- *              keyword, position, google_page, competitors,
+ *              keyword, position, google_page, competitors, ranking_url,
  *              notes, qualification
  *   Special  : custom_line — if present and non-empty, its value is stored as
  *              ai_line verbatim, bypassing the OpenAI generation entirely.
@@ -29,6 +29,8 @@ use Illuminate\Support\Facades\DB;
  *   keyword / position / google_page / competitors — Google ranking data,
  *                       rendered as {{keyword}}, {{position}}, {{google_page}},
  *                       {{competitors}}.
+ *   ranking_url       — the page Google shows for the keyword; the SEO audit
+ *                       checks this page instead of searching for one.
  *
  * Column order does not matter; matching is done by header name. Header
  * aliases and skip rules come from the SEO Playbook (SerpLeadFilter), e.g.
@@ -122,7 +124,7 @@ class OutreachCsvImportService
             'email', 'first_name', 'last_name',
             'company', 'website', 'industry',
             'lcp_mobile', 'performance_score', 'design_year', 'design_age',
-            'keyword', 'position', 'google_page', 'competitors',
+            'keyword', 'position', 'google_page', 'competitors', 'ranking_url',
             'notes', 'qualification',
             'custom_line',
         ] as $col) {
@@ -217,6 +219,7 @@ class OutreachCsvImportService
                 'serp_position'     => $position,
                 'serp_page'         => $page,
                 'serp_competitors'  => $this->col($row, $colMap, 'competitors'),
+                'serp_url'          => mb_substr((string) $this->col($row, $colMap, 'ranking_url'), 0, 500) ?: null,
                 'notes'             => $notes,
                 'qualification'     => $qualification,
                 // custom_line in the CSV pre-fills ai_line, skipping OpenAI generation

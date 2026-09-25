@@ -29,18 +29,11 @@ class ReplyIntentService
     /** @return array{intent:string, reason:?string} */
     public function classify(OutreachLead $lead): array
     {
-        $message = OutreachMessage::where('lead_id', $lead->id)
-            ->where('direction', OutreachMessage::DIRECTION_INBOUND)
-            ->latest('received_at')
-            ->first();
-
+        $message = self::latestReply($lead);
         if (! $message) {
             return ['intent' => 'unclear', 'reason' => 'Vastuse sisu ei leitud.'];
         }
-
-        $body = trim((string) ($message->body_text ?: strip_tags((string) $message->body_html)));
-        // Drop the quoted original — only the new part matters.
-        $body = mb_substr(preg_split('/\n\s*(>|On .+ wrote:|.+ kirjutas:)/u', $body)[0] ?? $body, 0, 3000);
+        $body = self::replyText($message);
 
         $answer = $this->ai->json(
             "Liigita müügikirjale saadud vastus. Kiri pakkus SEO teenust (Google'i positsiooni parandamist).\n"
@@ -58,5 +51,21 @@ class ReplyIntentService
         }
 
         return ['intent' => $intent, 'reason' => isset($answer['reason']) ? mb_substr((string) $answer['reason'], 0, 250) : null];
+    }
+
+    public static function latestReply(OutreachLead $lead): ?OutreachMessage
+    {
+        return OutreachMessage::where('lead_id', $lead->id)
+            ->where('direction', OutreachMessage::DIRECTION_INBOUND)
+            ->latest('received_at')
+            ->first();
+    }
+
+    /** The new part of a reply — quoted original dropped, max 3000 chars. */
+    public static function replyText(OutreachMessage $message): string
+    {
+        $body = trim((string) ($message->body_text ?: strip_tags((string) $message->body_html)));
+
+        return mb_substr(preg_split('/\n\s*(>|On .+ wrote:|.+ kirjutas:)/u', $body)[0] ?? $body, 0, 3000);
     }
 }

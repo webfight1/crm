@@ -60,4 +60,11 @@ class PageAnalyzerTest extends TestCase
         $this->assertFalse(PageAnalyzer::containsKeyword('Santehnika Tartus', 'elektritööd tartus'));
         $this->assertFalse(PageAnalyzer::containsKeyword(null, 'elektritööd'));
     }
+
+    public function test_keyword_coverage_folds_diacritics_for_url_slugs(): void
+    {
+        $this->assertSame(1.0, PageAnalyzer::keywordCoverage('teenused katusetood tartus', 'katusetööd tartu'));
+        $this->assertSame(0.5, PageAnalyzer::keywordCoverage('teenused katusetood', 'katusetööd tartu'));
+        $this->assertSame(0.0, PageAnalyzer::keywordCoverage('', 'katusetööd'));
+    }
 }

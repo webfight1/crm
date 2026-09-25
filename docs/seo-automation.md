@@ -32,11 +32,26 @@ Vastus (IMAP, iga 5 min)
 Soe klient                                   [auto.create_client]
    │  Ettevõte + klient (prospect) + tehing (etapp: auto.deal_stage)
    ▼
+Märksõna leht
+   │  1) CSV veerg ranking_url (Google'i reastuv leht) → seda kasutatakse
+   │  2) muidu otsitakse: sitemap + avalehe menüülingid → URL/lingitekst
+   │     → parimad 5 lehte laaditakse, võrreldakse title + H1 märksõnaga
+   │  3) ei leitud → auditeeritakse avalehte, kontroll „Märksõnal on oma leht“ kukub läbi
+   ▼
 Audit                                        [auto.audit_on_warm]
    │  Kontrollnimekiri (Playbook): sisseehitatud kontrollid + sinu AI-küsimused
    │  → kaalutud skoor 0–100 + kokkuvõte kliendile (AI juhised)
    ▼
-Pakkumise MUSTAND                            [auto.offer_after_audit]
+Täpsustuskiri (MUSTAND postkastis)           [clarify.enabled]
+   │  „Kas see leht on õige? Kas huvitavad ka muud märksõnad?“
+   │  Sina saadad postkastist → lead ootab vastust
+   ▼
+Kliendi vastus (HandleSeoClarifyAnswerJob)
+   │  • nimetas teise lehe → uus audit sellel lehel
+   │  • kinnitas → leht märgitakse kliendi kinnitatuks
+   │  • lisamärksõnad → igaühele otsitakse leht; puuduv leht = müügivõimalus
+   ▼
+Pakkumise MUSTAND                            [auto.offer_after_audit, clarify.wait_for_answer]
    │  põhiread + iga läbikukkunud kontrolli hinnaga parandus
    │  → Pakkumised (staatus draft). Saadad alati SINA.
    ▼
@@ -56,6 +71,8 @@ Telegram: üks kokkuvõttev teade + link auditile
 | CSV filter / veerunimed | `app/Seo/Services/SerpLeadFilter.php` (kasutab `OutreachCsvImportService`) |
 | Vastuse liigitus | `app/Seo/Services/ReplyIntentService.php` |
 | Klient + tehing | `app/Seo/Services/WarmClientService.php` |
+| Märksõna lehe leidmine | `app/Seo/Services/LandingPageFinder.php` |
+| Täpsustuskiri + vastuse lugemine | `app/Seo/Services/ClarifyService.php`, `app/Seo/Jobs/HandleSeoClarifyAnswerJob.php` (käivitab `OutreachMessage::booted`) |
 | Audit | `app/Seo/Services/SeoAuditService.php`, HTML-kontrollid `PageAnalyzer.php` |
 | Pakkumine | `app/Seo/Services/SeoOfferService.php` |
 | Voog pärast vastust | `app/Seo/Jobs/HandleSeoReplyJob.php` (käivitab `OutreachLead::booted`) |
@@ -75,6 +92,7 @@ Telegram: üks kokkuvõttev teade + link auditile
 - [ ] **SEO-monitori näidis-CSV** → kontrolli veerunimede vasteid ja lisa puuduvad.
 - [ ] **Otsingumaht** (`search_volume`) väljaks + filter „min otsingumaht“ + `{{volume}}` kirjades.
 - [ ] **Kontaktide leidmine**: kui CSV-s pole e-posti, otsi see kodulehe kontaktlehelt või Äriregistrist.
+- [ ] **Lisamärksõnad pakkumisse**: kliendi nimetatud märksõnad, millel pole oma lehte, lisatakse pakkumisse eraldi ridadena („teenuselehe loomine“).
 - [ ] **Konkurentide võrdlus auditis**: sama märksõna top 3 lehe sõnade arv ja pealkirjad.
 - [ ] **Pakettide loogika**: skoori või leidude arvu järgi S/M/L pakett üksikridade asemel.
 - [ ] **„Hiljem“ vastajad**: automaatne meeldetuletusülesanne 30/60/90 päeva pärast.
@@ -82,4 +100,5 @@ Telegram: üks kokkuvõttev teade + link auditile
 - [ ] **Kirjamallide A/B**: vastamismäär malli järgi.
 
 ## Muudatuste logi
+- 2026-09-25: Märksõna lehe leidmine (CSV `ranking_url` / sitemap / menüü), kontroll „Märksõnal on oma leht“, täpsustuskirja mustand postkastis, kliendi vastusest leht + lisamärksõnad, pakkumine pärast vastust.
 - 2026-09-24: Playbook, CSV filter, vastuste liigitus, soe klient, audit ja pakkumise mustand.

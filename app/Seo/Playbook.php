@@ -25,6 +25,7 @@ class Playbook
         'filter' => 'Leadide filter (CSV import)',
         'ai'     => 'AI juhised',
         'auto'   => 'Automaatika',
+        'clarify' => 'Täpsustuskiri soojale kliendile',
         'offer'  => 'Pakkumine',
     ];
 
@@ -47,9 +48,9 @@ class Playbook
         ],
         'filter.column_aliases' => [
             'section' => 'filter', 'type' => 'lines',
-            'default' => "märksõna = keyword\nfraas = keyword\npositsioon = position\nkoht = position\nleht = google_page\nurl = website\ndomeen = website\nkodulehekülg = website\ne-post = email\nettevõte = company",
+            'default' => "märksõna = keyword\nfraas = keyword\npositsioon = position\nkoht = position\nleht = google_page\nurl = website\nreastuv leht = ranking_url\nlanding page = ranking_url\nranking url = ranking_url\ndomeen = website\nkodulehekülg = website\ne-post = email\nettevõte = company",
             'label'   => 'CSV veerunimede vasted',
-            'help'    => 'Kujul "veerg sinu failis = süsteemi väli". Nii saab SEO-monitori ekspordi otse üles laadida. Väljad: email, company, website, keyword, position, google_page, competitors, first_name, industry.',
+            'help'    => 'Kujul "veerg sinu failis = süsteemi väli". Nii saab SEO-monitori ekspordi otse üles laadida. Väljad: email, company, website, keyword, position, google_page, competitors, ranking_url (leht, mida Google märksõnale näitab), first_name, industry.',
         ],
 
         // ── AI ──────────────────────────────────────────────────────────────
@@ -112,6 +113,36 @@ class Playbook
             'section' => 'auto', 'type' => 'int', 'default' => '0',
             'label'   => 'Tehingute omanik (kasutaja ID)',
             'help'    => '0 = esimene kasutaja süsteemis.',
+        ],
+
+        // ── Clarify ─────────────────────────────────────────────────────────
+        'clarify.enabled' => [
+            'section' => 'clarify', 'type' => 'bool', 'default' => '1',
+            'label'   => 'Koosta soojale kliendile täpsustuskirja mustand',
+            'help'    => 'Kiri küsib, kas leitud leht on õige ja kas huvitavad ka muud märksõnad. Mustand ilmub postkastis vastamisvormi — saadad SINA.',
+        ],
+        'clarify.wait_for_answer' => [
+            'section' => 'clarify', 'type' => 'bool', 'default' => '1',
+            'label'   => 'Pakkumise mustand alles pärast kliendi vastust',
+            'help'    => 'Audit tehakse kohe, et sul oleks info olemas. Kui klient nimetab vastuses teise lehe, auditeeritakse see uuesti ja pakkumine tehakse selle põhjal.',
+        ],
+        'clarify.body' => [
+            'section' => 'clarify', 'type' => 'textarea',
+            'default' => "Tere{{name}}!\n\nAitäh vastuse eest! Et analüüs oleks täpne, täpsustan kahte asja:\n\n1. {{page_question}}\n\n2. Kas lisaks fraasile „{{keyword}}“ on veel teenuseid või otsingusõnu, mille järgi tahaksite Google'is paremini leitav olla?\n\nPiisab paarist sõnast — siis saadan konkreetse ülevaate.",
+            'label'   => 'Kirja tekst',
+            'help'    => 'Kohatäited: {{name}} (", Mari" või tühi), {{company}}, {{keyword}}, {{website}}, {{landing_url}}, {{page_question}} (üks kahest allolevast lausest).',
+        ],
+        'clarify.page_found' => [
+            'section' => 'clarify', 'type' => 'textarea',
+            'default' => 'Fraasile „{{keyword}}“ vastab teie kodulehel minu hinnangul see leht: {{landing_url}} — kas see on õige leht, mida soovite Google\'is kõrgemale tõsta?',
+            'label'   => '{{page_question}}, kui leht leiti',
+            'help'    => '',
+        ],
+        'clarify.page_missing' => [
+            'section' => 'clarify', 'type' => 'textarea',
+            'default' => 'Ma ei leidnud teie kodulehelt fraasile „{{keyword}}“ eraldi lehte. Kas selline leht on olemas? Kui jah, saatke palun link.',
+            'label'   => '{{page_question}}, kui lehte ei leitud',
+            'help'    => '',
         ],
 
         // ── Offer ───────────────────────────────────────────────────────────

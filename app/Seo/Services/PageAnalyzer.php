@@ -88,27 +88,43 @@ class PageAnalyzer
      */
     public static function containsKeyword(?string $text, string $keyword): bool
     {
-        $text = mb_strtolower((string) $text);
+        return self::keywordCoverage($text, $keyword) >= 1.0;
+    }
+
+    /**
+     * Share (0–1) of the keyword's significant words whose stem appears in
+     * $text. Diacritics are folded on both sides, so URL slugs match too
+     * ("katusetood" ↔ "katusetööd").
+     */
+    public static function keywordCoverage(?string $text, string $keyword): float
+    {
+        $text = self::fold((string) $text);
         if ($text === '') {
-            return false;
+            return 0.0;
         }
 
         $words = array_filter(
-            preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower($keyword)) ?: [],
+            preg_split('/[^\p{L}\p{N}]+/u', self::fold($keyword)) ?: [],
             fn ($w) => mb_strlen($w) >= 3
         );
         if (! $words) {
-            return false;
+            return 0.0;
         }
 
+        $hits = 0;
         foreach ($words as $w) {
             $stem = mb_substr($w, 0, max(4, mb_strlen($w) - 2));
-            if (! str_contains($text, $stem)) {
-                return false;
+            if (str_contains($text, $stem)) {
+                $hits++;
             }
         }
 
-        return true;
+        return $hits / count($words);
+    }
+
+    private static function fold(string $s): string
+    {
+        return strtr(mb_strtolower($s), ['õ' => 'o', 'ä' => 'a', 'ö' => 'o', 'ü' => 'u', 'š' => 's', 'ž' => 'z']);
     }
 
     // ─── internals ───────────────────────────────────────────────────────────

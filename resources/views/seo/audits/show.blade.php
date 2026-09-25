@@ -23,6 +23,31 @@
                     <p><span class="text-gray-500">Leht:</span> <a href="{{ $audit->url }}" target="_blank" rel="noopener" class="text-indigo-600">{{ $audit->url }}</a></p>
                     <p><span class="text-gray-500">Märksõna:</span> {{ $audit->keyword ?: '—' }}
                         @if($audit->lead?->serp_position) · koht {{ $audit->lead->serp_position }} ({{ $audit->lead->serp_page }}. leht) @endif</p>
+                    @if($audit->page_source)
+                        <p><span class="text-gray-500">Lehe valik:</span>
+                            <span class="{{ $audit->page_source === 'none' ? 'text-red-600' : '' }}">{{ \App\Seo\Services\SeoAuditService::PAGE_SOURCES[$audit->page_source] ?? $audit->page_source }}</span>
+                            @if($audit->page_note)<span class="text-gray-500"> · {{ $audit->page_note }}</span>@endif
+                        </p>
+                    @endif
+                    @if($audit->lead?->seo_stage)
+                        <p><span class="text-gray-500">Täpsustuskiri:</span>
+                            {{ ['clarify_drafted' => 'mustand postkastis, saatmata', 'awaiting_answer' => 'saadetud, ootab vastust', 'answered' => 'klient vastas'][$audit->lead->seo_stage] ?? $audit->lead->seo_stage }}
+                            · <a href="{{ \App\Outreach\Models\OutreachMessage::inboxThreadUrl($audit->lead->email) }}" class="text-indigo-600">postkast →</a>
+                        </p>
+                    @endif
+                    @if($audit->lead?->seo_extra_keywords)
+                        <div><span class="text-gray-500">Kliendi lisamärksõnad:</span>
+                            <ul class="ml-4 list-disc">
+                                @foreach(\App\Seo\Playbook::parseLines($audit->lead->seo_extra_keywords) as $line)
+                                    @php [$kw, $page] = array_pad(array_map('trim', explode('|', $line, 2)), 2, ''); @endphp
+                                    <li>{{ $kw }} →
+                                        @if($page)<a href="{{ $page }}" target="_blank" rel="noopener" class="text-indigo-600">{{ $page }}</a>
+                                        @else<span class="text-red-600">oma leht puudub</span>@endif
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
                     @if($audit->lead)
                         <p><span class="text-gray-500">Lead:</span> {{ $audit->lead->email }} · {{ $audit->lead->campaign?->name }}
                             @if($audit->lead->reply_intent) · vastus: <strong>{{ \App\Seo\Services\ReplyIntentService::LABELS[$audit->lead->reply_intent] ?? $audit->lead->reply_intent }}</strong>@endif
