@@ -96,18 +96,17 @@ class BounceDetectionService
         try {
             $imap = $this->openImapConnection($account);
         } catch (Throwable $e) {
-            $this->logger->error('[Outreach] IMAP connection failed for bounce detection', [
-                'account' => $account->email,
-                'error'   => $e->getMessage(),
-            ]);
+            ImapHealth::record($account, [$e->getMessage()], $this->logger, 'bounce');
             return 0;
         }
 
+        $imapErrors = [];
         try {
             $detected = $this->detectBounces($imap, $account);
         } finally {
-            imap_close($imap);
+            $imapErrors = ImapHealth::close($imap);
         }
+        ImapHealth::record($account, $imapErrors, $this->logger, 'bounce');
 
         if ($detected > 0) {
             $this->logger->info('[Outreach] Bounce detection complete', [
@@ -146,7 +145,7 @@ class BounceDetectionService
 
         if ($imap === false) {
             throw new \RuntimeException(
-                'imap_open failed: ' . implode('; ', imap_errors() ?: ['unknown error'])
+                'imap_open failed: ' . implode('; ', ImapHealth::drain() ?: ['unknown error'])
             );
         }
 

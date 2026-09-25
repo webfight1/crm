@@ -103,18 +103,17 @@ class ReplyDetectionService
         try {
             $imap = $this->openImapConnection($account);
         } catch (Throwable $e) {
-            $this->logger->error('[Outreach] IMAP connection failed', [
-                'account' => $account->email,
-                'error'   => $e->getMessage(),
-            ]);
+            ImapHealth::record($account, [$e->getMessage()], $this->logger, 'reply');
             return 0;
         }
 
+        $imapErrors = [];
         try {
             $detected = $this->detectReplies($imap, $account);
         } finally {
-            imap_close($imap);
+            $imapErrors = ImapHealth::close($imap);
         }
+        ImapHealth::record($account, $imapErrors, $this->logger, 'reply');
 
         $this->logger->info('[Outreach] Reply detection complete', [
             'account'  => $account->email,
@@ -155,7 +154,7 @@ class ReplyDetectionService
 
         if ($imap === false) {
             throw new \RuntimeException(
-                'imap_open failed: ' . implode('; ', imap_errors() ?: ['unknown error'])
+                'imap_open failed: ' . implode('; ', ImapHealth::drain() ?: ['unknown error'])
             );
         }
 
@@ -808,7 +807,12 @@ class ReplyDetectionService
                     }
                 }
             } finally {
-                imap_close($imap);
+                if ($imapErrors = ImapHealth::close($imap)) {
+                    $this->logger->warning('[Outreach] Watched backfill IMAP errors', [
+                        'account' => $account->email,
+                        'error'   => implode('; ', $imapErrors),
+                    ]);
+                }
             }
         }
 
