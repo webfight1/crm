@@ -30,6 +30,9 @@ Vastus (IMAP, iga 5 min)
    │  • AI liigitab: huvitatud / hiljem / pole huvitatud / automaatvastus / ebaselge
    ▼
 Soe klient                                   [auto.create_client]
+   │  VÕI käsitsi: SEO → Auditid → „+ Lisa soe klient käsitsi“ (telefon, soovitus).
+   │  Luuakse lead peidetud kampaaniasse „SEO – käsitsi lisatud kliendid“ (väljas, ei saada),
+   │  AI liigitus jääb vahele, edasi täpselt sama voog.
    │  Ettevõte + klient (prospect) + tehing (etapp: auto.deal_stage)
    ▼
 Märksõna leht
@@ -113,6 +116,7 @@ Telegram: üks kokkuvõttev teade + link auditile
 - [ ] **Kirjamallide A/B**: vastamismäär malli järgi.
 
 ## Muudatuste logi
+- 2026-09-26: Sooja kliendi käsitsi lisamine (SEO → Auditid); kliendi vastus seotakse ka CRM-kliendi kaudu.
 - 2026-09-26: Pakkumise read grupeeritakse (kontrolli „Grupp pakkumises“, Playbook `offer.group_items`).
 - 2026-09-25: Saidi tüübi hargnemine (e-pood / koduleht), kontrollide „Kehtib“, e-poe kategooriate analüüs Google'i otsingusoovitustega, Product schema.
 - 2026-09-25: Märksõna lehe leidmine (CSV `ranking_url` / sitemap / menüü), kontroll „Märksõnal on oma leht“, täpsustuskirja mustand postkastis, kliendi vastusest leht + lisamärksõnad, pakkumine pärast vastust.

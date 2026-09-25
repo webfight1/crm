@@ -13,6 +13,61 @@
                 <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded">{{ session('success') }}</div>
             @endif
 
+            <details id="warm" class="bg-white shadow-sm rounded-lg" @if($errors->any() || request()->has('warm')) open @endif>
+                <summary class="cursor-pointer px-6 py-4 font-semibold">+ Lisa soe klient käsitsi</summary>
+                <form method="POST" action="{{ route('seo.warm.store') }}" class="px-6 pb-6 grid md:grid-cols-3 gap-4 text-sm">
+                    @csrf
+                    <p class="md:col-span-3 text-gray-500">Klient, kes on huvitatud, aga ei tulnud outreachi kaudu (telefon, soovitus). Edasi käib kõik nagu vastanud leadiga: klient + tehing CRM-is, audit märksõna lehel, täpsustuskirja mustand postkastis ja pakkumise mustand pärast kliendi vastust.</p>
+                        <div>
+                            <x-input-label for="w_company" value="Ettevõte *" />
+                            <x-text-input id="w_company" name="company" :value="old('company')" class="mt-1 block w-full" required />
+                            <x-input-error :messages="$errors->get('company')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="w_first_name" value="Eesnimi" />
+                            <x-text-input id="w_first_name" name="first_name" :value="old('first_name')" class="mt-1 block w-full" />
+                            <x-input-error :messages="$errors->get('first_name')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="w_last_name" value="Perenimi" />
+                            <x-text-input id="w_last_name" name="last_name" :value="old('last_name')" class="mt-1 block w-full" />
+                            <x-input-error :messages="$errors->get('last_name')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="w_email" value="E-post *" />
+                            <x-text-input id="w_email" name="email" :value="old('email')" class="mt-1 block w-full" type="email" required />
+                            <x-input-error :messages="$errors->get('email')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="w_website" value="Koduleht *" />
+                            <x-text-input id="w_website" name="website" :value="old('website')" class="mt-1 block w-full" required placeholder="firma.ee" />
+                            <x-input-error :messages="$errors->get('website')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="w_keyword" value="Märksõna *" />
+                            <x-text-input id="w_keyword" name="keyword" :value="old('keyword')" class="mt-1 block w-full" required placeholder="nt: katusetööd tartu" />
+                            <x-input-error :messages="$errors->get('keyword')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="w_position" value="Google positsioon" />
+                            <x-text-input id="w_position" name="position" :value="old('position')" class="mt-1 block w-full" type="number" min="1" />
+                            <x-input-error :messages="$errors->get('position')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="w_ranking_url" value="Reastuv leht (kui tead)" />
+                            <x-text-input id="w_ranking_url" name="ranking_url" :value="old('ranking_url')" class="mt-1 block w-full" placeholder="https://firma.ee/teenus" />
+                            <x-input-error :messages="$errors->get('ranking_url')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="w_notes" value="Märkus" />
+                            <x-text-input id="w_notes" name="notes" :value="old('notes')" class="mt-1 block w-full" placeholder="nt: helistas, soovib hinnapakkumist" />
+                        </div>
+                    <div class="md:col-span-3 flex justify-end">
+                        <x-primary-button>Lisa ja käivita</x-primary-button>
+                    </div>
+                </form>
+            </details>
+
             <div class="bg-white shadow-sm rounded-lg p-6">
                 <h3 class="font-semibold mb-3">Auditeeri leht käsitsi</h3>
                 <form method="POST" action="{{ route('seo.audits.store') }}" class="grid md:grid-cols-6 gap-3">

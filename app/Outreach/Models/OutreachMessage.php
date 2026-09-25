@@ -54,10 +54,16 @@ class OutreachMessage extends Model
         // SEO clarification round: our reply to a lead with a clarification
         // draft = the question went out; the lead's next inbound = the answer.
         static::created(function (OutreachMessage $msg) {
-            if (! config('app.seo_pipeline') || ! $msg->lead_id || ! $msg->lead) {
+            if (! config('app.seo_pipeline')) {
                 return;
             }
-            $lead = $msg->lead;
+            // Hand-added SEO clients' replies are matched to the Customer only.
+            $lead = $msg->lead_id ? $msg->lead : ($msg->customer_id
+                ? OutreachLead::where('customer_id', $msg->customer_id)->whereNotNull('seo_stage')->latest('id')->first()
+                : null);
+            if (! $lead) {
+                return;
+            }
 
             if ($msg->direction === self::DIRECTION_OUTBOUND && $lead->seo_stage === 'clarify_drafted') {
                 $lead->update(['seo_stage' => 'awaiting_answer']);

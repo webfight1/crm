@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\Customer;
 use App\Models\Deal;
 use App\Models\User;
+use App\Outreach\Models\OutreachCampaign;
 use App\Outreach\Models\OutreachLead;
 use App\Seo\Playbook;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,51 @@ use Illuminate\Support\Facades\DB;
 class WarmClientService
 {
     private const DEAL_STAGES = ['lead', 'qualified', 'proposal', 'negotiation'];
+
+    /** Hidden holder campaign for hand-added warm clients: inactive, no steps — never sends. */
+    public const MANUAL_CAMPAIGN = 'SEO – käsitsi lisatud kliendid';
+
+    /**
+     * A warm client the operator knows about from elsewhere (phone, referral).
+     * Stored as an outreach lead so the rest of the pipeline — audit,
+     * clarification e-mail, answer handling, funnel — treats it like any other.
+     * Adding the same e-mail again updates that lead.
+     */
+    public function addManual(array $data): OutreachLead
+    {
+        $campaign = OutreachCampaign::firstOrCreate(
+            ['name' => self::MANUAL_CAMPAIGN],
+            ['description' => 'Hoiab SEO lehelt käsitsi lisatud sooje kliente. Ära aktiveeri — siit ei saadeta midagi.',
+             'is_active' => false, 'daily_limit' => 0, 'reply_stop_enabled' => true, 'use_ai_line' => false],
+        );
+        if ($campaign->is_active) {
+            $campaign->update(['is_active' => false]);
+        }
+
+        $position = isset($data['position']) && $data['position'] !== null ? (int) $data['position'] : null;
+
+        $lead = OutreachLead::firstOrNew(['campaign_id' => $campaign->id, 'email' => strtolower(trim($data['email']))]);
+        $lead->fill([
+            'first_name'       => ($data['first_name'] ?? null) ?: 'Friend',
+            'last_name'        => $data['last_name'] ?? null,
+            'company'          => $data['company'],
+            'website'          => $data['website'] ?? null,
+            'serp_keyword'     => $data['keyword'],
+            'serp_position'    => $position,
+            'serp_page'        => $position ? intdiv($position - 1, 10) + 1 : null,
+            'serp_url'         => $data['ranking_url'] ?? null,
+            'notes'            => $data['notes'] ?? null,
+            'qualification'    => OutreachLead::QUALIFICATION_LEAD,
+            'status'           => OutreachLead::STATUS_COMPLETED,
+            'current_step'     => 0,
+            'seo_stage'        => null,
+            'seo_clarify_body' => null,
+        ]);
+        $lead->enrolled_at ??= now();
+        $lead->save();
+
+        return $lead;
+    }
 
     public function convert(OutreachLead $lead): Deal
     {

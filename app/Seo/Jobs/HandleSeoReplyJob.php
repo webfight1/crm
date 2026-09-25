@@ -30,7 +30,9 @@ use Illuminate\Support\Facades\Log;
  * the clarification (HandleSeoClarifyAnswerJob).
  *
  * Dispatched (delayed) from OutreachLead when `replied` flips to true on a lead
- * that has a serp_keyword. Ends with one Telegram summary.
+ * that has a serp_keyword, or with $manual = true when the operator adds a warm
+ * client by hand (SeoController::warmStore) — then classification is skipped
+ * and the client is always created. Ends with one Telegram summary.
  */
 class HandleSeoReplyJob implements ShouldQueue
 {
@@ -39,7 +41,7 @@ class HandleSeoReplyJob implements ShouldQueue
     public int $tries   = 1;
     public int $timeout = 360; // page finder (~60s) + audit: page + PageSpeed (30s) + 2 LLM calls
 
-    public function __construct(public int $leadId)
+    public function __construct(public int $leadId, public bool $manual = false)
     {
         $this->onQueue('outreach');
     }
@@ -58,9 +60,9 @@ class HandleSeoReplyJob implements ShouldQueue
             return;
         }
 
-        $steps = [];
+        $steps = $this->manual ? ['✋ Soe klient lisati käsitsi'] : [];
 
-        if (Playbook::bool('auto.classify_replies')) {
+        if (! $this->manual && Playbook::bool('auto.classify_replies')) {
             $r = $intents->classify($lead);
             $lead->update(['reply_intent' => $r['intent'], 'reply_intent_reason' => $r['reason']]);
             $steps[] = 'Vastus: ' . ReplyIntentService::LABELS[$r['intent']] . ($r['reason'] ? " — {$r['reason']}" : '');
@@ -71,7 +73,7 @@ class HandleSeoReplyJob implements ShouldQueue
             }
         }
 
-        if (! Playbook::bool('auto.create_client')) {
+        if (! $this->manual && ! Playbook::bool('auto.create_client')) {
             $this->notify($lead, $steps);
             return;
         }

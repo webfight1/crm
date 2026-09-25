@@ -53,9 +53,19 @@ class ReplyIntentService
         return ['intent' => $intent, 'reason' => isset($answer['reason']) ? mb_substr((string) $answer['reason'], 0, 250) : null];
     }
 
+    /**
+     * Latest inbound message of the lead — or of its CRM customer: replies
+     * from a hand-added warm client are matched to the Customer, not the lead
+     * (the lead has no campaign sends for ReplyDetectionService to match).
+     */
     public static function latestReply(OutreachLead $lead): ?OutreachMessage
     {
-        return OutreachMessage::where('lead_id', $lead->id)
+        return OutreachMessage::where(function ($q) use ($lead) {
+                $q->where('lead_id', $lead->id);
+                if ($lead->customer_id) {
+                    $q->orWhere('customer_id', $lead->customer_id);
+                }
+            })
             ->where('direction', OutreachMessage::DIRECTION_INBOUND)
             ->latest('received_at')
             ->first();

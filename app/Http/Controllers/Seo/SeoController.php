@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Deal;
 use App\Models\Quotation;
 use App\Outreach\Models\OutreachLead;
+use App\Seo\Jobs\HandleSeoReplyJob;
 use App\Seo\Jobs\RunSeoAuditJob;
 use App\Seo\Models\SeoAudit;
 use App\Seo\Models\SeoAuditCheck;
 use App\Seo\Playbook;
 use App\Seo\Services\ReplyIntentService;
 use App\Seo\Services\SeoOfferService;
+use App\Seo\Services\WarmClientService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -111,6 +113,29 @@ class SeoController extends Controller
         }
 
         return $data;
+    }
+
+    // ─── Hand-added warm client ─────────────────────────────────────────────
+
+    public function warmStore(Request $request, WarmClientService $clients): RedirectResponse
+    {
+        $data = $request->validate([
+            'company'     => 'required|string|max:255',
+            'first_name'  => 'nullable|string|max:100',
+            'last_name'   => 'nullable|string|max:100',
+            'email'       => 'required|email|max:255',
+            'website'     => 'required|string|max:255',
+            'keyword'     => 'required|string|max:255',
+            'position'    => 'nullable|integer|min:1|max:1000',
+            'ranking_url' => 'nullable|url|max:500',
+            'notes'       => 'nullable|string|max:2000',
+        ]);
+
+        $lead = $clients->addManual($data);
+        HandleSeoReplyJob::dispatch($lead->id, manual: true);
+
+        return redirect()->route('seo.audits.index')->with('success',
+            "„{$data['company']}“ lisatud. Klient + tehing, audit ja täpsustuskirja mustand valmivad 1–2 minutiga — teade tuleb Telegrami.");
     }
 
     // ─── Audits ─────────────────────────────────────────────────────────────

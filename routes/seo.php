@@ -19,6 +19,8 @@ Route::prefix('seo')->name('seo.')->group(function () {
     Route::patch ('/checks/{check}',        [SeoController::class, 'checksUpdate'])->name('checks.update');
     Route::delete('/checks/{check}',        [SeoController::class, 'checksDestroy'])->name('checks.destroy');
 
+    Route::post('/warm-clients',            [SeoController::class, 'warmStore'])->name('warm.store');
+
     Route::get ('/audits',                  [SeoController::class, 'auditsIndex'])->name('audits.index');
     Route::post('/audits',                  [SeoController::class, 'auditsStore'])->name('audits.store');
     Route::get ('/audits/{audit}',          [SeoController::class, 'auditsShow'])->name('audits.show');
