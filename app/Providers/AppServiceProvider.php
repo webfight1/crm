@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Seo\Playbook;
 use App\Support\Telegram;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 
@@ -24,6 +26,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Queue workers are long-lived: re-read SEO Playbook settings before
+        // every job so edits on /seo/playbook apply without a worker restart.
+        Queue::before(fn () => Playbook::flush());
+
         // Every ERROR-or-worse log line (failed sends, IMAP outages, failed
         // queue jobs, uncaught exceptions) becomes a Telegram alert, throttled
         // to one per hour per distinct message.
