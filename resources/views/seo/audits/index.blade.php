@@ -18,9 +18,50 @@
                 <form method="POST" action="{{ route('seo.warm.store') }}" class="px-6 pb-6 grid md:grid-cols-3 gap-4 text-sm">
                     @csrf
                     <p class="md:col-span-3 text-gray-500">Klient, kes on huvitatud, aga ei tulnud outreachi kaudu (telefon, soovitus). Edasi käib kõik nagu vastanud leadiga: klient + tehing CRM-is, audit märksõna lehel, täpsustuskirja mustand postkastis ja pakkumise mustand pärast kliendi vastust.</p>
-                        <div>
+                        {{-- Company autocomplete: CRM companies + customers + business register.
+                             Picking a result fills the empty contact fields below. --}}
+                        <div class="relative" x-data="{
+                                q: @js(old('company', '')), results: [], open: false, loading: false, timer: null,
+                                search() {
+                                    clearTimeout(this.timer);
+                                    if (this.q.trim().length < 2) { this.results = []; this.open = false; return; }
+                                    this.timer = setTimeout(async () => {
+                                        this.loading = true;
+                                        try {
+                                            const r = await fetch(@js(route('seo.companies.search')) + '?q=' + encodeURIComponent(this.q), { headers: { 'Accept': 'application/json' } });
+                                            this.results = r.ok ? await r.json() : [];
+                                        } catch (e) { this.results = []; }
+                                        this.loading = false; this.open = true;
+                                    }, 250);
+                                },
+                                pick(c) {
+                                    this.q = c.company || this.q;
+                                    this.$refs.regcode.value = c.registrikood || '';
+                                    const fill = (id, v) => { const el = document.getElementById(id); if (el && v && !el.value) el.value = v; };
+                                    fill('w_first_name', c.first_name); fill('w_last_name', c.last_name);
+                                    fill('w_email', c.email); fill('w_website', c.website);
+                                    this.open = false;
+                                },
+                                badge: { crm: ['CRM', 'bg-indigo-100 text-indigo-700'], customer: ['Klient', 'bg-green-100 text-green-700'], register: ['Äriregister', 'bg-gray-100 text-gray-600'] },
+                            }" @click.outside="open = false">
                             <x-input-label for="w_company" value="Ettevõte *" />
-                            <x-text-input id="w_company" name="company" :value="old('company')" class="mt-1 block w-full" required />
+                            <input id="w_company" name="company" x-model="q" @input="$refs.regcode.value = ''; search()" @focus="results.length && (open = true)"
+                                   @keydown.escape="open = false" autocomplete="off" required placeholder="Otsi CRM-ist või äriregistrist…"
+                                   class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                            <input type="hidden" name="registrikood" x-ref="regcode" value="{{ old('registrikood') }}">
+                            <div x-show="open" x-cloak class="absolute z-20 mt-1 w-full max-h-72 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg text-sm">
+                                <template x-for="(c, i) in results" :key="i">
+                                    <button type="button" @click="pick(c)" class="w-full text-left px-3 py-2 hover:bg-indigo-50 border-b border-gray-100">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs px-1.5 py-0.5 rounded" :class="badge[c.source][1]" x-text="badge[c.source][0]"></span>
+                                            <span class="font-medium" x-text="c.company || '(ettevõtteta)'"></span>
+                                            <span class="text-xs text-gray-400" x-text="c.registrikood || ''"></span>
+                                        </div>
+                                        <div class="text-xs text-gray-500" x-text="[[c.first_name, c.last_name].filter(Boolean).join(' '), c.email, c.website].filter(Boolean).join(' · ')"></div>
+                                    </button>
+                                </template>
+                                <div x-show="!loading && results.length === 0" class="px-3 py-2 text-gray-500">Ei leitud — kirjuta nimi käsitsi, luuakse uus ettevõte.</div>
+                            </div>
                             <x-input-error :messages="$errors->get('company')" class="mt-1" />
                         </div>
                         <div>

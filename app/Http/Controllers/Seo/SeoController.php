@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Seo;
 
 use App\Http\Controllers\Controller;
+use App\Models\Company;
+use App\Models\Customer;
 use App\Models\Deal;
+use App\Models\ExternalCompany;
 use App\Models\Quotation;
 use App\Outreach\Models\OutreachLead;
 use App\Seo\Jobs\HandleSeoReplyJob;
@@ -14,6 +17,7 @@ use App\Seo\Playbook;
 use App\Seo\Services\ReplyIntentService;
 use App\Seo\Services\SeoOfferService;
 use App\Seo\Services\WarmClientService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -117,10 +121,68 @@ class SeoController extends Controller
 
     // ─── Hand-added warm client ─────────────────────────────────────────────
 
+    /**
+     * Company autocomplete for the warm-client form: CRM companies, CRM
+     * customers, then the business register (external DB, may be offline).
+     */
+    public function companySearch(Request $request): JsonResponse
+    {
+        $q = trim((string) $request->get('q'));
+        if (mb_strlen($q) < 2) {
+            return response()->json([]);
+        }
+        $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%';
+        $out = [];
+
+        Company::with(['customers' => fn ($c) => $c->orderBy('id')])
+            ->where(fn ($w) => $w->where('name', 'like', $like)->orWhere('registrikood', 'like', $like))
+            ->orderBy('name')->limit(6)->get()
+            ->each(function (Company $c) use (&$out) {
+                $p = $c->customers->first();
+                $out[] = [
+                    'source' => 'crm', 'company' => $c->name, 'registrikood' => $c->registrikood,
+                    'first_name' => $p?->first_name, 'last_name' => $p?->last_name,
+                    'email' => $p?->email ?: $c->email, 'website' => $c->website,
+                ];
+            });
+
+        Customer::with('company')
+            ->where(fn ($w) => $w->where('email', 'like', $like)
+                ->orWhereRaw("CONCAT(first_name, ' ', COALESCE(last_name, '')) LIKE ?", [$like]))
+            ->limit(5)->get()
+            ->each(function (Customer $p) use (&$out) {
+                $out[] = [
+                    'source' => 'customer', 'company' => $p->company?->name ?: '', 'registrikood' => $p->company?->registrikood,
+                    'first_name' => $p->first_name, 'last_name' => $p->last_name,
+                    'email' => $p->email, 'website' => $p->company?->website,
+                ];
+            });
+
+        try {
+            $known = array_filter(array_column($out, 'registrikood'));
+            foreach (ExternalCompany::searchByName($q, 6) as $e) {
+                if (in_array($e->regcode, $known, false)) {
+                    continue;
+                }
+                $extra = $e->getAdditionalData();
+                $out[] = [
+                    'source' => 'register', 'company' => $e->name, 'registrikood' => $e->regcode,
+                    'first_name' => null, 'last_name' => null,
+                    'email' => $extra['emails'][0] ?? null, 'website' => $extra['websites'][0] ?? null,
+                ];
+            }
+        } catch (\Throwable $e) {
+            // Business register DB unavailable — CRM results are still useful.
+        }
+
+        return response()->json($out);
+    }
+
     public function warmStore(Request $request, WarmClientService $clients): RedirectResponse
     {
         $data = $request->validate([
             'company'     => 'required|string|max:255',
+            'registrikood' => 'nullable|string|max:20',
             'first_name'  => 'nullable|string|max:100',
             'last_name'   => 'nullable|string|max:100',
             'email'       => 'required|email|max:255',

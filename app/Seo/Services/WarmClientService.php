@@ -40,6 +40,17 @@ class WarmClientService
             $campaign->update(['is_active' => false]);
         }
 
+        // Picked from the business register: create the Company now so the
+        // registry code is kept (convert() then finds it by name).
+        if (! empty($data['registrikood']) && ! Company::where('name', $data['company'])->exists()) {
+            Company::firstOrCreate(['registrikood' => $data['registrikood']], [
+                'name'    => $data['company'],
+                'email'   => $data['email'],
+                'website' => $data['website'] ?? null,
+                'status'  => 'prospect',
+            ]);
+        }
+
         $position = isset($data['position']) && $data['position'] !== null ? (int) $data['position'] : null;
 
         $lead = OutreachLead::firstOrNew(['campaign_id' => $campaign->id, 'email' => strtolower(trim($data['email']))]);
