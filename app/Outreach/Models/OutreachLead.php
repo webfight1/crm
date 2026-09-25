@@ -66,6 +66,11 @@ class OutreachLead extends Model
         'outreach_generated_at',
         'mx_ok',
         'mx_checked_at',
+        // SEO pipeline (see App\Seo)
+        'reply_intent',
+        'reply_intent_reason',
+        'customer_id',
+        'deal_id',
     ];
 
     protected $casts = [
@@ -95,6 +100,18 @@ class OutreachLead extends Model
     public const DRAFT_APPROVED = 'approved';
     public const DRAFT_FAILED   = 'failed';
 
+    protected static function booted(): void
+    {
+        // SEO pipeline: a lead with ranking data just replied → classify,
+        // create the warm client, audit, draft an offer (App\Seo\Jobs).
+        // Delay lets ReplyDetectionService persist the reply message first.
+        static::updated(function (OutreachLead $lead) {
+            if ($lead->wasChanged('replied') && $lead->replied && $lead->serp_keyword) {
+                \App\Seo\Jobs\HandleSeoReplyJob::dispatch($lead->id)->delay(now()->addMinutes(2));
+            }
+        });
+    }
+
     // ─── Relationships ──────────────────────────────────────────────────────
 
     public function campaign(): BelongsTo
@@ -115,6 +132,11 @@ class OutreachLead extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(OutreachMessage::class, 'lead_id');
+    }
+
+    public function deal(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Deal::class);
     }
 
     // ─── Helpers ────────────────────────────────────────────────────────────

@@ -75,16 +75,7 @@ class QuotationController extends Controller
             ]);
 
             // Genereeri pakkumise number
-            $lastQuotation = Quotation::withTrashed()
-                ->whereYear('created_at', now()->year)
-                ->orderBy('id', 'desc')
-                ->first();
-            
-            $number = $lastQuotation 
-                ? 'Q' . now()->year . str_pad((intval(substr($lastQuotation->number, -3)) + 1), 3, '0', STR_PAD_LEFT)
-                : 'Q' . now()->year . '001';
-            
-            $quotation->number = $number;
+            $quotation->number = Quotation::nextNumber();
             $quotation->save();
 
             // Lisa pakkumise read

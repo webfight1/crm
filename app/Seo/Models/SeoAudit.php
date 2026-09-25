@@ -1,0 +1,58 @@
+<?php
+
+namespace App\Seo\Models;
+
+use App\Models\Deal;
+use App\Models\Quotation;
+use App\Outreach\Models\OutreachLead;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class SeoAudit extends Model
+{
+    protected $table = 'seo_audits';
+
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_DONE    = 'done';
+    public const STATUS_FAILED  = 'failed';
+
+    // Per-check result statuses stored in `results`.
+    public const RESULT_PASS = 'pass';
+    public const RESULT_FAIL = 'fail';
+    public const RESULT_SKIP = 'skip';
+
+    protected $fillable = [
+        'lead_id', 'deal_id', 'quotation_id', 'url', 'keyword', 'status',
+        'score', 'results', 'summary', 'error', 'completed_at',
+    ];
+
+    protected $casts = [
+        'results'      => 'array',
+        'score'        => 'integer',
+        'completed_at' => 'datetime',
+    ];
+
+    public function lead(): BelongsTo
+    {
+        return $this->belongsTo(OutreachLead::class, 'lead_id');
+    }
+
+    public function deal(): BelongsTo
+    {
+        return $this->belongsTo(Deal::class);
+    }
+
+    public function quotation(): BelongsTo
+    {
+        return $this->belongsTo(Quotation::class);
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public function failedResults(): array
+    {
+        return array_values(array_filter(
+            $this->results ?? [],
+            fn ($r) => ($r['status'] ?? null) === self::RESULT_FAIL
+        ));
+    }
+}

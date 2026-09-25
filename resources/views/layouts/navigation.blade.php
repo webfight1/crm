@@ -79,7 +79,7 @@
                             {{ __('Kalender') }}
                         </x-nav-link>
 
-                        <x-nav-dropdown :active="request()->routeIs(['email-campaigns.*', 'email-logs.*', 'outreach.*'])" :label="__('E-post')">
+                        <x-nav-dropdown :active="request()->routeIs(['email-campaigns.*', 'email-logs.*', 'outreach.*', 'seo.*'])" :label="__('E-post')">
                             <x-nav-dropdown-link :href="route('email-campaigns.index')" :active="request()->routeIs('email-campaigns.*')">
                                 {{ __('Kampaaniad') }}
                             </x-nav-dropdown-link>
@@ -91,6 +91,9 @@
                             </x-nav-dropdown-link>
                             <x-nav-dropdown-link :href="route('outreach.clickup.index')" :active="request()->routeIs('outreach.clickup.*')">
                                 {{ __('ClickUpi import') }}
+                            </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="route('seo.playbook')" :active="request()->routeIs('seo.*')">
+                                {{ __('SEO Playbook') }}
                             </x-nav-dropdown-link>
                         </x-nav-dropdown>
                     @endif
@@ -258,6 +261,9 @@
                     </x-responsive-nav-link>
                     <x-responsive-nav-link :href="route('email-logs.index')" :active="request()->routeIs('email-logs.*')">
                         {{ __('Logid') }}
+                    </x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('seo.playbook')" :active="request()->routeIs('seo.*')">
+                        {{ __('SEO Playbook') }}
                     </x-responsive-nav-link>
                 </div>
             @endif

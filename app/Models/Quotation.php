@@ -53,6 +53,19 @@ class Quotation extends Model
         return $this->hasMany(QuotationEmailSend::class)->orderByDesc('sent_at');
     }
 
+    /** Next number in the yearly sequence: Q2026001, Q2026002, … */
+    public static function nextNumber(): string
+    {
+        $last = static::withTrashed()
+            ->whereYear('created_at', now()->year)
+            ->orderBy('id', 'desc')
+            ->first();
+
+        return $last
+            ? 'Q' . now()->year . str_pad((intval(substr($last->number, -3)) + 1), 3, '0', STR_PAD_LEFT)
+            : 'Q' . now()->year . '001';
+    }
+
     public function calculateTotals()
     {
         $this->subtotal = $this->items->sum('subtotal');

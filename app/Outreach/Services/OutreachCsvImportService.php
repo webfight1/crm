@@ -4,6 +4,7 @@ namespace App\Outreach\Services;
 
 use App\Outreach\Models\OutreachCampaign;
 use App\Outreach\Models\OutreachLead;
+use App\Seo\Services\SerpLeadFilter;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -29,7 +30,10 @@ use Illuminate\Support\Facades\DB;
  *                       rendered as {{keyword}}, {{position}}, {{google_page}},
  *                       {{competitors}}.
  *
- * Column order does not matter; matching is done by header name.
+ * Column order does not matter; matching is done by header name. Header
+ * aliases and skip rules come from the SEO Playbook (SerpLeadFilter), e.g.
+ * "Märksõna" → keyword, positions outside 11-50 → qualification = skip.
+ * google_page is derived from position when absent.
  * Missing optional columns are silently skipped.
  *
  * ── BOM handling ────────────────────────────────────────────────────────────
@@ -107,8 +111,10 @@ class OutreachCsvImportService
             $rawHeaders[0] = substr($rawHeaders[0], strlen(self::BOM));
         }
 
-        // Normalise: lowercase + trim
-        $headers = array_map(fn($h) => strtolower(trim($h)), $rawHeaders);
+        // Normalise: lowercase + trim, then apply the SEO Playbook header
+        // aliases ("Märksõna" → keyword) so SEO-monitor exports import as-is.
+        $filter  = SerpLeadFilter::fromPlaybook();
+        $headers = $filter->mapHeaders(array_map(fn($h) => mb_strtolower(trim($h)), $rawHeaders));
 
         // Map column names to their array index
         $colMap = [];
@@ -181,6 +187,19 @@ class OutreachCsvImportService
             $page = is_numeric($pageRaw) && (int) $pageRaw > 0
                 ? min(255, (int) $pageRaw)
                 : null;
+            // Google shows 10 organic results per page.
+            if ($page === null && $position !== null) {
+                $page = min(255, intdiv($position - 1, 10) + 1);
+            }
+
+            // SEO Playbook filter (position range, excluded domains): the row
+            // is still imported so the operator sees it, but never sent.
+            $notes = $this->col($row, $colMap, 'notes');
+            $skipReason = $filter->skipReason($position, $this->col($row, $colMap, 'website'), $email);
+            if ($skipReason !== null) {
+                $qualification = OutreachLead::QUALIFICATION_SKIP;
+                $notes = trim('Playbook filter: ' . $skipReason . ($notes ? "\n" . $notes : ''));
+            }
 
             $batch[] = [
                 'campaign_id'       => $campaignId,
@@ -198,7 +217,7 @@ class OutreachCsvImportService
                 'serp_position'     => $position,
                 'serp_page'         => $page,
                 'serp_competitors'  => $this->col($row, $colMap, 'competitors'),
-                'notes'             => $this->col($row, $colMap, 'notes'),
+                'notes'             => $notes,
                 'qualification'     => $qualification,
                 // custom_line in the CSV pre-fills ai_line, skipping OpenAI generation
                 'ai_line'           => $this->col($row, $colMap, 'custom_line'),

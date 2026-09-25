@@ -73,6 +73,27 @@ class PageSpeedService
         return $data;
     }
 
+    /**
+     * Measure an arbitrary URL without touching any lead (used by the SEO
+     * audit). Returns null on failure instead of throwing.
+     *
+     * @return array{performance_score: int, lcp_mobile: float, url: string}|null
+     */
+    public function measureUrl(string $website): ?array
+    {
+        $url = $this->normalizeUrl($website);
+        if (! $url) {
+            return null;
+        }
+
+        try {
+            return $this->fetch($url);
+        } catch (\Throwable $e) {
+            Log::warning('[PageSpeed] Request failed', ['url' => $url, 'error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
     // ── Internal ─────────────────────────────────────────────────────────────
 
     /**

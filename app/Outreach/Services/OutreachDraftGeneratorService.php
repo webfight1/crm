@@ -208,6 +208,17 @@ Kolm subjekti peavad olema erinevad stiililt (nt üks küsiv, üks konkreetne, �
 Ära lisa ühtegi kommentaari väljapoole JSON-i. Ära paki JSON-i markdown-koodiblokki.
 SYS;
 
+        // SEO Playbook guidelines for leads with ranking data — the
+        // operator's evolving house rules, shared by every SEO campaign.
+        $playbook = $lead->serp_keyword ? trim(\App\Seo\Playbook::get('ai.email_guidelines')) : '';
+        if ($playbook !== '') {
+            $system .= "\n\nSEO MÜÜGIKIRJA JUHISED (Playbook):\n"
+                . "Märksõna: {$lead->serp_keyword}; Google positsioon: " . ($lead->serp_position ?? '?')
+                . ($lead->serp_page ? " ({$lead->serp_page}. leht)" : '')
+                . ($lead->serp_competitors ? "; esilehel on: {$lead->serp_competitors}" : '') . "\n"
+                . $playbook;
+        }
+
         // Campaign-level extra guidance appended after the base rules but
         // before the JSON schema block, so the operator can nudge tone /
         // insertions (e.g. specific design_year phrasing) without breaking
