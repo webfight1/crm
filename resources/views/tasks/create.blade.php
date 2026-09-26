@@ -19,6 +19,12 @@
 
                     <form method="POST" action="{{ route('tasks.store') }}" class="space-y-5">
                         @csrf
+                        @if($deal)
+                            <input type="hidden" name="deal_id" value="{{ $deal->id }}">
+                            <div class="bg-indigo-50 border border-indigo-200 text-indigo-800 px-4 py-2 rounded text-sm">
+                                Tehing: <a href="{{ route('deals.show', $deal) }}" class="font-medium underline">{{ $deal->title }}</a>
+                            </div>
+                        @endif
 
                         {{-- Title --}}
                         <div>
@@ -139,7 +145,7 @@
                         </div>
 
                         <div class="flex items-center justify-end gap-3 pt-2">
-                            <a href="{{ route('tasks.index') }}"
+                            <a href="{{ $deal ? route('deals.show', $deal) : route('tasks.index') }}"
                                class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm rounded">{{ __('Tühista') }}</a>
                             <x-primary-button>{{ __('Salvesta') }}</x-primary-button>
                         </div>

@@ -79,21 +79,23 @@ class TaskController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Request $request)
     {
         $customers = Customer::orderBy('first_name')->orderBy('last_name')->get();
         $companies = Company::orderBy('name')->get();
         $users     = User::orderBy('name')->get();
 
-        // Defaults for the simplified create form: internal work by
-        // default (Webfight self-customer + Webfight OÜ), assigned to
-        // whoever is currently logged in.
-        $defaultCustomer = Customer::where('first_name', 'Webfight')->first();
-        $defaultCompany  = Company::where('name', 'Webfight OÜ')->first();
+        // Opened from a deal (?deal=ID): the task belongs to that deal and
+        // its customer + company. Otherwise internal work by default
+        // (Webfight self-customer + Webfight OÜ). Assigned to whoever is
+        // currently logged in.
+        $deal = $request->filled('deal') ? Deal::with(['customer', 'company'])->find($request->integer('deal')) : null;
+        $defaultCustomer = $deal ? $deal->customer : Customer::where('first_name', 'Webfight')->first();
+        $defaultCompany  = $deal ? $deal->company : Company::where('name', 'Webfight OÜ')->first();
 
         return view('tasks.create', compact(
             'customers', 'companies', 'users',
-            'defaultCustomer', 'defaultCompany',
+            'defaultCustomer', 'defaultCompany', 'deal',
         ));
     }
 
@@ -130,9 +132,10 @@ class TaskController extends Controller
         $validated['assignee_id'] = $validated['assignee_id'] ?? Auth::id();
         $validated['user_id']     = Auth::id();
 
-        Task::create($validated);
+        $task = Task::create($validated);
 
-        return redirect()->route('tasks.index')
+        // Created from a deal page → back to that deal.
+        return ($task->deal_id ? redirect()->route('deals.show', $task->deal_id) : redirect()->route('tasks.index'))
             ->with('success', 'Ülesanne loodud.');
     }
 

@@ -5,6 +5,9 @@
                 {{ $deal->title }}
             </h2>
             <div class="space-x-2">
+                <a href="{{ route('tasks.create', ['deal' => $deal->id]) }}" class="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
+                    + Lisa ülesanne
+                </a>
                 <a href="{{ route('deals.edit', $deal) }}" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
                     Muuda
                 </a>
@@ -245,7 +248,10 @@
 
                         <!-- Tasks Summary -->
                         <div class="md:col-span-2 mt-6">
-                            <dt class="text-sm font-medium text-gray-500 mb-4">Seotud ülesanded</dt>
+                            <div class="flex items-center justify-between mb-4">
+                                <dt class="text-sm font-medium text-gray-500">Seotud ülesanded</dt>
+                                <a href="{{ route('tasks.create', ['deal' => $deal->id]) }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">+ Lisa ülesanne</a>
+                            </div>
                             @if($deal->tasks->count() > 0)
                                 <div class="bg-white shadow overflow-hidden sm:rounded-md">
                                     <ul class="divide-y divide-gray-200">
