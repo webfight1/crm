@@ -108,6 +108,7 @@ class PipelineBoard
         return match ($lead->seo_stage) {
             'clarify_drafted' => $this->stage('me', 'saada kiri', $inbox, $lead->updated_at),
             'awaiting_answer' => $this->stage('client', 'ootab vastust', $inbox, $this->lastOutbound($lead)),
+            'clarify_skipped' => $this->stage('done', 'vahele jäetud', $audit ? route('seo.audits.show', $audit) : $inbox),
             'answered', 'access_drafted', 'access_requested' => $this->stage('done', 'vastas', $audit ? route('seo.audits.show', $audit) : $inbox),
             default => $this->stage('todo', ''),
         };
@@ -116,7 +117,7 @@ class PipelineBoard
     private function offerStage(?Quotation $quote, OutreachLead $lead): array
     {
         if (! $quote) {
-            return $lead->seo_stage === 'answered'
+            return in_array($lead->seo_stage, ['answered', 'clarify_skipped'], true)
                 ? $this->stage('me', 'koosta', null)
                 : $this->stage('todo', '');
         }

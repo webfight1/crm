@@ -59,7 +59,7 @@
                     @endif
                     @if($audit->lead?->seo_stage)
                         <p><span class="text-gray-500">Täpsustuskiri:</span>
-                            {{ ['clarify_drafted' => 'mustand postkastis, saatmata', 'awaiting_answer' => 'saadetud, ootab vastust', 'answered' => 'klient vastas', 'access_drafted' => 'ligipääsukirja mustand postkastis', 'access_requested' => 'ligipääsud küsitud'][$audit->lead->seo_stage] ?? $audit->lead->seo_stage }}
+                            {{ ['clarify_drafted' => 'mustand postkastis, saatmata', 'awaiting_answer' => 'saadetud, ootab vastust', 'answered' => 'klient vastas', 'clarify_skipped' => 'vahele jäetud', 'access_drafted' => 'ligipääsukirja mustand postkastis', 'access_requested' => 'ligipääsud küsitud'][$audit->lead->seo_stage] ?? $audit->lead->seo_stage }}
                             · <a href="{{ \App\Outreach\Models\OutreachMessage::inboxThreadUrl($audit->lead->email) }}" class="text-indigo-600">postkast →</a>
                         </p>
                     @endif
@@ -120,6 +120,12 @@
                         @if($audit->lead?->seo_stage === 'awaiting_answer')
                             <form method="POST" action="{{ route('seo.audits.clarify-answer', $audit) }}">@csrf
                                 <button class="w-full text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50" title="Kliendi viimane kiri loetakse täpsustuskirja vastuseks">✉️ Töötle täpsustuse vastusena</button>
+                            </form>
+                        @endif
+                        @if($audit->lead && in_array($audit->lead->seo_stage, [null, 'clarify_drafted', 'awaiting_answer'], true))
+                            <form method="POST" action="{{ route('seo.audits.clarify-skip', $audit) }}"
+                                  onsubmit="return confirm('Jätta täpsustuskiri saatmata ja minna otse pakkumise juurde?')">@csrf
+                                <button class="w-full text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50" title="Täpsustuskirja ei saadeta — tahvlil läheb etapp roheliseks ja järgmine samm on pakkumine">⏭ Jäta täpsustus vahele</button>
                             </form>
                         @endif
                         @if($audit->lead && ! in_array($audit->lead->seo_stage, ['access_drafted', 'access_requested'], true))

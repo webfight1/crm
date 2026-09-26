@@ -387,6 +387,18 @@ class SeoController extends Controller
         return back()->with('success', 'Kliendi viimane kiri läks töötlusse täpsustuse vastusena — tulemus tuleb Telegrami.');
     }
 
+    /** Operator: no clarification e-mail for this client — go straight to the offer. */
+    public function auditsClarifySkip(SeoAudit $audit): RedirectResponse
+    {
+        $lead = $audit->lead;
+        if (! $lead || ! in_array($lead->seo_stage, [null, 'clarify_drafted', 'awaiting_answer'], true)) {
+            return back()->with('error', 'Täpsustuse etapp on sellel kliendil juba möödas.');
+        }
+        $lead->update(['seo_stage' => 'clarify_skipped', 'seo_clarify_body' => null]);
+
+        return back()->with('success', 'Täpsustuskiri jäeti vahele — järgmine samm on pakkumine.');
+    }
+
     public function auditsAccess(SeoAudit $audit, \App\Seo\Services\AccessRequestService $access): RedirectResponse
     {
         if (! $audit->lead) {

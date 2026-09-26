@@ -32,6 +32,7 @@ Route::prefix('seo')->name('seo.')->group(function () {
     Route::post('/audits/{audit}/pages',    [SeoController::class, 'auditsAddPages'])->name('audits.pages');
     Route::post('/audits/{audit}/summary',  [SeoController::class, 'auditsSummary'])->name('audits.summary');
     Route::post('/audits/{audit}/clarify-answer', [SeoController::class, 'auditsClarifyAnswer'])->name('audits.clarify-answer');
+    Route::post('/audits/{audit}/clarify-skip',   [SeoController::class, 'auditsClarifySkip'])->name('audits.clarify-skip');
     Route::post('/audits/{audit}/access',   [SeoController::class, 'auditsAccess'])->name('audits.access');
     Route::post('/audits/{audit}/offer',    [SeoController::class, 'auditsOffer'])->name('audits.offer');
 });
