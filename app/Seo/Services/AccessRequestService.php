@@ -37,7 +37,7 @@ class AccessRequestService
     /** @return bool false when already requested for this lead */
     public function request(OutreachLead $lead, ?int $userId = null): bool
     {
-        if (in_array($lead->seo_stage, ['access_drafted', 'access_requested'], true)) {
+        if (in_array($lead->seo_stage, ['access_drafted', 'access_requested', 'access_granted'], true)) {
             return false;
         }
 
@@ -94,6 +94,46 @@ class AccessRequestService
         );
 
         return true;
+    }
+
+    /**
+     * The operator already has access (a long-time client): no e-mail, the
+     * access task is closed, the SEO-monitor project is still set up.
+     * Moving the deal to „töös“ later does not ask again.
+     */
+    public function markGranted(OutreachLead $lead, ?int $userId = null): void
+    {
+        $note = null;
+        try {
+            $note = $this->monitor->sync($lead)['note'] ?? null;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[SEO] SEO-monitor sync failed', ['lead' => $lead->id, 'error' => $e->getMessage()]);
+            $note = 'SEO-monitori projekti loomine ebaõnnestus: ' . mb_substr($e->getMessage(), 0, 200);
+        }
+
+        $lead->update(['seo_stage' => 'access_granted', 'seo_access_body' => null]);
+
+        $deal = $lead->deal_id ? Deal::find($lead->deal_id) : null;
+        $done = ['status' => 'completed', 'completed_at' => now()];
+        $open = $deal ? Task::where('deal_id', $deal->id)->where('title', 'like', 'Küsi ligipääsud:%')->latest('id')->first() : null;
+        if ($open) {
+            $open->update($done);
+        } else {
+            $owner = $userId ?? $deal?->user_id ?? \App\Models\User::orderBy('id')->value('id');
+            Task::create($done + [
+                'title'       => 'Küsi ligipääsud: ' . ($lead->company ?: $lead->website ?: $lead->email),
+                'description' => 'Ligipääsud olid juba olemas — kirja ei saadetud.' . ($note ? "\n{$note}" : ''),
+                'type'        => 'email',
+                'priority'    => 'medium',
+                'due_date'    => now(),
+                'customer_id' => $lead->customer_id,
+                'company_id'  => $deal?->company_id,
+                'deal_id'     => $deal?->id,
+                'user_id'     => $owner,
+                'assignee_id' => $owner,
+                'price'       => 0,
+            ]);
+        }
     }
 
     /** HTML body for the inbox reply editor. */

@@ -59,7 +59,7 @@
                     @endif
                     @if($audit->lead?->seo_stage)
                         <p><span class="text-gray-500">Täpsustuskiri:</span>
-                            {{ ['clarify_drafted' => 'mustand postkastis, saatmata', 'awaiting_answer' => 'saadetud, ootab vastust', 'answered' => 'klient vastas', 'clarify_skipped' => 'vahele jäetud', 'access_drafted' => 'ligipääsukirja mustand postkastis', 'access_requested' => 'ligipääsud küsitud'][$audit->lead->seo_stage] ?? $audit->lead->seo_stage }}
+                            {{ ['clarify_drafted' => 'mustand postkastis, saatmata', 'awaiting_answer' => 'saadetud, ootab vastust', 'answered' => 'klient vastas', 'clarify_skipped' => 'vahele jäetud', 'access_drafted' => 'ligipääsukirja mustand postkastis', 'access_requested' => 'ligipääsud küsitud', 'access_granted' => 'ligipääsud olemas'][$audit->lead->seo_stage] ?? $audit->lead->seo_stage }}
                             · <a href="{{ \App\Outreach\Models\OutreachMessage::inboxThreadUrl($audit->lead->email) }}" class="text-indigo-600">postkast →</a>
                         </p>
                     @endif
@@ -128,9 +128,15 @@
                                 <button class="w-full text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50" title="Täpsustuskirja ei saadeta — tahvlil läheb etapp roheliseks ja järgmine samm on pakkumine">⏭ Jäta täpsustus vahele</button>
                             </form>
                         @endif
-                        @if($audit->lead && ! in_array($audit->lead->seo_stage, ['access_drafted', 'access_requested'], true))
+                        @if($audit->lead && ! in_array($audit->lead->seo_stage, ['access_drafted', 'access_requested', 'access_granted'], true))
                             <form method="POST" action="{{ route('seo.audits.access', $audit) }}">@csrf
                                 <button class="w-full text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50">🔑 Küsi ligipääsud</button>
+                            </form>
+                        @endif
+                        @if($audit->lead && $audit->lead->seo_stage !== 'access_granted')
+                            <form method="POST" action="{{ route('seo.audits.access-granted', $audit) }}"
+                                  onsubmit="return confirm('Ligipääsud on sul juba olemas? Kirja ei saadeta ja ligipääsu ülesanne märgitakse tehtuks.')">@csrf
+                                <button class="w-full text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50" title="Vana klient — ligipääsud juba käes">✔️ Ligipääsud juba olemas</button>
                             </form>
                         @endif
                         @if($root->status === 'done' && ! $root->quotation_id && $root->deal_id)

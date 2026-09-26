@@ -412,6 +412,16 @@ class SeoController extends Controller
             ->with('success', 'Ligipääsukirja mustand on vastamisvormis ja ülesanne loodud — vaata üle ja saada.');
     }
 
+    public function auditsAccessGranted(SeoAudit $audit, \App\Seo\Services\AccessRequestService $access): RedirectResponse
+    {
+        if (! $audit->lead) {
+            return back()->with('error', 'Auditil pole leadi.');
+        }
+        $access->markGranted($audit->lead, auth()->id());
+
+        return back()->with('success', 'Ligipääsud märgitud olemasolevaks — kirja ei saadeta ja „töös“ ei küsi neid uuesti.');
+    }
+
     public function auditsOffer(Request $request, SeoAudit $audit, SeoOfferService $offers): RedirectResponse
     {
         try {

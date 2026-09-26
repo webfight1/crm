@@ -109,6 +109,7 @@ class PipelineBoard
             'clarify_drafted' => $this->stage('me', 'saada kiri', $inbox, $lead->updated_at),
             'awaiting_answer' => $this->stage('client', 'ootab vastust', $inbox, $this->lastOutbound($lead)),
             'clarify_skipped' => $this->stage('done', 'vahele jäetud', $audit ? route('seo.audits.show', $audit) : $inbox),
+            'access_granted' => $this->stage('done', '✓', $audit ? route('seo.audits.show', $audit) : $inbox),
             'answered', 'access_drafted', 'access_requested' => $this->stage('done', 'vastas', $audit ? route('seo.audits.show', $audit) : $inbox),
             default => $this->stage('todo', ''),
         };
@@ -138,8 +139,8 @@ class PipelineBoard
         $inbox = OutreachMessage::inboxThreadUrl($lead->email);
         $host = $audit?->extras['hosting']['provider'] ?? null;
 
-        if ($task && $task->status === 'completed') {
-            return $this->stage('done', $host ?? 'olemas', route('tasks.show', $task));
+        if ($lead->seo_stage === 'access_granted' || ($task && $task->status === 'completed')) {
+            return $this->stage('done', $host ?? 'olemas', $task ? route('tasks.show', $task) : null);
         }
 
         return match ($lead->seo_stage) {
