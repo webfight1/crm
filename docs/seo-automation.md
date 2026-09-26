@@ -135,6 +135,7 @@ Telegram: üks kokkuvõttev teade + link auditile
 - [ ] **Kirjamallide A/B**: vastamismäär malli järgi.
 
 ## Muudatuste logi
+- 2026-09-26: Sama meiliaadressiga mitu leadi (vana kampaania + soe klient): kirjad lähevad aktiivsele SEO-kliendile, AI loeb ainult selle ringi kirju, postkastis on vanemad kirjad kokku volditud. Soe klient loetakse vastanuks, et tema järgmine kiri ahelat uuesti ei käivitaks.
 - 2026-09-26: SEO klientide ülevaade `/seo/kliendid`: iga kliendi etapid, kelle järel ootab ja mitu päeva.
 - 2026-09-26: Vastus pakkumisele → AI otsus + tehingu link Telegrami.
 - 2026-09-26: Võidetud kliendile luuakse SEO-monitoris projekt, märksõnad ja kliendikonto; paroolilink ligipääsukirja.
