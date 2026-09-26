@@ -90,6 +90,7 @@ class AccessRequestService
             . ($hosting['note'] ?? 'Majutaja teadmata.') . "\n"
             . ($monitorLines ? implode("\n", $monitorLines) . "\n" : '')
             . 'Kirja mustand postkastis: ' . OutreachMessage::inboxThreadUrl($lead->email)
+            . ($deal ? "\nTehing: " . route('deals.show', $deal) : '')
         );
 
         return true;

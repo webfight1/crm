@@ -79,7 +79,7 @@ class HandleSeoReplyJob implements ShouldQueue
         }
 
         $deal = $clients->convert($lead);
-        $steps[] = "🔥 Soe klient loodud, tehing #{$deal->id}";
+        $steps[] = "🔥 Soe klient loodud, tehing #{$deal->id}: " . route('deals.show', $deal);
 
         $audit = null;
         if (Playbook::bool('auto.audit_on_warm') && ($lead->serp_url || $lead->website)) {
@@ -115,7 +115,10 @@ class HandleSeoReplyJob implements ShouldQueue
             } elseif ($audit->status === SeoAudit::STATUS_DONE && Playbook::bool('auto.offer_after_audit')) {
                 try {
                     $q = $offers->createQuotation($audit);
-                    $steps[] = "Pakkumise mustand {$q->number}: " . number_format((float) $q->total, 2, ',', ' ') . ' € — vaata üle ja saada';
+                    $steps[] = "Pakkumise mustand {$q->number}: " . number_format((float) $q->total, 2, ',', ' ') . ' € — vaata üle ja saada: '
+                        . route('quotations.edit', $q);
+                    $steps[] = 'Kui klient on nõus, liiguta tehing etappi „töös“ (käivitab ligipääsukirja + SEO-monitori): '
+                        . route('deals.show', $q->deal_id);
                 } catch (\Throwable $e) {
                     Log::warning('[SEO] offer draft failed', ['audit' => $audit->id, 'error' => $e->getMessage()]);
                     $steps[] = 'Pakkumist ei koostatud: ' . $e->getMessage();

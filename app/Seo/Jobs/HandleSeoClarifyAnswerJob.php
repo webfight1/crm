@@ -104,7 +104,10 @@ class HandleSeoClarifyAnswerJob implements ShouldQueue
         ) {
             try {
                 $q = $offers->createQuotation($audit);
-                $steps[] = "Pakkumise mustand {$q->number}: " . number_format((float) $q->total, 2, ',', ' ') . ' € — vaata üle ja saada';
+                $steps[] = "Pakkumise mustand {$q->number}: " . number_format((float) $q->total, 2, ',', ' ') . ' € — vaata üle ja saada: '
+                        . route('quotations.edit', $q);
+                    $steps[] = 'Kui klient on nõus, liiguta tehing etappi „töös“ (käivitab ligipääsukirja + SEO-monitori): '
+                        . route('deals.show', $q->deal_id);
             } catch (\Throwable $e) {
                 Log::warning('[SEO] offer draft failed', ['audit' => $audit->id, 'error' => $e->getMessage()]);
                 $steps[] = 'Pakkumist ei koostatud: ' . $e->getMessage();
