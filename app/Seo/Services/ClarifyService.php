@@ -33,10 +33,22 @@ class ClarifyService
         ];
         $vars['{{page_question}}'] = strtr(Playbook::get($landing ? 'clarify.page_found' : 'clarify.page_missing'), $vars);
 
-        $text = strtr(Playbook::get('clarify.body'), $vars);
+        // Optional Search Console request — only when the operator's Google
+        // account is set. A body saved before this placeholder existed gets
+        // the request appended.
+        $gscEmail = trim(Playbook::get('clarify.gsc_email'));
+        $vars['{{gsc_request}}'] = $gscEmail !== ''
+            ? strtr(Playbook::get('clarify.gsc_text'), ['{{gsc_email}}' => $gscEmail])
+            : '';
+
+        $body = Playbook::get('clarify.body');
+        if ($vars['{{gsc_request}}'] !== '' && ! str_contains($body, '{{gsc_request}}')) {
+            $body .= "\n\n{{gsc_request}}";
+        }
+        $text = strtr($body, $vars);
 
         // Plain text → paragraphs; bare URLs become links.
-        $paragraphs = preg_split('/\R{2,}/u', trim($text)) ?: [];
+        $paragraphs = array_filter(array_map('trim', preg_split('/\R{2,}/u', trim($text)) ?: []), 'strlen');
 
         return implode("\n", array_map(function ($p) {
             $html = nl2br(e(trim($p)), false);

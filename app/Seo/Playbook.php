@@ -137,9 +137,20 @@ class Playbook
         ],
         'clarify.body' => [
             'section' => 'clarify', 'type' => 'textarea',
-            'default' => "Tere{{name}}!\n\nAitäh vastuse eest! Et analüüs oleks täpne, täpsustan kahte asja:\n\n1. {{page_question}}\n\n2. Kas lisaks fraasile „{{keyword}}“ on veel teenuseid või otsingusõnu, mille järgi tahaksite Google'is paremini leitav olla?\n\nPiisab paarist sõnast — siis saadan konkreetse ülevaate.",
+            'default' => "Tere{{name}}!\n\nAitäh vastuse eest! Et analüüs oleks täpne, täpsustan kahte asja:\n\n1. {{page_question}}\n\n2. Kas lisaks fraasile „{{keyword}}“ on veel teenuseid või otsingusõnu, mille järgi tahaksite Google'is paremini leitav olla?\n\n{{gsc_request}}\n\nPiisab paarist sõnast — siis saadan konkreetse ülevaate.",
             'label'   => 'Kirja tekst',
-            'help'    => 'Kohatäited: {{name}} (", Mari" või tühi), {{company}}, {{keyword}}, {{website}}, {{landing_url}}, {{page_question}} (üks kahest allolevast lausest).',
+            'help'    => 'Kohatäited: {{name}} (", Mari" või tühi), {{company}}, {{keyword}}, {{website}}, {{landing_url}}, {{page_question}} (üks kahest allolevast lausest), {{gsc_request}} (Search Console\'i palve, vt allpool — kui seda kohatäidet tekstis pole, lisatakse palve kirja lõppu).',
+        ],
+        'clarify.gsc_email' => [
+            'section' => 'clarify', 'type' => 'text', 'default' => '',
+            'label'   => 'Sinu Google\'i konto Search Console\'i jaoks',
+            'help'    => 'Sama konto, millega SEO-monitoris Google\'i ühendad. Tühi = kirjas Search Console\'i ei küsita.',
+        ],
+        'clarify.gsc_text' => [
+            'section' => 'clarify', 'type' => 'textarea',
+            'default' => "Kui soovite täpsemat analüüsi, lisage mind oma Google Search Console'i kasutajaks — see võtab paar minutit ja annab mulle ainult andmete vaatamise õiguse, mitte ligipääsu teie kodulehele:\nSearch Console → Seaded → Kasutajad ja load → Lisa kasutaja → {{gsc_email}} → õigus „Piiratud“.\nKui teil Search Console'i pole või see tundub keeruline, pole hullu — saan analüüsi teha ka ilma.",
+            'label'   => '{{gsc_request}} tekst',
+            'help'    => 'Kohatäide {{gsc_email}}. „Piiratud“ = ainult vaatamine; „Täielik“ küsi alles tasulise töö alguses.',
         ],
         'clarify.page_found' => [
             'section' => 'clarify', 'type' => 'textarea',

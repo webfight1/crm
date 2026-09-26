@@ -56,6 +56,7 @@ Audit                                        [auto.audit_on_warm]
    ▼
 Täpsustuskiri (MUSTAND postkastis)           [clarify.enabled]
    │  „Kas see leht on õige? Kas huvitavad ka muud märksõnad?“
+   │  + valikuliselt: „lisage mind Search Console'i kasutajaks (Piiratud)“ [clarify.gsc_email]
    │  Sina saadad postkastist → lead ootab vastust
    ▼
 Kliendi vastus (HandleSeoClarifyAnswerJob)
@@ -71,6 +72,11 @@ Pakkumise MUSTAND                            [auto.offer_after_audit, clarify.wa
    ▼
 Telegram: üks kokkuvõttev teade + link auditile
 ```
+
+### Ligipääsud astmeti
+1. **Tasuta eelanalüüs:** ei küsita midagi — audit kasutab ainult avalikke andmeid + SEO-monitori positsiooni.
+2. **Soe klient:** täpsustuskirjas valikuline palve anda Search Console'i õigus „Piiratud“ (ainult vaatamine).
+3. **Tasuline töö:** CMS-i (nt WordPressi) eraldi admin-kasutaja + Search Console „Täielik“. Hostingu/SFTP/SSH ainult kui töö nõuab. Paroole e-postiga ei küsi — klient loob eraldi kasutaja.
 
 ### Käsitsi kontrollpunktid (teadlikult)
 1. **Mustandite kinnitamine** enne saatmist. Kui kirjad on paar nädalat head olnud, võib selle sammu kaotada.
@@ -111,6 +117,7 @@ Telegram: üks kokkuvõttev teade + link auditile
 - [ ] **Lisamärksõnad pakkumisse**: kliendi nimetatud märksõnad, millel pole oma lehte, lisatakse pakkumisse eraldi ridadena („teenuselehe loomine“).
 - [ ] **Otsingumahud kategooriatele**: Google'i soovitused näitavad sõnastust, mitte mahtu. Täpsem oleks Keyword Planner / DataForSEO (tasuline API).
 - [ ] **E-poe täpsustuskiri**: e-poele küsida „kategooria“ asemel „leht“, ja pakkuda kategooriate ümbernimetamist.
+- [ ] **Pakkumine vastu võetud → ligipääsude küsimine**: ülesanne + kirjamall (CMS-i kasutaja, Search Console „Täielik“).
 - [ ] **Konkurentide võrdlus auditis**: sama märksõna top 3 lehe sõnade arv ja pealkirjad.
 - [ ] **Pakettide loogika**: skoori või leidude arvu järgi S/M/L pakett üksikridade asemel.
 - [ ] **„Hiljem“ vastajad**: automaatne meeldetuletusülesanne 30/60/90 päeva pärast.
@@ -118,6 +125,7 @@ Telegram: üks kokkuvõttev teade + link auditile
 - [ ] **Kirjamallide A/B**: vastamismäär malli järgi.
 
 ## Muudatuste logi
+- 2026-09-26: Täpsustuskirjas valikuline Search Console'i ligipääsu palve koos juhisega.
 - 2026-09-26: Blogi tuvastus auditis; tehniliselt korras saidile pakutakse blogi loomist või iganädalasi artikleid (Playbook „Sisuturundus“).
 - 2026-09-26: Sooja kliendi käsitsi lisamine (SEO → Auditid); kliendi vastus seotakse ka CRM-kliendi kaudu.
 - 2026-09-26: Pakkumise read grupeeritakse (kontrolli „Grupp pakkumises“, Playbook `offer.group_items`).
