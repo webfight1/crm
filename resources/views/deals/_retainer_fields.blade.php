@@ -14,7 +14,7 @@
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-            <x-input-label for="retainer_amount" :value="__('Kuutasu (€, ilma KM-ta)')" />
+            <x-input-label for="retainer_amount" :value="__('Kuutasu (€)')" />
             <x-text-input id="retainer_amount" name="retainer_amount" type="number" step="0.01" min="0" class="mt-1 block w-full"
                           :value="old('retainer_amount', $d?->retainer_amount)" />
             <x-input-error :messages="$errors->get('retainer_amount')" class="mt-2" />

@@ -102,7 +102,7 @@ class RetainerBilling
         $rmp = self::rmpUrl($deal, $s['period']);
 
         $this->task($deal, $title, "Tee RMP-s selle kuu arve: {$rmp}\n"
-            . ($deal->retainer_note ? "Rida: {$deal->retainer_note}\n" : '') . "Summa: {$amount} + KM{$count}");
+            . ($deal->retainer_note ? "Rida: {$deal->retainer_note}\n" : '') . "Summa: {$amount}{$count}");
 
         Telegram::send(
             "🧾 Kuuarve {$label} (" . config('app.name') . ")\n"

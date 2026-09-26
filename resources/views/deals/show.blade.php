@@ -248,7 +248,7 @@
 
                         @if($retainer = \App\Billing\RetainerBilling::status($deal))
                             <div class="md:col-span-2 mt-6 border border-indigo-200 bg-indigo-50 rounded-lg p-4 text-sm text-indigo-900">
-                                <div class="font-semibold">🧾 Kuutasu {{ number_format((float) $deal->retainer_amount, 2, ',', ' ') }} € + KM{{ $deal->retainer_note ? ' · ' . $deal->retainer_note : '' }}</div>
+                                <div class="font-semibold">🧾 Kuutasu {{ number_format((float) $deal->retainer_amount, 2, ',', ' ') }} €{{ $deal->retainer_note ? ' · ' . $deal->retainer_note : '' }}</div>
                                 <div class="mt-1">
                                     Alates {{ $deal->retainer_start->format('m/Y') }}{{ $deal->retainer_months ? ', ' . $deal->retainer_months . ' kuud' : ', kuni lõpetad' }}
                                     · arve iga kuu {{ $deal->retainer_day }}.
