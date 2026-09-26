@@ -31,6 +31,7 @@ class SeoAuditService
         private readonly LandingPageFinder $finder,
         private readonly SiteTypeDetector $siteType,
         private readonly EshopAnalyzer $eshop,
+        private readonly BlogDetector $blog,
     ) {}
 
     /** How the audited page was chosen (seo_audits.page_source). */
@@ -81,7 +82,7 @@ class SeoAuditService
 
         $checks  = SeoAuditCheck::active()->forSiteType($audit->site_type)->get();
         $results = [];
-        $extras  = [];
+        $extras  = ['blog' => $this->blog->detect($url)];
         $aiChecks = [];
 
         foreach ($checks as $check) {
@@ -114,7 +115,7 @@ class SeoAuditService
         $audit->forceFill([
             'url'          => $finalUrl,
             'results'      => $ordered,
-            'extras'       => $extras ?: null,
+            'extras'       => $extras,
             'score'        => $this->score($ordered),
         ]);
         $audit->summary      = $this->summarize($audit, $analyzer->facts());
@@ -262,7 +263,10 @@ class SeoAuditService
         usort($failed, fn ($a, $b) => $b['weight'] <=> $a['weight']);
 
         if (! $failed) {
-            return 'Tehniline põhi on korras — kõik kontrollitud punktid läbisid. Kasv tuleb pigem sisust ja linkidest.';
+            return 'Tehniline põhi on korras — kõik kontrollitud punktid läbisid. Kasv tuleb nüüd sisust: '
+                . (($audit->extras['blog']['exists'] ?? false)
+                    ? 'regulaarsed uued artiklid blogis toovad juurde otsingusõnu, mille järgi teid leitakse.'
+                    : 'blogi ja regulaarsed artiklid annavad Google\'ile uusi lehti, mida otsingutes näidata.');
         }
 
         $lead = $audit->lead;
@@ -282,6 +286,7 @@ class SeoAuditService
                 'leht'            => $audit->url,
                 'lehe_valik'      => self::PAGE_SOURCES[$audit->page_source] ?? null,
                 'saidi_tüüp'      => SiteTypeDetector::LABELS[$audit->site_type] ?? null,
+                'blogi'           => $audit->extras['blog']['note'] ?? null,
                 'märksõna'        => $audit->keyword,
                 'google_positsioon' => $lead?->serp_position,
                 'google_leht'     => $lead?->serp_page,

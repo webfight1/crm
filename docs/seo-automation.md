@@ -64,6 +64,8 @@ Kliendi vastus (HandleSeoClarifyAnswerJob)
    │  • lisamärksõnad → igaühele otsitakse leht; puuduv leht = müügivõimalus
    ▼
 Pakkumise MUSTAND                            [auto.offer_after_audit, clarify.wait_for_answer]
+   │  + sisuturundus, kui skoor ≥ content.min_score (tehniliselt korras):
+   │    blogi puudub → blogi loomine; blogi olemas → artikkel 1× nädalas (kuupakett)
    │  põhiread + iga läbikukkunud kontrolli hinnaga parandus
    │  → Pakkumised (staatus draft). Saadad alati SINA.
    ▼
@@ -116,6 +118,7 @@ Telegram: üks kokkuvõttev teade + link auditile
 - [ ] **Kirjamallide A/B**: vastamismäär malli järgi.
 
 ## Muudatuste logi
+- 2026-09-26: Blogi tuvastus auditis; tehniliselt korras saidile pakutakse blogi loomist või iganädalasi artikleid (Playbook „Sisuturundus“).
 - 2026-09-26: Sooja kliendi käsitsi lisamine (SEO → Auditid); kliendi vastus seotakse ka CRM-kliendi kaudu.
 - 2026-09-26: Pakkumise read grupeeritakse (kontrolli „Grupp pakkumises“, Playbook `offer.group_items`).
 - 2026-09-25: Saidi tüübi hargnemine (e-pood / koduleht), kontrollide „Kehtib“, e-poe kategooriate analüüs Google'i otsingusoovitustega, Product schema.

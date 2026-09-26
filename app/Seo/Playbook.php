@@ -27,6 +27,7 @@ class Playbook
         'auto'   => 'Automaatika',
         'clarify' => 'Täpsustuskiri soojale kliendile',
         'eshop'   => 'E-pood',
+        'content' => 'Sisuturundus (blogi)',
         'offer'  => 'Pakkumine',
     ];
 
@@ -163,6 +164,30 @@ class Playbook
             'section' => 'eshop', 'type' => 'int', 'default' => '70',
             'label'   => 'Kategooriate kontroll on korras alates (%)',
             'help'    => 'Kui suur osa kategooriatest peab olema sõnastatud nagu otsingud.',
+        ],
+
+        // ── Content ─────────────────────────────────────────────────────────
+        'content.enabled' => [
+            'section' => 'content', 'type' => 'bool', 'default' => '1',
+            'label'   => 'Lisa pakkumisse sisuturundus, kui leht on tehniliselt korras',
+            'help'    => 'Blogi puudub → blogi loomine. Blogi olemas → igakuine artiklipakett. Audit tuvastab blogi ise.',
+        ],
+        'content.min_score' => [
+            'section' => 'content', 'type' => 'int', 'default' => '80',
+            'label'   => '„Tehniliselt korras“ alates auditi skoorist',
+            'help'    => '0 = lisa sisuturundus alati, ka koos tehniliste parandustega.',
+        ],
+        'content.blog_setup' => [
+            'section' => 'content', 'type' => 'lines',
+            'default' => "Blogi loomine ja seadistamine (rubriik, mall, SEO seaded) | 1 | tk | 350\nEsimesed SEO-artiklid märksõna „{{keyword}}“ teemal | 2 | artiklit | 90",
+            'label'   => 'Read, kui blogi PUUDUB',
+            'help'    => 'Kujul "kirjeldus | kogus | ühik | hind". Kohatäited: {{keyword}}, {{company}}.',
+        ],
+        'content.articles' => [
+            'section' => 'content', 'type' => 'lines',
+            'default' => 'SEO-artikkel blogisse, 1× nädalas (märksõnauuring, tekst, pildid, avaldamine) | 4 | artiklit/kuu | 90',
+            'label'   => 'Read, kui blogi ON OLEMAS',
+            'help'    => 'Kujul "kirjeldus | kogus | ühik | hind". Kohatäited: {{keyword}}, {{company}}.',
         ],
 
         // ── Offer ───────────────────────────────────────────────────────────

@@ -35,6 +35,17 @@
                             @if($audit->site_type_note)<span class="text-gray-500"> · {{ $audit->site_type_note }}</span>@endif
                         </p>
                     @endif
+                    @if($blog = $audit->extras['blog'] ?? null)
+                        <p><span class="text-gray-500">Blogi:</span>
+                            @if($blog['exists'])
+                                <strong>olemas</strong>@if($blog['url']) · <a href="{{ $blog['url'] }}" target="_blank" rel="noopener" class="text-indigo-600">{{ $blog['url'] }}</a>@endif
+                                · pakkumisse: igakuised artiklid
+                            @else
+                                <strong class="text-amber-700">puudub</strong> · pakkumisse: blogi loomine
+                            @endif
+                            <span class="text-gray-500"> · {{ $blog['note'] }} (kehtib, kui skoor ≥ {{ \App\Seo\Playbook::int('content.min_score') }})</span>
+                        </p>
+                    @endif
                     @if($audit->lead?->seo_stage)
                         <p><span class="text-gray-500">Täpsustuskiri:</span>
                             {{ ['clarify_drafted' => 'mustand postkastis, saatmata', 'awaiting_answer' => 'saadetud, ootab vastust', 'answered' => 'klient vastas'][$audit->lead->seo_stage] ?? $audit->lead->seo_stage }}

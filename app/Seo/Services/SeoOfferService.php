@@ -11,7 +11,9 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Builds a DRAFT quotation from an audit: Playbook base items + the priced
- * fixes of failed checks. With offer.group_items, fixes sharing a fix_group
+ * fixes of failed checks + content marketing when the site is technically
+ * fine (score ≥ content.min_score): no blog → blog setup, blog → weekly
+ * articles (Playbook content.*). With offer.group_items, fixes sharing a fix_group
  * become one line ("Tehniline SEO korrastus: HTTPS, sitemap …", price = sum).
  * Never sends anything.
  */
@@ -68,20 +70,7 @@ class SeoOfferService
     /** @return array<int, array{description:string, quantity:float, unit:string, unit_price:float}> */
     public function items(SeoAudit $audit): array
     {
-        $items = [];
-
-        foreach (Playbook::lines('offer.base_items') as $line) {
-            $parts = array_map('trim', explode('|', $line));
-            if (count($parts) < 4 || ! is_numeric($parts[1]) || ! is_numeric(str_replace(',', '.', $parts[3]))) {
-                continue;
-            }
-            $items[] = [
-                'description' => $parts[0],
-                'quantity'    => (float) $parts[1],
-                'unit'        => $parts[2] ?: 'tk',
-                'unit_price'  => (float) str_replace(',', '.', $parts[3]),
-            ];
-        }
+        $items = $this->lineItems('offer.base_items', $audit);
 
         $failedKeys = array_column($audit->failedResults(), 'key');
         $checks = SeoAuditCheck::whereIn('key', $failedKeys)
@@ -119,6 +108,37 @@ class SeoOfferService
                 'quantity'    => 1,
                 'unit'        => count($g['works']) === 1 ? 'tk' : 'komplekt',
                 'unit_price'  => round($g['total'], 2),
+            ];
+        }
+
+        if (Playbook::bool('content.enabled') && $audit->score !== null
+            && $audit->score >= Playbook::int('content.min_score')
+        ) {
+            $hasBlog = (bool) ($audit->extras['blog']['exists'] ?? false);
+            $items = array_merge($items, $this->lineItems($hasBlog ? 'content.articles' : 'content.blog_setup', $audit));
+        }
+
+        return $items;
+    }
+
+    /**
+     * Playbook lines "description | quantity | unit | price" → quotation items.
+     *
+     * @return array<int, array{description:string, quantity:float, unit:string, unit_price:float}>
+     */
+    private function lineItems(string $key, SeoAudit $audit): array
+    {
+        $items = [];
+        foreach (Playbook::lines($key) as $line) {
+            $parts = array_map('trim', explode('|', $line));
+            if (count($parts) < 4 || ! is_numeric($parts[1]) || ! is_numeric(str_replace(',', '.', $parts[3]))) {
+                continue;
+            }
+            $items[] = [
+                'description' => mb_substr($this->placeholders($parts[0], $audit), 0, 255),
+                'quantity'    => (float) $parts[1],
+                'unit'        => $parts[2] ?: 'tk',
+                'unit_price'  => (float) str_replace(',', '.', $parts[3]),
             ];
         }
 
