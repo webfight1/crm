@@ -58,6 +58,11 @@
                             <td class="px-4 py-2 min-w-[12rem]">
                                 <a href="{{ route('deals.show', $row['deal']) }}" class="font-medium text-gray-900 hover:text-indigo-700">{{ $row['lead']->company ?: $row['lead']->email }}</a>
                                 <div class="text-xs text-gray-500">„{{ $row['lead']->serp_keyword }}“@if($row['lead']->serp_position) · koht {{ $row['lead']->serp_position }}@endif</div>
+                                <div class="text-xs mt-0.5 space-x-2">
+                                    @if($row['stages']['audit']['url'])<a href="{{ $row['stages']['audit']['url'] }}" class="text-indigo-600 hover:text-indigo-900">audit</a>@endif
+                                    <a href="{{ route('deals.show', $row['deal']) }}" class="text-indigo-600 hover:text-indigo-900">tehing</a>
+                                    <a href="{{ \App\Outreach\Models\OutreachMessage::inboxThreadUrl($row['lead']->email) }}" class="text-indigo-600 hover:text-indigo-900">postkast</a>
+                                </div>
                             </td>
                             @foreach($stages as $key => $label)
                                 @php $s = $row['stages'][$key]; @endphp
