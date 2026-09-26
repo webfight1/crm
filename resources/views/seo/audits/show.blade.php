@@ -147,9 +147,13 @@
                 <div class="bg-white shadow-sm rounded-lg overflow-x-auto">
                     <table class="min-w-full text-sm">
                         <thead class="bg-gray-50 text-xs text-gray-500 uppercase text-left">
-                            <tr><th class="px-4 py-2 w-24">Tulemus</th><th class="px-4 py-2">Kontroll</th><th class="px-4 py-2">Leitud</th><th class="px-4 py-2 text-right">Kaal</th></tr>
+                            <tr><th class="px-4 py-2 w-24">Tulemus</th><th class="px-4 py-2">Kontroll</th><th class="px-4 py-2">Leitud</th><th class="px-4 py-2 text-right">Kaal</th><th class="px-4 py-2"></th></tr>
                         </thead>
                         <tbody>
+                        @php
+                            $taskDeal = $audit->deal_id ?? $audit->lead?->deal_id;
+                            $taskSite = parse_url($audit->url, PHP_URL_HOST) ?: $audit->url;
+                        @endphp
                         @foreach($audit->results as $r)
                             <tr class="border-t border-gray-100 align-top">
                                 <td class="px-4 py-2">
@@ -166,6 +170,21 @@
                                     @if($r['value'] !== null && $r['value'] !== '')<div class="text-xs text-gray-400">{{ \Illuminate\Support\Str::limit($r['value'], 160) }}</div>@endif
                                 </td>
                                 <td class="px-4 py-2 text-right text-gray-500">{{ $r['weight'] }}</td>
+                                <td class="px-4 py-2 text-right whitespace-nowrap">
+                                    {{-- Track this item separately as a task (pre-filled, tied to the deal). --}}
+                                    <a href="{{ route('tasks.create', array_filter([
+                                            'deal'        => $taskDeal,
+                                            'title'       => \Illuminate\Support\Str::limit("SEO: {$r['label']} – {$taskSite}", 250, ''),
+                                            'description' => \Illuminate\Support\Str::limit(trim(implode("\n", array_filter([
+                                                $r['note'] ?? null,
+                                                ($r['value'] ?? '') !== '' ? 'Leitud: ' . \Illuminate\Support\Str::limit((string) $r['value'], 300) : null,
+                                                'Leht: ' . $audit->url,
+                                                'Audit: ' . route('seo.audits.show', $audit),
+                                            ]))), 1500),
+                                        ])) }}"
+                                       class="text-xs {{ $r['status'] === 'fail' ? 'text-indigo-600 hover:text-indigo-800 font-medium' : 'text-gray-400 hover:text-indigo-600' }}"
+                                       title="Lisa see rida eraldi ülesandeks">+ ülesanne</a>
+                                </td>
                             </tr>
                         @endforeach
                         </tbody>

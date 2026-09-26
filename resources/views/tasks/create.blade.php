@@ -29,7 +29,7 @@
                         {{-- Title --}}
                         <div>
                             <x-input-label for="title" :value="__('Pealkiri')" />
-                            <x-text-input id="title" name="title" type="text" class="mt-1 block w-full" :value="old('title')" required autofocus />
+                            <x-text-input id="title" name="title" type="text" class="mt-1 block w-full" :value="old('title', request('title'))" required autofocus />
                             <x-input-error :messages="$errors->get('title')" class="mt-1" />
                         </div>
 
@@ -37,7 +37,7 @@
                         <div>
                             <x-input-label for="description" :value="__('Kirjeldus')" />
                             <textarea id="description" name="description" rows="4"
-                                      class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">{{ old('description') }}</textarea>
+                                      class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">{{ old('description', request('description')) }}</textarea>
                             <x-input-error :messages="$errors->get('description')" class="mt-1" />
                         </div>
 
