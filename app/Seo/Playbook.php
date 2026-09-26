@@ -273,6 +273,12 @@ class Playbook
             'label'   => 'Koonda sama grupi parandused üheks reaks',
             'help'    => 'Grupi määrad iga kontrolli juures („Grupp pakkumises“). Rea hind = grupi paranduste summa, kirjeldusse loetletakse tööd.',
         ],
+        'offer.site_wide_checks' => [
+            'section' => 'offer', 'type' => 'lines',
+            'default' => "https\nsitemap\nrobots_txt\npagespeed_mobile\nviewport\nschema\neshop_product_schema\nai_contact_cta",
+            'label'   => 'Kogu saiti puudutavad kontrollid',
+            'help'    => 'Kontrollide võtmed (üks rea kohta). Mitme lehega pakkumises tulevad need parandused ühe korra; ülejäänud parandused lähevad iga lehe oma reale.',
+        ],
         'offer.valid_days' => [
             'section' => 'offer', 'type' => 'int', 'default' => '14',
             'label'   => 'Kehtivus (päeva)',

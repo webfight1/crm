@@ -127,13 +127,58 @@
                                 <button class="w-full text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50">🔑 Küsi ligipääsud</button>
                             </form>
                         @endif
-                        @if($audit->status === 'done' && ! $audit->quotation_id && $audit->deal_id)
-                            <form method="POST" action="{{ route('seo.audits.offer', $audit) }}">@csrf
-                                <x-primary-button class="w-full justify-center">Koosta pakkumine</x-primary-button>
+                        @if($root->status === 'done' && ! $root->quotation_id && $root->deal_id)
+                            <form method="POST" action="{{ route('seo.audits.offer', $root) }}">@csrf
+                                <x-primary-button class="w-full justify-center">Koosta pakkumine{{ $siblings->count() > 1 ? ' (' . $siblings->count() . ' lehte)' : '' }}</x-primary-button>
+                            </form>
+                        @elseif($root->quotation?->status === 'draft' && $siblings->count() > 1)
+                            <form method="POST" action="{{ route('seo.audits.offer', $root) }}">@csrf
+                                <input type="hidden" name="rebuild" value="1">
+                                <button class="w-full text-xs border border-indigo-300 text-indigo-700 rounded px-2 py-1 hover:bg-indigo-50"
+                                        title="Pakkumise mustandi read ja kirjeldus koostatakse uuesti kõigi lehtede põhjal (käsitsi muudatused ridades kaovad)">🔄 Uuenda pakkumist ({{ $siblings->count() }} lehte)</button>
                             </form>
                         @endif
                     </div>
                 </div>
+            </div>
+
+            {{-- All pages of this client: the main audit + extra pages/keywords. --}}
+            <div class="bg-white shadow-sm rounded-lg p-6" x-data="{ adding: false }">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-semibold">Kliendi lehed ({{ $siblings->count() }})</h3>
+                    <button type="button" x-show="! adding" @click="adding = true" class="text-sm text-indigo-600 hover:text-indigo-800">+ Lisa lehti / märksõnu</button>
+                </div>
+                <table class="min-w-full text-sm">
+                    <tbody>
+                    @foreach($siblings as $sib)
+                        <tr class="border-t border-gray-100 {{ $sib->id === $audit->id ? 'bg-indigo-50' : '' }}">
+                            <td class="px-2 py-1.5 w-20 text-xs text-gray-500">{{ $sib->main_audit_id ? 'lisaleht' : 'põhileht' }}</td>
+                            <td class="px-2 py-1.5 break-all">
+                                <a href="{{ route('seo.audits.show', $sib) }}" class="text-indigo-600 hover:text-indigo-800">{{ $sib->url }}</a>
+                                @if($sib->keyword)<span class="text-gray-500"> · „{{ $sib->keyword }}“</span>@endif
+                            </td>
+                            <td class="px-2 py-1.5 text-right whitespace-nowrap">
+                                @if($sib->status === 'done')<strong>{{ $sib->score }}</strong>/100
+                                @elseif($sib->status === 'failed')<span class="text-red-600 text-xs">ebaõnnestus</span>
+                                @else<span class="text-yellow-600 text-xs">töös…</span>@endif
+                            </td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+                <form x-show="adding" x-cloak method="POST" action="{{ route('seo.audits.pages', $audit) }}" class="mt-4 space-y-2">
+                    @csrf
+                    <textarea name="pages" rows="5" placeholder="https://klient.ee/teenus | märksõna&#10;teine märksõna&#10;/kontakt" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">{{ $suggestedPages }}</textarea>
+                    <p class="text-xs text-gray-500">
+                        Üks rida = üks leht: „URL | märksõna“, ainult URL või ainult märksõna (siis otsitakse lehte kliendi saidilt). Kuni 10 rida.
+                        @if($suggestedPages) Eeltäidetud kliendi täpsustuskirja lisamärksõnadega. @endif
+                        Kõik lehed lähevad ühte pakkumisse: kogu saiti puudutavad parandused ühe korra, iga lehe omad eraldi real.
+                    </p>
+                    <div class="flex gap-2">
+                        <button class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded">Auditeeri lehed</button>
+                        <button type="button" @click="adding = false" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm rounded">Tühista</button>
+                    </div>
+                </form>
             </div>
 
             @if($audit->summary || $audit->status === 'done')
@@ -147,7 +192,7 @@
                         @csrf
                         <textarea name="summary" rows="12" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">{{ $audit->summary }}</textarea>
                         <p class="text-xs text-gray-500">
-                            Läheb pakkumise kirjeldusse{{ $audit->quotation && $audit->quotation->status === 'draft' ? " (uuendatakse ka mustandis {$audit->quotation->number})" : '' }}.
+                            @if($audit->main_audit_id) Lisalehe kokkuvõte — pakkumisse läheb põhilehe oma. @else Läheb pakkumise kirjeldusse{{ $audit->quotation && $audit->quotation->status === 'draft' ? " (uuendatakse ka mustandis {$audit->quotation->number})" : '' }}. @endif
                             Auditi uuesti käivitamine kirjutab selle üle.
                         </p>
                         <div class="flex gap-2">

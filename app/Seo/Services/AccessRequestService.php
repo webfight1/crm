@@ -41,7 +41,7 @@ class AccessRequestService
             return false;
         }
 
-        $audit = SeoAudit::where('lead_id', $lead->id)->latest('id')->first();
+        $audit = SeoAudit::main()->where('lead_id', $lead->id)->latest('id')->first();
         $hosting = $audit->extras['hosting'] ?? null;
         if (! $hosting && ($lead->website || $audit)) {
             $hosting = $this->hosting->detect($lead->website ?: $audit->url);

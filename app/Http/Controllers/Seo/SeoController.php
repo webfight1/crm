@@ -272,10 +272,22 @@ class SeoController extends Controller
 
     public function auditsShow(SeoAudit $audit): View
     {
-        $audit->load(['lead.campaign', 'deal.customer', 'quotation']);
+        $audit->load(['lead.campaign', 'deal.customer', 'quotation', 'mainAudit']);
+        $root = $audit->root();
+        $siblings = collect([$root])->concat($root->pages()->get());
+
+        // Extra keywords from the clarification answer ("kw | url") not audited yet.
+        $audited = $siblings->pluck('keyword')->filter()->map(fn ($k) => mb_strtolower($k))->all();
+        $suggested = collect(\App\Seo\Playbook::parseLines((string) $audit->lead?->seo_extra_keywords))
+            ->reject(fn ($line) => in_array(mb_strtolower(trim(explode('|', $line)[0])), $audited, true))
+            ->map(fn ($line) => trim(implode(' | ', array_reverse(array_filter(array_map('trim', explode('|', $line)))))))
+            ->implode("\n");
 
         return view('seo.audits.show', [
             'audit' => $audit,
+            'root' => $root,
+            'siblings' => $siblings,
+            'suggestedPages' => $suggested,
             'deals' => $audit->deal_id ? collect() : Deal::latest()->limit(50)->get(['id', 'title']),
         ]);
     }
@@ -295,15 +307,68 @@ class SeoController extends Controller
         return back()->with('success', 'Tehing seotud.');
     }
 
+    /**
+     * More pages / keywords of the same client: one audit per line, hanging
+     * off the main audit (same lead + deal → one combined quotation).
+     * Line: "URL | märksõna", "märksõna | URL", "URL" or just "märksõna"
+     * (then the page is looked up on the client's site).
+     */
+    public function auditsAddPages(Request $request, SeoAudit $audit): RedirectResponse
+    {
+        $root = $audit->root();
+        $lines = array_slice(\App\Seo\Playbook::parseLines((string) $request->validate(['pages' => 'required|string|max:5000'])['pages']), 0, 10);
+        $site = \App\Seo\Services\SiteCrawler::origin($audit->lead?->website ?: $root->url);
+
+        $created = 0;
+        foreach ($lines as $line) {
+            $url = $keyword = null;
+            foreach (array_filter(array_map('trim', explode('|', $line))) as $part) {
+                if (! $url && preg_match('~^(https?://|www\.|/)|^[^\s]+\.[a-z]{2,}(/|$)~i', $part)) {
+                    $url = $part;
+                } elseif (! $keyword) {
+                    $keyword = $part;
+                }
+            }
+            if ($url && str_starts_with($url, '/')) {
+                $url = $site ? rtrim($site, '/') . $url : null;
+            } elseif ($url && ! preg_match('~^https?://~i', $url)) {
+                $url = 'https://' . $url;
+            }
+            $url ??= $site ? rtrim($site, '/') . '/' : null; // keyword only → find its page on the site
+            if (! $url) {
+                continue;
+            }
+
+            $page = SeoAudit::create([
+                'lead_id'        => $root->lead_id,
+                'main_audit_id'  => $root->id,
+                'deal_id'        => $root->deal_id,
+                'url'            => mb_substr($url, 0, 255),
+                'keyword'        => $keyword ? mb_substr($keyword, 0, 255) : ($root->keyword ?: null),
+                'site_type'      => $root->site_type,
+                'site_type_note' => $root->site_type ? 'Sama sait mis põhiauditis.' : null,
+            ]);
+            RunSeoAuditJob::dispatch($page->id);
+            $created++;
+        }
+
+        return redirect()->route('seo.audits.show', $root)->with(
+            $created ? 'success' : 'error',
+            $created ? "Auditeerin {$created} lehte — värskenda lehte paari minuti pärast. Siis „Uuenda pakkumist“ paneb kõik ühte pakkumisse." : 'Ühtegi lehte ei leitud — kirjuta rea kaupa „URL | märksõna“.'
+        );
+    }
+
     /** Operator edits the client-facing summary; a still-draft quotation gets it too. */
-    public function auditsSummary(Request $request, SeoAudit $audit): RedirectResponse
+    public function auditsSummary(Request $request, SeoAudit $audit, SeoOfferService $offers): RedirectResponse
     {
         $summary = trim($request->validate(['summary' => 'nullable|string|max:20000'])['summary'] ?? '');
         $audit->update(['summary' => $summary !== '' ? $summary : null]);
 
-        $quotation = $audit->quotation;
+        // Only the main audit's summary goes into the quotation.
+        $quotation = $audit->main_audit_id ? null : $audit->quotation;
         if ($quotation && $quotation->status === 'draft') {
-            $quotation->update(['description' => $audit->summary]);
+            $pages = $audit->pages()->where('status', SeoAudit::STATUS_DONE)->get()->all();
+            $quotation->update(['description' => $offers->description($audit, $pages)]);
 
             return back()->with('success', "Kokkuvõte salvestatud ja uuendatud ka pakkumise {$quotation->number} mustandis.");
         }
@@ -335,10 +400,10 @@ class SeoController extends Controller
             ->with('success', 'Ligipääsukirja mustand on vastamisvormis ja ülesanne loodud — vaata üle ja saada.');
     }
 
-    public function auditsOffer(SeoAudit $audit, SeoOfferService $offers): RedirectResponse
+    public function auditsOffer(Request $request, SeoAudit $audit, SeoOfferService $offers): RedirectResponse
     {
         try {
-            $quotation = $offers->createQuotation($audit, auth()->id());
+            $quotation = $offers->createQuotation($audit, auth()->id(), $request->boolean('rebuild'));
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }

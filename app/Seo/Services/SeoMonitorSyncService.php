@@ -35,7 +35,7 @@ class SeoMonitorSyncService
             $lead->update(['seo_monitor_project_id' => null]); // deleted in SEO-monitor → create again
         }
 
-        $audit = SeoAudit::where('lead_id', $lead->id)->latest('id')->first();
+        $audit = SeoAudit::main()->where('lead_id', $lead->id)->latest('id')->first();
         $site = $lead->website ?: $audit?->url;
         $origin = $site ? SiteCrawler::origin($site) : null;
         if (! $origin) {

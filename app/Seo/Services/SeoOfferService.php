@@ -15,34 +15,61 @@ use Illuminate\Support\Facades\DB;
  * fine (score ≥ content.min_score): no blog → blog setup, blog → weekly
  * articles (Playbook content.*). With offer.group_items, fixes sharing a fix_group
  * become one line ("Tehniline SEO korrastus: HTTPS, sitemap …", price = sum).
- * Never sends anything.
+ *
+ * A client with extra pages (audits hanging off the main one) gets ONE
+ * quotation: site-wide fixes (offer.site_wide_checks) once, and one line per
+ * page for that page's own fixes. Never sends anything.
  */
 class SeoOfferService
 {
-    public function createQuotation(SeoAudit $audit, ?int $userId = null): Quotation
+    /**
+     * The client's quotation (main audit + its extra pages). An existing one is
+     * returned as-is — or, with $rebuild and still a draft, its lines and
+     * description are built again from all pages.
+     */
+    public function createQuotation(SeoAudit $audit, ?int $userId = null, bool $rebuild = false): Quotation
     {
+        $audit = $audit->root();
         if (! $audit->deal_id) {
             throw new \RuntimeException('Auditil pole tehingut — pakkumist ei saa siduda.');
         }
-        if ($audit->quotation_id && ($existing = Quotation::find($audit->quotation_id))) {
+        $pages = $audit->pages()->where('status', SeoAudit::STATUS_DONE)->get();
+
+        $existing = $audit->quotation_id ? Quotation::find($audit->quotation_id) : null;
+        if ($existing && ! ($rebuild && $existing->status === 'draft')) {
             return $existing;
         }
 
-        $items = $this->items($audit);
+        $items = $pages->isEmpty() ? $this->items($audit) : $this->multiPageItems($audit, $pages->all());
         if (! $items) {
             throw new \RuntimeException('Pakkumisse pole ühtegi rida — lisa Playbookis hinnaga parandusi või põhiread.');
         }
+        $description = $this->description($audit, $pages->all());
+
+        if ($existing) {
+            return DB::transaction(function () use ($existing, $items, $description, $audit, $pages) {
+                $existing->items()->delete();
+                foreach ($items as $item) {
+                    $existing->items()->create($item);
+                }
+                $existing->description = $description;
+                $existing->load('items')->calculateTotals()->save();
+                $audit->deal?->update(['value' => $existing->subtotal]);
+                SeoAudit::whereIn('id', $pages->pluck('id'))->update(['quotation_id' => $existing->id]);
+
+                return $existing;
+            });
+        }
 
         $settings = Setting::getSettings();
-        $lead     = $audit->lead;
         $deal     = $audit->deal;
 
-        return DB::transaction(function () use ($audit, $items, $settings, $lead, $deal, $userId) {
+        return DB::transaction(function () use ($audit, $pages, $items, $description, $settings, $deal, $userId) {
             $quotation = new Quotation([
                 'deal_id'     => $audit->deal_id,
                 'user_id'     => $userId ?? $deal->user_id,
                 'title'       => mb_substr($this->placeholders(Playbook::get('offer.title'), $audit), 0, 255),
-                'description' => $audit->summary,
+                'description' => $description,
                 'vat_rate'    => $settings->default_vat_rate ?? 24,
                 'valid_until' => now()->addDays(max(1, Playbook::int('offer.valid_days'))),
                 'terms'       => $settings->quotation_terms,
@@ -61,25 +88,92 @@ class SeoOfferService
 
             $quotation->load('items')->calculateTotals()->save();
             $deal->update(['value' => $quotation->subtotal]);
-            $audit->update(['quotation_id' => $quotation->id]);
+            SeoAudit::whereIn('id', $pages->pluck('id')->push($audit->id))->update(['quotation_id' => $quotation->id]);
+            $audit->quotation_id = $quotation->id;
 
             return $quotation;
         });
+    }
+
+    /**
+     * Main + extra pages: base lines once, site-wide fixes once (from any
+     * page), each page's own fixes as one line, content lines by the main audit.
+     *
+     * @param  SeoAudit[] $pages
+     * @return array<int, array{description:string, quantity:float, unit:string, unit_price:float}>
+     */
+    public function multiPageItems(SeoAudit $main, array $pages): array
+    {
+        $siteWide = Playbook::lines('offer.site_wide_checks');
+        $all = array_merge([$main], $pages);
+
+        $items = $this->lineItems('offer.base_items', $main);
+
+        $siteKeys = [];
+        foreach ($all as $a) {
+            $siteKeys = array_merge($siteKeys, array_intersect(array_column($a->failedResults(), 'key'), $siteWide));
+        }
+        $items = array_merge($items, $this->fixItems(array_unique($siteKeys), array_column($items, 'description')));
+
+        foreach ($all as $a) {
+            $pageKeys = array_diff(array_column($a->failedResults(), 'key'), $siteWide);
+            $fixes = $this->fixItems($pageKeys, [], false);
+            if (! $fixes) {
+                continue;
+            }
+            $path = parse_url($a->url, PHP_URL_PATH) ?: '/';
+            $items[] = [
+                'description' => mb_substr('Leht ' . $path . ($a->keyword ? " („{$a->keyword}“)" : '') . ': '
+                    . implode(', ', array_column($fixes, 'description')), 0, 255),
+                'quantity'    => 1,
+                'unit'        => 'leht',
+                'unit_price'  => round(array_sum(array_map(fn ($f) => $f['quantity'] * $f['unit_price'], $fixes)), 2),
+            ];
+        }
+
+        return array_merge($items, $this->contentItems($main));
+    }
+
+    /** Main summary + the list of pages audited with it. */
+    public function description(SeoAudit $main, array $pages): ?string
+    {
+        if (! $pages) {
+            return $main->summary;
+        }
+        $list = array_map(
+            fn (SeoAudit $a) => '• ' . $a->url . ($a->keyword ? " („{$a->keyword}“)" : '') . ($a->score !== null ? " — {$a->score}/100" : ''),
+            array_merge([$main], $pages),
+        );
+
+        return trim(($main->summary ?? '') . "\n\nAuditeeritud lehed:\n" . implode("\n", $list));
     }
 
     /** @return array<int, array{description:string, quantity:float, unit:string, unit_price:float}> */
     public function items(SeoAudit $audit): array
     {
         $items = $this->lineItems('offer.base_items', $audit);
+        $items = array_merge($items, $this->fixItems(array_column($audit->failedResults(), 'key'), array_column($items, 'description')));
 
-        $failedKeys = array_column($audit->failedResults(), 'key');
+        return array_merge($items, $this->contentItems($audit));
+    }
+
+    /**
+     * Priced fixes of the given failed checks; one line per fix, or per
+     * fix_group with offer.group_items (and $group).
+     *
+     * @param  string[] $failedKeys
+     * @param  string[] $seen fix titles already on the quotation
+     * @return array<int, array{description:string, quantity:float, unit:string, unit_price:float}>
+     */
+    private function fixItems(array $failedKeys, array $seen = [], bool $group = true): array
+    {
+        $items = [];
         $checks = SeoAuditCheck::whereIn('key', $failedKeys)
             ->whereNotNull('fix_title')->where('fix_price', '>', 0)
             ->orderByDesc('weight')->orderBy('sort_order')
             ->get();
 
-        $group = Playbook::bool('offer.group_items');
-        $seen = array_column($items, 'description');
+        $group = $group && Playbook::bool('offer.group_items');
         $grouped = []; // group => ['works' => string[], 'total' => float], in first-seen order
         foreach ($checks as $check) {
             if (in_array($check->fix_title, $seen, true)) {
@@ -111,14 +205,20 @@ class SeoOfferService
             ];
         }
 
-        if (Playbook::bool('content.enabled') && $audit->score !== null
-            && $audit->score >= Playbook::int('content.min_score')
-        ) {
-            $hasBlog = (bool) ($audit->extras['blog']['exists'] ?? false);
-            $items = array_merge($items, $this->lineItems($hasBlog ? 'content.articles' : 'content.blog_setup', $audit));
-        }
-
         return $items;
+    }
+
+    /** Content marketing when the site is technically fine: blog setup, or weekly articles. */
+    private function contentItems(SeoAudit $audit): array
+    {
+        if (! Playbook::bool('content.enabled') || $audit->score === null
+            || $audit->score < Playbook::int('content.min_score')
+        ) {
+            return [];
+        }
+        $hasBlog = (bool) ($audit->extras['blog']['exists'] ?? false);
+
+        return $this->lineItems($hasBlog ? 'content.articles' : 'content.blog_setup', $audit);
     }
 
     /**

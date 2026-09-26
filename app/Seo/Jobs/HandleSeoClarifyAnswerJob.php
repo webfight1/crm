@@ -57,7 +57,7 @@ class HandleSeoClarifyAnswerJob implements ShouldQueue
             return;
         }
 
-        $audit = SeoAudit::where('lead_id', $lead->id)->latest('id')->first();
+        $audit = SeoAudit::main()->where('lead_id', $lead->id)->latest('id')->first();
         $proposed = $audit && in_array($audit->page_source, ['csv', 'found', 'home'], true) ? $audit->url : null;
 
         $a = $clarify->parseAnswer($lead, ReplyIntentService::replyText($message), $proposed);

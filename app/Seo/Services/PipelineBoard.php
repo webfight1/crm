@@ -47,7 +47,7 @@ class PipelineBoard
         }
 
         $deals  = Deal::whereIn('id', $leads->pluck('deal_id'))->get()->keyBy('id');
-        $audits = SeoAudit::whereIn('lead_id', $leads->pluck('id'))->orderBy('id')->get()->groupBy('lead_id');
+        $audits = SeoAudit::main()->whereIn('lead_id', $leads->pluck('id'))->withCount('pages')->orderBy('id')->get()->groupBy('lead_id');
         $quotes = Quotation::whereIn('deal_id', $deals->keys())->orderBy('id')->get()->groupBy('deal_id');
         $tasks  = Task::whereIn('deal_id', $deals->keys())->where('title', 'like', 'Küsi ligipääsud:%')->get()->keyBy('deal_id');
         $projects = $this->monitorProjects($leads->pluck('seo_monitor_project_id')->filter()->all());
@@ -95,7 +95,7 @@ class PipelineBoard
         $url = route('seo.audits.show', $audit);
 
         return match ($audit->status) {
-            SeoAudit::STATUS_DONE   => $this->stage('done', "{$audit->score}/100", $url),
+            SeoAudit::STATUS_DONE   => $this->stage('done', "{$audit->score}/100" . ($audit->pages_count ? ' · +' . $audit->pages_count . ' lk' : ''), $url),
             SeoAudit::STATUS_FAILED => $this->stage('fail', 'ebaõnnestus', $url),
             default                 => $this->stage('me', 'töös…', $url),
         };

@@ -6,7 +6,9 @@ use App\Models\Deal;
 use App\Models\Quotation;
 use App\Outreach\Models\OutreachLead;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SeoAudit extends Model
 {
@@ -22,7 +24,7 @@ class SeoAudit extends Model
     public const RESULT_SKIP = 'skip';
 
     protected $fillable = [
-        'lead_id', 'deal_id', 'quotation_id', 'url', 'keyword', 'page_source', 'page_note', 'site_type', 'site_type_note', 'status',
+        'lead_id', 'main_audit_id', 'deal_id', 'quotation_id', 'url', 'keyword', 'page_source', 'page_note', 'site_type', 'site_type_note', 'status',
         'score', 'results', 'extras', 'summary', 'error', 'completed_at',
     ];
 
@@ -41,6 +43,28 @@ class SeoAudit extends Model
     public function deal(): BelongsTo
     {
         return $this->belongsTo(Deal::class);
+    }
+
+    /** Main audits only — extra pages of a client hang off one (main_audit_id). */
+    public function scopeMain(Builder $query): Builder
+    {
+        return $query->whereNull('main_audit_id');
+    }
+
+    public function mainAudit(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'main_audit_id');
+    }
+
+    public function pages(): HasMany
+    {
+        return $this->hasMany(self::class, 'main_audit_id')->orderBy('id');
+    }
+
+    /** The client's main audit: itself, or the one this extra page belongs to. */
+    public function root(): self
+    {
+        return $this->main_audit_id ? ($this->mainAudit ?? $this) : $this;
     }
 
     public function quotation(): BelongsTo
