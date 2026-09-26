@@ -42,6 +42,7 @@ class OutreachLead extends Model
         'serp_url',
         'seo_stage',
         'seo_clarify_body',
+        'seo_access_body',
         'seo_extra_keywords',
         'notes',
         'qualification',

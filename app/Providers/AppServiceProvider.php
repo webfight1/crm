@@ -31,6 +31,17 @@ class AppServiceProvider extends ServiceProvider
         // every job so edits on /seo/playbook apply without a worker restart.
         Queue::before(fn () => Playbook::flush());
 
+        // SEO: a won deal of an SEO lead → ask the client for access (task +
+        // e-mail draft with hosting-specific instructions).
+        \App\Models\Deal::updated(function (\App\Models\Deal $deal) {
+            if (config('app.seo_pipeline') && $deal->wasChanged('stage')
+                && \App\Seo\Services\AccessRequestService::isTriggerStage($deal->stage)
+                && ($leadId = \App\Outreach\Models\OutreachLead::where('deal_id', $deal->id)->whereNotNull('serp_keyword')->value('id'))
+            ) {
+                \App\Seo\Jobs\RequestSeoAccessJob::dispatch($leadId);
+            }
+        });
+
         // Every ERROR-or-worse log line (failed sends, IMAP outages, failed
         // queue jobs, uncaught exceptions) becomes a Telegram alert, throttled
         // to one per hour per distinct message.

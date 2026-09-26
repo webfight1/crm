@@ -46,9 +46,15 @@
                             <span class="text-gray-500"> · {{ $blog['note'] }} (kehtib, kui skoor ≥ {{ \App\Seo\Playbook::int('content.min_score') }})</span>
                         </p>
                     @endif
+                    @if($hosting = $audit->extras['hosting'] ?? null)
+                        <p><span class="text-gray-500">Majutus:</span>
+                            <strong class="{{ $hosting['provider'] ? '' : 'text-amber-700' }}">{{ $hosting['provider'] ?? 'teadmata' }}</strong>
+                            <span class="text-gray-500"> · {{ $hosting['note'] }}</span>
+                        </p>
+                    @endif
                     @if($audit->lead?->seo_stage)
                         <p><span class="text-gray-500">Täpsustuskiri:</span>
-                            {{ ['clarify_drafted' => 'mustand postkastis, saatmata', 'awaiting_answer' => 'saadetud, ootab vastust', 'answered' => 'klient vastas'][$audit->lead->seo_stage] ?? $audit->lead->seo_stage }}
+                            {{ ['clarify_drafted' => 'mustand postkastis, saatmata', 'awaiting_answer' => 'saadetud, ootab vastust', 'answered' => 'klient vastas', 'access_drafted' => 'ligipääsukirja mustand postkastis', 'access_requested' => 'ligipääsud küsitud'][$audit->lead->seo_stage] ?? $audit->lead->seo_stage }}
                             · <a href="{{ \App\Outreach\Models\OutreachMessage::inboxThreadUrl($audit->lead->email) }}" class="text-indigo-600">postkast →</a>
                         </p>
                     @endif
@@ -106,6 +112,11 @@
                         <form method="POST" action="{{ route('seo.audits.rerun', $audit) }}">@csrf
                             <button class="w-full text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50">Käivita uuesti</button>
                         </form>
+                        @if($audit->lead && ! in_array($audit->lead->seo_stage, ['access_drafted', 'access_requested'], true))
+                            <form method="POST" action="{{ route('seo.audits.access', $audit) }}">@csrf
+                                <button class="w-full text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50">🔑 Küsi ligipääsud</button>
+                            </form>
+                        @endif
                         @if($audit->status === 'done' && ! $audit->quotation_id && $audit->deal_id)
                             <form method="POST" action="{{ route('seo.audits.offer', $audit) }}">@csrf
                                 <x-primary-button class="w-full justify-center">Koosta pakkumine</x-primary-button>

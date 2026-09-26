@@ -67,6 +67,8 @@ class OutreachMessage extends Model
 
             if ($msg->direction === self::DIRECTION_OUTBOUND && $lead->seo_stage === 'clarify_drafted') {
                 $lead->update(['seo_stage' => 'awaiting_answer']);
+            } elseif ($msg->direction === self::DIRECTION_OUTBOUND && $lead->seo_stage === 'access_drafted') {
+                $lead->update(['seo_stage' => 'access_requested']);
             } elseif ($msg->direction === self::DIRECTION_INBOUND && $lead->seo_stage === 'awaiting_answer'
                 && (! $msg->received_at || $msg->received_at->gt(now()->subDays(2)))
             ) {

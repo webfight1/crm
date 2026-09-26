@@ -28,5 +28,6 @@ Route::prefix('seo')->name('seo.')->group(function () {
     Route::get ('/audits/{audit}',          [SeoController::class, 'auditsShow'])->name('audits.show');
     Route::post('/audits/{audit}/rerun',    [SeoController::class, 'auditsRerun'])->name('audits.rerun');
     Route::post('/audits/{audit}/deal',     [SeoController::class, 'auditsAttachDeal'])->name('audits.deal');
+    Route::post('/audits/{audit}/access',   [SeoController::class, 'auditsAccess'])->name('audits.access');
     Route::post('/audits/{audit}/offer',    [SeoController::class, 'auditsOffer'])->name('audits.offer');
 });

@@ -32,6 +32,7 @@ class SeoAuditService
         private readonly SiteTypeDetector $siteType,
         private readonly EshopAnalyzer $eshop,
         private readonly BlogDetector $blog,
+        private readonly HostingDetector $hosting,
     ) {}
 
     /** How the audited page was chosen (seo_audits.page_source). */
@@ -82,7 +83,7 @@ class SeoAuditService
 
         $checks  = SeoAuditCheck::active()->forSiteType($audit->site_type)->get();
         $results = [];
-        $extras  = ['blog' => $this->blog->detect($url)];
+        $extras  = ['blog' => $this->blog->detect($url), 'hosting' => $this->hosting->detect($url)];
         $aiChecks = [];
 
         foreach ($checks as $check) {

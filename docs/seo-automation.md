@@ -76,7 +76,10 @@ Telegram: üks kokkuvõttev teade + link auditile
 ### Ligipääsud astmeti
 1. **Tasuta eelanalüüs:** ei küsita midagi — audit kasutab ainult avalikke andmeid + SEO-monitori positsiooni.
 2. **Soe klient:** täpsustuskirjas valikuline palve anda Search Console'i õigus „Piiratud“ (ainult vaatamine).
-3. **Tasuline töö:** CMS-i (nt WordPressi) eraldi admin-kasutaja + Search Console „Täielik“. Hostingu/SFTP/SSH ainult kui töö nõuab. Paroole e-postiga ei küsi — klient loob eraldi kasutaja.
+3. **Tasuline töö** (tehing etappi `closed_won`/`töös` või auditi lehel „🔑 Küsi ligipääsud“): ülesanne + kirjamustand postkastis.
+   Audit tuvastab majutaja: lehe koodist platvorm (Voog, Wix, Shopify… → haldurikutse), muidu IP → serveri nimi + võrgu omanik (ASN) → Playbooki „Majutajate tuvastus“
+   (Zone.ee, Veebimajutus.ee/Elkdata, Radicenter…). Kirja pannakse selle majutaja SSH-juhend (Playbook „Juhendid majutaja kaupa“, sinu avalik võti) + Search Console „Täielik“.
+   Cloudflare'i taga näeb ainult nimeservereid — märgitakse oletusena. Paroole e-postiga ei küsi.
 
 ### Käsitsi kontrollpunktid (teadlikult)
 1. **Mustandite kinnitamine** enne saatmist. Kui kirjad on paar nädalat head olnud, võib selle sammu kaotada.
@@ -98,6 +101,7 @@ Telegram: üks kokkuvõttev teade + link auditile
 | Audit | `app/Seo/Services/SeoAuditService.php`, HTML-kontrollid `PageAnalyzer.php` |
 | Pakkumine | `app/Seo/Services/SeoOfferService.php` |
 | Voog pärast vastust | `app/Seo/Jobs/HandleSeoReplyJob.php` (käivitab `OutreachLead::booted`) |
+| Majutaja tuvastus + ligipääsukiri | `app/Seo/Services/HostingDetector.php`, `AccessRequestService.php` (käivitab `Deal::updated` AppServiceProvideris) |
 | AI klient (mudel Playbookist) | `app/Seo/Services/SeoAi.php` |
 
 **Uus seadistatav reegel:** lisa kirje `Playbook::DEFINITIONS`-isse ja loe seda `Playbook::get()`-iga. Seadete leht tekib selle põhjal ise.
@@ -117,7 +121,6 @@ Telegram: üks kokkuvõttev teade + link auditile
 - [ ] **Lisamärksõnad pakkumisse**: kliendi nimetatud märksõnad, millel pole oma lehte, lisatakse pakkumisse eraldi ridadena („teenuselehe loomine“).
 - [ ] **Otsingumahud kategooriatele**: Google'i soovitused näitavad sõnastust, mitte mahtu. Täpsem oleks Keyword Planner / DataForSEO (tasuline API).
 - [ ] **E-poe täpsustuskiri**: e-poele küsida „kategooria“ asemel „leht“, ja pakkuda kategooriate ümbernimetamist.
-- [ ] **Pakkumine vastu võetud → ligipääsude küsimine**: ülesanne + kirjamall (CMS-i kasutaja, Search Console „Täielik“).
 - [ ] **Konkurentide võrdlus auditis**: sama märksõna top 3 lehe sõnade arv ja pealkirjad.
 - [ ] **Pakettide loogika**: skoori või leidude arvu järgi S/M/L pakett üksikridade asemel.
 - [ ] **„Hiljem“ vastajad**: automaatne meeldetuletusülesanne 30/60/90 päeva pärast.
@@ -125,6 +128,7 @@ Telegram: üks kokkuvõttev teade + link auditile
 - [ ] **Kirjamallide A/B**: vastamismäär malli järgi.
 
 ## Muudatuste logi
+- 2026-09-26: Majutaja tuvastus (platvorm / IP + ASN / nimeserverid) ja ligipääsukiri majutajapõhise SSH-juhendiga, kui tehing võidetakse.
 - 2026-09-26: Täpsustuskirjas valikuline Search Console'i ligipääsu palve koos juhisega.
 - 2026-09-26: Blogi tuvastus auditis; tehniliselt korras saidile pakutakse blogi loomist või iganädalasi artikleid (Playbook „Sisuturundus“).
 - 2026-09-26: Sooja kliendi käsitsi lisamine (SEO → Auditid); kliendi vastus seotakse ka CRM-kliendi kaudu.

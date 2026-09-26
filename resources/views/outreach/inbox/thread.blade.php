@@ -569,10 +569,15 @@
                     <form method="POST" action="{{ route('outreach.inbox.reply', rtrim(strtr(base64_encode($email), '+/', '-_'), '=')) }}" class="p-4 space-y-3">
                         @csrf
 
+                        @php $seoAccess = ($seoClarifyLead ?? null)?->seo_stage === 'access_drafted'; @endphp
                         @if($seoClarifyLead ?? null)
                             <div class="text-sm bg-indigo-50 border border-indigo-200 text-indigo-900 rounded px-3 py-2">
-                                <strong>SEO täpsustuskirja mustand</strong> („{{ $seoClarifyLead->serp_keyword }}“) on allpool valmis.
-                                Vaata üle ja saada — kliendi vastuse põhjal kinnitatakse leht, lisamärksõnad ja tehakse pakkumise mustand.
+                                @if($seoAccess)
+                                    <strong>SEO ligipääsukirja mustand</strong> on allpool valmis (majutaja juhend + Search Console „Täielik“). Vaata üle ja saada.
+                                @else
+                                    <strong>SEO täpsustuskirja mustand</strong> („{{ $seoClarifyLead->serp_keyword }}“) on allpool valmis.
+                                    Vaata üle ja saada — kliendi vastuse põhjal kinnitatakse leht, lisamärksõnad ja tehakse pakkumise mustand.
+                                @endif
                                 <a href="{{ route('seo.playbook') }}" class="underline">Teksti muudad Playbookis</a>.
                             </div>
                         @endif
@@ -614,7 +619,7 @@
                         <div>
                             <x-input-label for="body" value="Sõnum" />
                             <textarea id="body" name="body" rows="10"
-                                      class="reply-body mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ old('body', ($seoClarifyLead ?? null)?->seo_clarify_body) }}</textarea>
+                                      class="reply-body mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ old('body', ($seoClarifyLead ?? null) ? ($seoAccess ? $seoClarifyLead->seo_access_body : $seoClarifyLead->seo_clarify_body) : null) }}</textarea>
                             <x-input-error :messages="$errors->get('body')" class="mt-1" />
                             <p class="text-xs text-gray-500 mt-1">Saadetakse HTML-ina — bold, italic, lingid, loetelud töötavad. Postkasti signatuur lisatakse automaatselt lõppu.</p>
                         </div>

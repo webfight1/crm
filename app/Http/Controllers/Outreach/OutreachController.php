@@ -1025,7 +1025,8 @@ class OutreachController extends Controller
             'customerForTask' => $customerForTask,
             // SEO pipeline clarification e-mail, pre-filled in the reply form.
             'seoClarifyLead'  => config('app.seo_pipeline')
-                ? $leads->first(fn ($l) => $l->seo_stage === 'clarify_drafted' && $l->seo_clarify_body)
+                ? $leads->first(fn ($l) => ($l->seo_stage === 'clarify_drafted' && $l->seo_clarify_body)
+                    || ($l->seo_stage === 'access_drafted' && $l->seo_access_body))
                 : null,
             'pendingScheduledReplies' => OutreachScheduledReply::with('account')
                 ->where('email_lower', strtolower($email))

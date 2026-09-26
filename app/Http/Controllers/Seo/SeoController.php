@@ -266,6 +266,19 @@ class SeoController extends Controller
         return back()->with('success', 'Tehing seotud.');
     }
 
+    public function auditsAccess(SeoAudit $audit, \App\Seo\Services\AccessRequestService $access): RedirectResponse
+    {
+        if (! $audit->lead) {
+            return back()->with('error', 'Auditil pole leadi — ligipääsukirja saab teha ainult SEO-kliendile.');
+        }
+        if (! $access->request($audit->lead, auth()->id())) {
+            return back()->with('error', 'Ligipääse on sellelt kliendilt juba küsitud.');
+        }
+
+        return redirect()->to(\App\Outreach\Models\OutreachMessage::inboxThreadUrl($audit->lead->email))
+            ->with('success', 'Ligipääsukirja mustand on vastamisvormis ja ülesanne loodud — vaata üle ja saada.');
+    }
+
     public function auditsOffer(SeoAudit $audit, SeoOfferService $offers): RedirectResponse
     {
         try {

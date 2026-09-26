@@ -28,6 +28,7 @@ class Playbook
         'clarify' => 'Täpsustuskiri soojale kliendile',
         'eshop'   => 'E-pood',
         'content' => 'Sisuturundus (blogi)',
+        'access'  => 'Ligipääsud (tasuline töö)',
         'offer'  => 'Pakkumine',
     ];
 
@@ -199,6 +200,42 @@ class Playbook
             'default' => 'SEO-artikkel blogisse, 1× nädalas (märksõnauuring, tekst, pildid, avaldamine) | 4 | artiklit/kuu | 90',
             'label'   => 'Read, kui blogi ON OLEMAS',
             'help'    => 'Kujul "kirjeldus | kogus | ühik | hind". Kohatäited: {{keyword}}, {{company}}.',
+        ],
+
+        // ── Access ──────────────────────────────────────────────────────────
+        'access.trigger_stages' => [
+            'section' => 'access', 'type' => 'text', 'default' => 'closed_won, töös',
+            'label'   => 'Küsi ligipääse, kui tehing liigub etappi',
+            'help'    => 'Komadega eraldatud. Siis luuakse ülesanne „Küsi ligipääsud“ ja postkasti tekib kirja mustand. Auditi lehel on ka käsitsi nupp.',
+        ],
+        'access.ssh_key' => [
+            'section' => 'access', 'type' => 'textarea', 'default' => '',
+            'label'   => 'Sinu avalik SSH-võti',
+            'help'    => 'Kohatäide {{ssh_key}} juhendites (nt ssh-ed25519 AAAA… veiko@webfight). Ainult AVALIK võti (.pub), mitte privaatne.',
+        ],
+        'access.email' => [
+            'section' => 'access', 'type' => 'textarea',
+            'default' => "Tere{{name}}!\n\nAitäh, et otsustasite alustada! Et saaksin tööga pihta hakata, vajan ligipääse:\n\n1. {{instructions}}\n\n{{gsc_request}}\n\nParoole ei ole vaja e-postiga saata — iga ligipääsu saab anda eraldi kasutajana ja hiljem ise eemaldada.",
+            'label'   => 'Kirja tekst',
+            'help'    => 'Kohatäited: {{name}}, {{company}}, {{website}}, {{provider}}, {{instructions}} (majutaja juhend allpool), {{gsc_request}}.',
+        ],
+        'access.gsc_text' => [
+            'section' => 'access', 'type' => 'textarea',
+            'default' => "2. Google Search Console — lisage {{my_email}} kasutajaks õigusega „Täielik“ (Search Console → Seaded → Kasutajad ja load → Lisa kasutaja). Kui lisasite mind varem õigusega „Piiratud“, muutke see palun „Täielikuks“.",
+            'label'   => '{{gsc_request}} tekst',
+            'help'    => '{{my_email}} = „Sinu Google\'i konto“ täpsustuskirja plokist. Kui see on tühi, jääb lõik kirjast välja.',
+        ],
+        'access.providers' => [
+            'section' => 'access', 'type' => 'lines',
+            'default' => "Zone.ee | zone.eu zonevs zoneas zonedata AS49604\nVeebimajutus.ee (Elkdata) | elkdata veebimajutus AS61189\nRadicenter | radicenter AS216263\nHostinger | hostinger\nTelia | telia\nHetzner | hetzner\nDigitalOcean | digitalocean",
+            'label'   => 'Majutajate tuvastus',
+            'help'    => 'Kujul "Nimi | mustrid". Mustrit otsitakse serveri nimest, võrgu omanikust (ASxxxx) ja nimeserveritest. Auditi leht näitab tundmatu majutaja võrku — lisa see siia.',
+        ],
+        'access.instructions' => [
+            'section' => 'access', 'type' => 'textarea',
+            'default' => "## Zone.ee\nKodulehe failid (Zone.ee): palun lisage Zone.ee halduspaneelis oma veebimajutusele SSH-ligipääs minu avaliku võtmega:\n{{ssh_key}}\n\n## Veebimajutus.ee (Elkdata)\nKodulehe failid (Veebimajutus.ee): palun lisage halduspaneelis SSH/SFTP-ligipääs minu avaliku võtmega:\n{{ssh_key}}\n\n## Radicenter\nKodulehe failid (Radicenter): palun lisage halduspaneelis SSH/SFTP-ligipääs minu avaliku võtmega:\n{{ssh_key}}\n\n## Platvorm\nKodulehe haldus ({{provider}}): palun kutsuge {{my_email}} oma {{provider}} konto halduriks / toimetajaks.\n\n## Muu\nKodulehe failid: kõige mugavam on SSH või SFTP ligipääs minu avaliku võtmega; kui see pole võimalik, siis kodulehe (nt WordPressi) eraldi administraatori kasutaja. Võti:\n{{ssh_key}}",
+            'label'   => 'Juhendid majutaja kaupa',
+            'help'    => 'Iga plokk algab reaga „## Majutaja nimi“ (sama nimi mis tuvastuses). „## Platvorm“ = Voog, Wix, Shopify jt; „## Muu“ = kõik ülejäänud. Kohatäited: {{ssh_key}}, {{my_email}}, {{provider}}, {{website}}.',
         ],
 
         // ── Offer ───────────────────────────────────────────────────────────
