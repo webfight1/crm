@@ -31,6 +31,28 @@ class AppServiceProvider extends ServiceProvider
         // every job so edits on /seo/playbook apply without a worker restart.
         Queue::before(fn () => Playbook::flush());
 
+        // Work done → Telegram reminder with the link that opens the invoice
+        // form in RMP for this deal's quotation (RMP makes the draft invoice).
+        \App\Models\Deal::updated(function (\App\Models\Deal $deal) {
+            if (! $deal->wasChanged('stage') || $deal->stage !== 'valmis') {
+                return;
+            }
+            $quotation = \App\Models\Quotation::where('deal_id', $deal->id)
+                ->whereIn('status', ['accepted', 'sent'])
+                ->orderByRaw("status = 'accepted' DESC")->latest('id')->first();
+            if (! $quotation) {
+                return;
+            }
+
+            Telegram::send(
+                "🧾 Töö valmis — tee arve (" . config('app.name') . ")\n"
+                . "{$deal->title} · pakkumine {$quotation->number}, "
+                . number_format((float) $quotation->total, 2, ',', ' ') . " €\n"
+                . 'Loo arve RMP-s: ' . rtrim((string) config('services.rmp.url'), '/') . '/invoices/from-crm?quotation=' . urlencode($quotation->number) . "\n"
+                . 'Tehing: ' . route('deals.show', $deal)
+            );
+        });
+
         // SEO: a won deal of an SEO lead → ask the client for access (task +
         // e-mail draft with hosting-specific instructions).
         \App\Models\Deal::updated(function (\App\Models\Deal $deal) {

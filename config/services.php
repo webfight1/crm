@@ -44,6 +44,12 @@ return [
         'key' => env('OPENAI_API_KEY'),
     ],
 
+    // RMP (rmp.webfight.shop) — own accounting app; invoices are made there
+    // from accepted CRM quotations (RMP reads the crm DB).
+    'rmp' => [
+        'url' => env('RMP_URL', 'https://rmp.webfight.shop'),
+    ],
+
     // SEO-monitor (seo.webfight.ee) — the SEO pipeline creates a project there
     // for every won SEO client. Token = Sanctum token of an admin service user.
     'seo_monitor' => [
