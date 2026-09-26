@@ -65,6 +65,8 @@ Kliendi vastus (HandleSeoClarifyAnswerJob)
    │  • lisamärksõnad → igaühele otsitakse leht; puuduv leht = müügivõimalus
    ▼
 Pakkumise MUSTAND                            [auto.offer_after_audit, clarify.wait_for_answer]
+   │  Kliendi vastus pakkumise kirjale („Re: Pakkumine #Q…“) → AI: sobib / küsimused / ei sobi
+   │  → Telegram + tehingu link; „sobib“ märgib pakkumise vastuvõetuks. Tehingu „töös“ paned sina.
    │  + sisuturundus, kui skoor ≥ content.min_score (tehniliselt korras):
    │    blogi puudub → blogi loomine; blogi olemas → artikkel 1× nädalas (kuupakett)
    │  põhiread + iga läbikukkunud kontrolli hinnaga parandus
@@ -132,6 +134,7 @@ Telegram: üks kokkuvõttev teade + link auditile
 - [ ] **Kirjamallide A/B**: vastamismäär malli järgi.
 
 ## Muudatuste logi
+- 2026-09-26: Vastus pakkumisele → AI otsus + tehingu link Telegrami.
 - 2026-09-26: Võidetud kliendile luuakse SEO-monitoris projekt, märksõnad ja kliendikonto; paroolilink ligipääsukirja.
 - 2026-09-26: Majutaja tuvastus (platvorm / IP + ASN / nimeserverid) ja ligipääsukiri majutajapõhise SSH-juhendiga, kui tehing võidetakse.
 - 2026-09-26: Täpsustuskirjas valikuline Search Console'i ligipääsu palve koos juhisega.

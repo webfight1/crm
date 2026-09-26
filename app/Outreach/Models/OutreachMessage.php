@@ -57,6 +57,16 @@ class OutreachMessage extends Model
             if (! config('app.seo_pipeline')) {
                 return;
             }
+
+            // Answer to a quotation e-mail ("Re: Pakkumine #Q2026018") →
+            // AI verdict + deal link to Telegram.
+            if ($msg->direction === self::DIRECTION_INBOUND
+                && \App\Seo\Jobs\HandleOfferReplyJob::quotationNumber($msg->subject)
+                && (! $msg->received_at || $msg->received_at->gt(now()->subDays(2)))
+            ) {
+                \App\Seo\Jobs\HandleOfferReplyJob::dispatch($msg->id)->delay(now()->addMinute());
+            }
+
             // The message's own lead, else the SEO lead of the same CRM customer:
             // a hand-added client's reply is matched to the Customer, or to an
             // older campaign lead with the same address (which has no SEO stage).
