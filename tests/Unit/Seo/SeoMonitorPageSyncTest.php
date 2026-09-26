@@ -29,13 +29,33 @@ class SeoMonitorPageSyncTest extends TestCase
 
     public function test_extra_page_goes_to_positions_and_pages(): void
     {
-        Http::fake(['seo.test/*' => Http::response(['data' => ['id' => 1]], 201)]);
+        Http::fake([
+            'seo.test/api/v1/projects/5' => Http::response(['data' => ['id' => 5, 'url' => 'https://x.ee/']]),
+            'seo.test/*' => Http::response(['data' => ['id' => 1]], 201),
+        ]);
 
         (new SeoMonitorSyncService(new SeoMonitorClient()))->syncPage($this->page(['main_audit_id' => 10], 5));
 
         Http::assertSent(fn ($r) => str_ends_with($r->url(), 'projects/5/keywords')
             && $r['keyword'] === 'valgustus' && $r['target_url'] === 'https://x.ee/valgustus/');
         Http::assertSent(fn ($r) => str_ends_with($r->url(), 'projects/5/pages') && $r['url'] === 'https://x.ee/valgustus/');
+    }
+
+    public function test_page_is_put_in_the_projects_form(): void
+    {
+        $this->assertSame('https://elektritood.eu/kait/', SeoMonitorClient::onSite('http://www.elektritood.eu/kait/?a=1#x', 'https://elektritood.eu/'));
+        $this->assertSame('https://www.x.ee/', SeoMonitorClient::onSite('http://x.ee', 'https://www.x.ee/'));
+        $this->assertSame('https://muu.ee/a', SeoMonitorClient::onSite('https://muu.ee/a?b', 'https://x.ee/'));
+    }
+
+    public function test_rejected_target_still_adds_the_keyword(): void
+    {
+        Http::fake(['seo.test/api/v1/projects/5/keywords' => Http::sequence()
+            ->push(['errors' => ['target_url' => ['vale']]], 422)
+            ->push(['data' => ['id' => 1]], 201)]);
+
+        $this->assertTrue((new SeoMonitorClient())->addKeyword(5, 'valgustus', 'https://muu.ee/'));
+        Http::assertSent(fn ($r) => $r['keyword'] === 'valgustus' && ! isset($r['target_url']));
     }
 
     public function test_nothing_without_a_project_or_for_the_main_audit(): void

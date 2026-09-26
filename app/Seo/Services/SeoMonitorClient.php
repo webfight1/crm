@@ -43,12 +43,44 @@ class SeoMonitorClient
         ]))->throw()->json('data.id');
     }
 
-    /** false = already tracked (or rejected); the project stays usable either way. */
+    /**
+     * false = already tracked (or rejected); the project stays usable either way.
+     * A target page SEO-monitor rejects doesn't cost the keyword: it's added without one.
+     */
     public function addKeyword(int $projectId, string $keyword, ?string $targetUrl): bool
     {
-        return $this->http()->post("projects/{$projectId}/keywords", array_filter([
+        $r = $this->http()->post("projects/{$projectId}/keywords", array_filter([
             'keyword' => $keyword, 'target_url' => $targetUrl,
-        ]))->successful();
+        ]));
+        if ($targetUrl && $r->status() === 422 && $r->json('errors.target_url')) {
+            $r = $this->http()->post("projects/{$projectId}/keywords", ['keyword' => $keyword]);
+        }
+
+        return $r->successful();
+    }
+
+    /** The project's site address, e.g. "https://klient.ee/" (null when unknown). */
+    public function projectSite(int $projectId): ?string
+    {
+        return $this->http()->get("projects/{$projectId}")->json('data.url');
+    }
+
+    /**
+     * A page URL in the project's form — same scheme + host as the project
+     * (http→https, www or not), no query or fragment. SEO-monitor only takes
+     * pages of its own site in exactly that form.
+     */
+    public static function onSite(string $url, ?string $site): string
+    {
+        $p = parse_url($url);
+        $s = $site ? parse_url($site) : null;
+        if (empty($p['host']) || empty($s['host'])
+            || preg_replace('/^www\./i', '', strtolower($p['host'])) !== preg_replace('/^www\./i', '', strtolower($s['host']))
+        ) {
+            return strtok($url, '?#');
+        }
+
+        return ($s['scheme'] ?? 'https') . '://' . $s['host'] . (isset($s['port']) ? ':' . $s['port'] : '') . ($p['path'] ?? '/');
     }
 
     /** A page for PageSpeed tracking ("Lehed"); false = already there (or rejected). */

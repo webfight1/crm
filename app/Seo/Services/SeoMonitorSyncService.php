@@ -35,11 +35,12 @@ class SeoMonitorSyncService
 
     private function trackPage(int $projectId, SeoAudit $page): void
     {
+        $url = SeoMonitorClient::onSite($page->url, $this->monitor->projectSite($projectId));
         if ($page->keyword) {
-            $this->monitor->addKeyword($projectId, $page->keyword, $page->url);
+            $this->monitor->addKeyword($projectId, $page->keyword, $url);
         }
         // The keyword's target already adds the page — unless the keyword was tracked before.
-        $this->monitor->addPage($projectId, $page->url);
+        $this->monitor->addPage($projectId, $url);
     }
 
     /** @return array{project_url:?string, invite_url:?string, note:string} */
@@ -77,7 +78,8 @@ class SeoMonitorSyncService
         $lead->update(['seo_monitor_project_id' => $projectId]);
 
         // Keywords: the main one on its landing page + the client's extras.
-        $landing = $audit && in_array($audit->page_source, ['csv', 'found', 'home', 'client'], true) ? $audit->url : null;
+        $landing = $audit && in_array($audit->page_source, ['csv', 'found', 'home', 'client'], true)
+            ? SeoMonitorClient::onSite($audit->url, $origin . '/') : null;
         if ($lead->serp_keyword) {
             $this->monitor->addKeyword($projectId, $lead->serp_keyword, $landing);
         }
