@@ -127,6 +127,15 @@ class AccessRequestService
         $text = strtr($body, $vars);
         $paragraphs = array_filter(array_map('trim', preg_split('/\R{2,}/u', trim($text)) ?: []), 'strlen');
 
+        // Numbered items ("1. …") are renumbered — optional ones may be missing.
+        $n = 0;
+        foreach ($paragraphs as &$p) {
+            if (preg_match('/^\d+\.\s/u', $p)) {
+                $p = preg_replace('/^\d+\./u', ++$n . '.', $p);
+            }
+        }
+        unset($p);
+
         return implode("\n", array_map(function ($p) {
             $html = nl2br(e($p), false);
             return '<p>' . preg_replace('~(https?://[^\s<]+[^\s<.,;:!?)])~u', '<a href="$1">$1</a>', $html) . '</p>';

@@ -70,4 +70,30 @@ class AccessRequestTest extends TestCase
         $this->assertTrue(AccessRequestService::isTriggerStage('töös'));
         $this->assertFalse(AccessRequestService::isTriggerStage('proposal'));
     }
+
+    public function test_items_are_renumbered_when_one_is_missing(): void
+    {
+        $this->seedPlaybook(['clarify.gsc_email' => '']); // no Search Console item
+        $service = new AccessRequestService(
+            new HostingDetector(new SiteCrawler()),
+            new SeoMonitorSyncService(new SeoMonitorClient()),
+        );
+
+        $html = $service->draft(new OutreachLead(['first_name' => 'Tarmo']), null, 'https://seo.test/invite/x');
+
+        $this->assertStringContainsString('<p>1. ', $html);
+        $this->assertStringContainsString('<p>2. SEO-ülevaade', $html);
+        $this->assertStringNotContainsString('<p>3. ', $html);
+    }
+
+    public function test_own_server_is_matched_by_ip(): void
+    {
+        $service = new AccessRequestService(
+            new HostingDetector(new SiteCrawler()),
+            new SeoMonitorSyncService(new SeoMonitorClient()),
+        );
+
+        $html = $service->draft(new OutreachLead(['first_name' => 'Tarmo']), ['provider' => 'Webfight server', 'kind' => 'host']);
+        $this->assertStringContainsString('juba meie serveris', $html);
+    }
 }

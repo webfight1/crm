@@ -12,7 +12,8 @@ use App\Seo\Playbook;
  *   1. site builders from the homepage HTML (Voog, Wix, Shopify …) — no SSH
  *      there; Voog even runs on Zone's IPs, so this must come first
  *   2. the site's IP → reverse DNS name + network owner (ASN, via Team Cymru's
- *      free DNS service), matched against Playbook access.providers
+ *      free DNS service) + the IP itself (own servers), matched against
+ *      Playbook access.providers
  *   3. behind Cloudflare the IP says nothing → nameservers, marked as a guess
  */
 class HostingDetector
@@ -61,7 +62,8 @@ class HostingDetector
         $out['network'] = $this->network($ip);
         $out['ns'] = $this->nameservers($host);
 
-        $haystack = strtolower($out['ptr'] . ' ' . $out['network']);
+        // IP included, so our own servers can be listed by address.
+        $haystack = strtolower($ip . ' ' . $out['ptr'] . ' ' . $out['network']);
         if (str_contains($haystack, 'cloudflare')) {
             $guess = $this->match(implode(' ', $out['ns']));
             return array_merge($out, [

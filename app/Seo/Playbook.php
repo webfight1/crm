@@ -234,13 +234,13 @@ class Playbook
         ],
         'access.providers' => [
             'section' => 'access', 'type' => 'lines',
-            'default' => "Zone.ee | zone.eu zonevs zoneas zonedata AS49604\nVeebimajutus.ee (Elkdata) | elkdata veebimajutus AS61189\nRadicenter | radicenter AS216263\nHostinger | hostinger\nTelia | telia\nHetzner | hetzner\nDigitalOcean | digitalocean",
+            'default' => "Webfight server | 45.93.139.96\nZone.ee | zone.eu zonevs zoneas zonedata AS49604\nVeebimajutus.ee (Elkdata) | elkdata veebimajutus AS61189\nRadicenter | radicenter AS216263\nHostinger | hostinger\nTelia | telia\nHetzner | hetzner\nDigitalOcean | digitalocean",
             'label'   => 'Majutajate tuvastus',
-            'help'    => 'Kujul "Nimi | mustrid". Mustrit otsitakse serveri nimest, võrgu omanikust (ASxxxx) ja nimeserveritest. Auditi leht näitab tundmatu majutaja võrku — lisa see siia.',
+            'help'    => 'Kujul "Nimi | mustrid". Mustrit otsitakse IP-aadressist, serveri nimest, võrgu omanikust (ASxxxx) ja nimeserveritest. Oma serverid pane esimeseks (IP järgi). Auditi leht näitab tundmatu majutaja võrku — lisa see siia.',
         ],
         'access.instructions' => [
             'section' => 'access', 'type' => 'textarea',
-            'default' => "## Zone.ee\nKodulehe failid (Zone.ee): palun lisage Zone.ee halduspaneelis oma veebimajutusele SSH-ligipääs minu avaliku võtmega:\n{{ssh_key}}\n\n## Veebimajutus.ee (Elkdata)\nKodulehe failid (Veebimajutus.ee): palun lisage halduspaneelis SSH/SFTP-ligipääs minu avaliku võtmega:\n{{ssh_key}}\n\n## Radicenter\nKodulehe failid (Radicenter): palun lisage halduspaneelis SSH/SFTP-ligipääs minu avaliku võtmega:\n{{ssh_key}}\n\n## Platvorm\nKodulehe haldus ({{provider}}): palun kutsuge {{my_email}} oma {{provider}} konto halduriks / toimetajaks.\n\n## Muu\nKodulehe failid: kõige mugavam on SSH või SFTP ligipääs minu avaliku võtmega; kui see pole võimalik, siis kodulehe (nt WordPressi) eraldi administraatori kasutaja. Võti:\n{{ssh_key}}",
+            'default' => "## Webfight server\nKodulehe failid on juba meie serveris — selleks pole teilt midagi vaja.\n\n## Zone.ee\nKodulehe failid (Zone.ee): palun lisage Zone.ee halduspaneelis oma veebimajutusele SSH-ligipääs minu avaliku võtmega:\n{{ssh_key}}\n\n## Veebimajutus.ee (Elkdata)\nKodulehe failid (Veebimajutus.ee): palun lisage halduspaneelis SSH/SFTP-ligipääs minu avaliku võtmega:\n{{ssh_key}}\n\n## Radicenter\nKodulehe failid (Radicenter): palun lisage halduspaneelis SSH/SFTP-ligipääs minu avaliku võtmega:\n{{ssh_key}}\n\n## Platvorm\nKodulehe haldus ({{provider}}): palun kutsuge {{my_email}} oma {{provider}} konto halduriks / toimetajaks.\n\n## Muu\nKodulehe failid: kõige mugavam on SSH või SFTP ligipääs minu avaliku võtmega; kui see pole võimalik, siis kodulehe (nt WordPressi) eraldi administraatori kasutaja. Võti:\n{{ssh_key}}",
             'label'   => 'Juhendid majutaja kaupa',
             'help'    => 'Iga plokk algab reaga „## Majutaja nimi“ (sama nimi mis tuvastuses). „## Platvorm“ = Voog, Wix, Shopify jt; „## Muu“ = kõik ülejäänud. Kohatäited: {{ssh_key}}, {{my_email}}, {{provider}}, {{website}}.',
         ],
