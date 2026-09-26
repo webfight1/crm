@@ -17,6 +17,31 @@ class SeoMonitorSyncService
 {
     public function __construct(private readonly SeoMonitorClient $monitor) {}
 
+    /**
+     * An extra page of a client who already has a project: its keyword →
+     * „Positsioonid“ (with the page as target), the page → „Lehed“ (PageSpeed).
+     * Called when the page's audit is done; no-op without a project.
+     */
+    public function syncPage(SeoAudit $page): void
+    {
+        $projectId = $page->lead?->seo_monitor_project_id;
+        if (! $projectId || ! $page->main_audit_id || $page->status !== SeoAudit::STATUS_DONE
+            || ! Playbook::bool('monitor.enabled') || ! $this->monitor->enabled()
+        ) {
+            return;
+        }
+        $this->trackPage($projectId, $page);
+    }
+
+    private function trackPage(int $projectId, SeoAudit $page): void
+    {
+        if ($page->keyword) {
+            $this->monitor->addKeyword($projectId, $page->keyword, $page->url);
+        }
+        // The keyword's target already adds the page — unless the keyword was tracked before.
+        $this->monitor->addPage($projectId, $page->url);
+    }
+
     /** @return array{project_url:?string, invite_url:?string, note:string} */
     public function sync(OutreachLead $lead): array
     {
@@ -60,6 +85,13 @@ class SeoMonitorSyncService
             [$kw, $url] = array_pad(array_map('trim', explode('|', $line, 2)), 2, '');
             if ($kw !== '') {
                 $this->monitor->addKeyword($projectId, $kw, $url ?: null);
+            }
+        }
+
+        // Extra pages audited for this client (audits/{id} „Lisa lehti“).
+        if ($audit) {
+            foreach ($audit->root()->pages()->where('status', SeoAudit::STATUS_DONE)->get() as $page) {
+                $this->trackPage($projectId, $page);
             }
         }
 

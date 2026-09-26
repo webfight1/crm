@@ -27,6 +27,13 @@ class RunSeoAuditJob implements ShouldQueue
     {
         if ($audit = SeoAudit::find($this->auditId)) {
             $service->run($audit);
+
+            // An extra page of a client in SEO-monitor → its keyword + page are tracked there too.
+            try {
+                app(\App\Seo\Services\SeoMonitorSyncService::class)->syncPage($audit->fresh());
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('[SEO] SEO-monitor page sync failed', ['audit' => $audit->id, 'error' => $e->getMessage()]);
+            }
         }
     }
 }

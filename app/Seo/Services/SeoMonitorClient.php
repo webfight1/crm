@@ -51,6 +51,12 @@ class SeoMonitorClient
         ]))->successful();
     }
 
+    /** A page for PageSpeed tracking ("Lehed"); false = already there (or rejected). */
+    public function addPage(int $projectId, string $url): bool
+    {
+        return $this->http()->post("projects/{$projectId}/pages", ['url' => $url])->successful();
+    }
+
     /**
      * Client account with access to the project: an existing user (same e-mail)
      * gets the project added, otherwise a new "client" user with a random
