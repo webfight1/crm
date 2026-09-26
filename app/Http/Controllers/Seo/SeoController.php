@@ -119,6 +119,19 @@ class SeoController extends Controller
         return $data;
     }
 
+    /** docs/seo-automation.md (process + roadmap) rendered read-only. */
+    public function docs(): View
+    {
+        $path = base_path('docs/seo-automation.md');
+
+        return view('seo.docs', [
+            'html'      => is_file($path)
+                ? Str::markdown((string) file_get_contents($path), ['html_input' => 'strip', 'allow_unsafe_links' => false])
+                : '<p>Faili docs/seo-automation.md ei leitud.</p>',
+            'updatedAt' => is_file($path) ? \Carbon\Carbon::createFromTimestamp(filemtime($path)) : null,
+        ]);
+    }
+
     // ─── Hand-added warm client ─────────────────────────────────────────────
 
     /**

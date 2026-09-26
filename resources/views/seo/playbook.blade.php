@@ -3,6 +3,7 @@
         <div class="flex items-center justify-between">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">SEO Playbook</h2>
             <div class="flex gap-4 text-sm">
+                <a href="{{ route('seo.docs') }}" class="text-indigo-600 hover:text-indigo-900">Protsessi kirjeldus</a>
                 <a href="{{ route('seo.audits.index', ['warm' => 1]) }}#warm" class="text-indigo-600 hover:text-indigo-900 font-medium">+ Soe klient</a>
                 <a href="{{ route('seo.audits.index') }}" class="text-indigo-600 hover:text-indigo-900">Auditid →</a>
                 <a href="{{ route('outreach.campaigns.index') }}" class="text-indigo-600 hover:text-indigo-900">Kampaaniad →</a>
@@ -23,7 +24,7 @@
             {{-- Pipeline overview --}}
             <div class="bg-white shadow-sm rounded-lg p-6">
                 <h3 class="text-lg font-semibold mb-1">Protsess</h3>
-                <p class="text-sm text-gray-500 mb-4">Kõik reeglid on sellel lehel. Muudatused kehtivad kohe, koodi pole vaja muuta. Protsessi loogika ja arendusplaan on failis <code>docs/seo-automation.md</code>.</p>
+                <p class="text-sm text-gray-500 mb-4">Kõik reeglid on sellel lehel. Muudatused kehtivad kohe, koodi pole vaja muuta. Protsessi loogika ja arendusplaan: <a href="{{ route('seo.docs') }}" class="text-indigo-600 hover:text-indigo-900 font-medium">Protsessi kirjeldus →</a></p>
                 <ol class="grid grid-cols-2 md:grid-cols-6 gap-2 text-sm">
                     @foreach([
                         ['1. CSV import', 'Filter + veerunimed'],
