@@ -19,6 +19,26 @@ class ClarifyService
 {
     public function __construct(private readonly SeoAi $ai) {}
 
+    /**
+     * Is a sent e-mail the SEO draft (maybe edited), or some other mail to the
+     * same client? Text similarity ≥ 50 %, or it carries the draft's link.
+     */
+    public static function isSameDraft(?string $draftHtml, ?string $sentHtml): bool
+    {
+        $norm = fn (?string $h) => mb_strtolower(trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags((string) $h))) ?? ''));
+        $draft = mb_substr($norm($draftHtml), 0, 2000);
+        $sent  = mb_substr($norm($sentHtml), 0, 2000);
+        if ($draft === '' || $sent === '') {
+            return false;
+        }
+        if (preg_match('~https?://\S+~u', (string) $draftHtml, $m) && str_contains((string) $sentHtml, rtrim($m[0], '".<>'))) {
+            return true;
+        }
+        similar_text($draft, $sent, $percent);
+
+        return $percent >= 50;
+    }
+
     /** HTML body for the inbox reply editor. */
     public function draft(OutreachLead $lead, ?SeoAudit $audit): string
     {
@@ -58,7 +78,8 @@ class ClarifyService
     }
 
     /**
-     * @return array{confirmed:?bool, url:?string, keywords:string[], summary:?string}
+     * @return array{is_answer:?bool, confirmed:?bool, url:?string, keywords:string[], summary:?string}
+     *   is_answer — false when the mail is about something else (null = no AI)
      *   url — a page on the client's own site the client pointed to (absolute)
      */
     public function parseAnswer(OutreachLead $lead, string $answer, ?string $proposedUrl): array
@@ -68,7 +89,9 @@ class ClarifyService
         $ai = $this->ai->json(
             "Klient vastas SEO-pakkuja täpsustuskirjale. Kirjas küsiti: (1) kas märksõnale vastab pakutud leht või mõni muu; "
             . "(2) kas huvitavad ka muud märksõnad/teenused.\n"
-            . "Vasta JSON-ina: {\"page_confirmed\": true|false|null, \"page_url\": \"kliendi nimetatud lehe URL või null\", "
+            . "Kõigepealt otsusta, kas kiri üldse vastab neile küsimustele (is_answer). Kiri muust teemast (hind, kohtumine, "
+            . "üldine küsimus, automaatvastus) → is_answer=false.\n"
+            . "Vasta JSON-ina: {\"is_answer\": true|false, \"page_confirmed\": true|false|null, \"page_url\": \"kliendi nimetatud lehe URL või null\", "
             . "\"extra_keywords\": [\"otsingufraas\", …], \"summary\": \"üks lause eesti keeles\"}.\n"
             . "page_confirmed=true ainult siis, kui klient kinnitab pakutud lehte. extra_keywords: kirjuta need otsingufraasidena, "
             . "nagu inimene Google'isse trükiks (nt \"katuse remont tartu\"), max 5. Kui klient teenuseid ei nimeta, jäta tühjaks.",
@@ -106,6 +129,8 @@ class ClarifyService
         ))));
 
         return [
+            // A URL on their own site counts as an answer whatever the AI says.
+            'is_answer' => $url ? true : (is_bool($ai['is_answer'] ?? null) ? $ai['is_answer'] : null),
             'confirmed' => is_bool($ai['page_confirmed'] ?? null) ? $ai['page_confirmed'] : null,
             'url'       => $url,
             'keywords'  => array_slice($keywords, 0, 5),

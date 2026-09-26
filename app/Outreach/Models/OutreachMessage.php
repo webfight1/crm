@@ -78,9 +78,16 @@ class OutreachMessage extends Model
                 return;
             }
 
-            if ($msg->direction === self::DIRECTION_OUTBOUND && $lead->seo_stage === 'clarify_drafted') {
+            // Only the draft itself (maybe edited) moves the stage on — another
+            // mail to the same client leaves the draft waiting in the form.
+            $sentHtml = $msg->body_html ?: $msg->body_text;
+            if ($msg->direction === self::DIRECTION_OUTBOUND && $lead->seo_stage === 'clarify_drafted'
+                && \App\Seo\Services\ClarifyService::isSameDraft($lead->seo_clarify_body, $sentHtml)
+            ) {
                 $lead->update(['seo_stage' => 'awaiting_answer']);
-            } elseif ($msg->direction === self::DIRECTION_OUTBOUND && $lead->seo_stage === 'access_drafted') {
+            } elseif ($msg->direction === self::DIRECTION_OUTBOUND && $lead->seo_stage === 'access_drafted'
+                && \App\Seo\Services\ClarifyService::isSameDraft($lead->seo_access_body, $sentHtml)
+            ) {
                 $lead->update(['seo_stage' => 'access_requested']);
             } elseif ($msg->direction === self::DIRECTION_INBOUND && $lead->seo_stage === 'awaiting_answer'
                 && (! $msg->received_at || $msg->received_at->gt(now()->subDays(2)))

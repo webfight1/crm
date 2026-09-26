@@ -36,7 +36,8 @@ class HandleSeoClarifyAnswerJob implements ShouldQueue
     public int $tries   = 1;
     public int $timeout = 300; // re-audit + finder for up to 5 keywords
 
-    public function __construct(public int $leadId)
+    /** $force: the operator said this mail IS the answer (audit page button). */
+    public function __construct(public int $leadId, public bool $force = false)
     {
         $this->onQueue('outreach');
     }
@@ -55,12 +56,29 @@ class HandleSeoClarifyAnswerJob implements ShouldQueue
         if (! $message) {
             return;
         }
-        $lead->update(['seo_stage' => 'answered']);
 
         $audit = SeoAudit::where('lead_id', $lead->id)->latest('id')->first();
         $proposed = $audit && in_array($audit->page_source, ['csv', 'found', 'home'], true) ? $audit->url : null;
 
         $a = $clarify->parseAnswer($lead, ReplyIntentService::replyText($message), $proposed);
+
+        // The client wrote about something else — keep waiting for the answer.
+        if (! $this->force && $a['is_answer'] === false) {
+            Telegram::send(
+                "✉️ SEO täpsustus (" . config('app.name') . ")\n"
+                . ($lead->company ?: $lead->email) . " kirjutas, aga see ei tundu täpsustuskirja vastusena"
+                . ($a['summary'] ? " ({$a['summary']})" : '') . ". Ootan edasi.\n"
+                . 'Kui see oli vastus, vajuta auditi lehel „Töötle täpsustuse vastusena“'
+                . ($audit ? ': ' . route('seo.audits.show', $audit) : '.')
+            );
+            return;
+        }
+
+        // Claim the answer atomically — two quick mails must not both run.
+        if (! OutreachLead::whereKey($lead->id)->where('seo_stage', 'awaiting_answer')->update(['seo_stage' => 'answered'])) {
+            return;
+        }
+        $lead->seo_stage = 'answered';
         $steps = $a['summary'] ? ["Vastus: {$a['summary']}"] : [];
 
         // Page

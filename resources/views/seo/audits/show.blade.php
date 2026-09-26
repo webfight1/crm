@@ -117,6 +117,11 @@
                         <form method="POST" action="{{ route('seo.audits.rerun', $audit) }}">@csrf
                             <button class="w-full text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50">Käivita uuesti</button>
                         </form>
+                        @if($audit->lead?->seo_stage === 'awaiting_answer')
+                            <form method="POST" action="{{ route('seo.audits.clarify-answer', $audit) }}">@csrf
+                                <button class="w-full text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50" title="Kliendi viimane kiri loetakse täpsustuskirja vastuseks">✉️ Töötle täpsustuse vastusena</button>
+                            </form>
+                        @endif
                         @if($audit->lead && ! in_array($audit->lead->seo_stage, ['access_drafted', 'access_requested'], true))
                             <form method="POST" action="{{ route('seo.audits.access', $audit) }}">@csrf
                                 <button class="w-full text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50">🔑 Küsi ligipääsud</button>

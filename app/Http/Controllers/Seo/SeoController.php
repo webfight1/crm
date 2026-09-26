@@ -9,6 +9,7 @@ use App\Models\Deal;
 use App\Models\ExternalCompany;
 use App\Models\Quotation;
 use App\Outreach\Models\OutreachLead;
+use App\Seo\Jobs\HandleSeoClarifyAnswerJob;
 use App\Seo\Jobs\HandleSeoReplyJob;
 use App\Seo\Jobs\RunSeoAuditJob;
 use App\Seo\Models\SeoAudit;
@@ -264,6 +265,17 @@ class SeoController extends Controller
         $audit->update($request->validate(['deal_id' => 'required|exists:deals,id']));
 
         return back()->with('success', 'Tehing seotud.');
+    }
+
+    /** Operator: the client's latest mail IS the clarification answer. */
+    public function auditsClarifyAnswer(SeoAudit $audit): RedirectResponse
+    {
+        if ($audit->lead?->seo_stage !== 'awaiting_answer') {
+            return back()->with('error', 'See klient ei oota täpsustuse vastust.');
+        }
+        HandleSeoClarifyAnswerJob::dispatch($audit->lead->id, force: true);
+
+        return back()->with('success', 'Kliendi viimane kiri läks töötlusse täpsustuse vastusena — tulemus tuleb Telegrami.');
     }
 
     public function auditsAccess(SeoAudit $audit, \App\Seo\Services\AccessRequestService $access): RedirectResponse

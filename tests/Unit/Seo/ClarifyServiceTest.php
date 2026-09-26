@@ -46,4 +46,18 @@ class ClarifyServiceTest extends TestCase
         $this->assertStringContainsString('„Piiratud“', $html);
         $this->assertStringNotContainsString('{{', $html);
     }
+
+    public function test_edited_draft_counts_as_sent_but_another_mail_does_not(): void
+    {
+        $draft = '<p>Tere, Mari!</p><p>Aitäh vastuse eest! Et analüüs oleks täpne, täpsustan kahte asja:</p>'
+            . '<p>1. Fraasile „katusetööd tartu“ vastab teie kodulehel minu hinnangul see leht: https://katus.ee/teenused — kas see on õige?</p>'
+            . '<p>2. Kas on veel teenuseid, mille järgi tahaksite paremini leitav olla?</p>';
+
+        $edited = str_replace('Aitäh vastuse eest!', 'Suur aitäh kiire vastuse eest!', $draft) . '<p>Head päeva!</p>';
+        $other  = '<p>Tere, Mari! Saatsin eile arve, kas see jõudis kohale? Kohtume neljapäeval kell 10.</p>';
+
+        $this->assertTrue(ClarifyService::isSameDraft($draft, $edited));
+        $this->assertFalse(ClarifyService::isSameDraft($draft, $other));
+        $this->assertFalse(ClarifyService::isSameDraft(null, $edited));
+    }
 }
