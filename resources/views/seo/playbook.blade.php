@@ -3,6 +3,7 @@
         <div class="flex items-center justify-between">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">SEO Playbook</h2>
             <div class="flex gap-4 text-sm">
+                <a href="{{ route('seo.clients') }}" class="text-indigo-600 hover:text-indigo-900 font-medium">Kliendid</a>
                 <a href="{{ route('seo.docs') }}" class="text-indigo-600 hover:text-indigo-900">Protsessi kirjeldus</a>
                 <a href="{{ route('seo.audits.index', ['warm' => 1]) }}#warm" class="text-indigo-600 hover:text-indigo-900 font-medium">+ Soe klient</a>
                 <a href="{{ route('seo.audits.index') }}" class="text-indigo-600 hover:text-indigo-900">Auditid →</a>

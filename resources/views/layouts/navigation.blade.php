@@ -93,7 +93,10 @@
                                 {{ __('ClickUpi import') }}
                             </x-nav-dropdown-link>
                             @if(config('app.seo_pipeline'))
-                            <x-nav-dropdown-link :href="route('seo.playbook')" :active="request()->routeIs('seo.*')">
+                            <x-nav-dropdown-link :href="route('seo.clients')" :active="request()->routeIs('seo.clients')">
+                                {{ __('SEO kliendid') }}
+                            </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="route('seo.playbook')" :active="request()->routeIs('seo.*') && ! request()->routeIs('seo.clients')">
                                 {{ __('SEO Playbook') }}
                             </x-nav-dropdown-link>
                             @endif
@@ -265,7 +268,10 @@
                         {{ __('Logid') }}
                     </x-responsive-nav-link>
                     @if(config('app.seo_pipeline'))
-                    <x-responsive-nav-link :href="route('seo.playbook')" :active="request()->routeIs('seo.*')">
+                    <x-responsive-nav-link :href="route('seo.clients')" :active="request()->routeIs('seo.clients')">
+                        {{ __('SEO kliendid') }}
+                    </x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('seo.playbook')" :active="request()->routeIs('seo.*') && ! request()->routeIs('seo.clients')">
                         {{ __('SEO Playbook') }}
                     </x-responsive-nav-link>
                     @endif

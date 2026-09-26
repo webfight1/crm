@@ -24,6 +24,12 @@ class SeoMonitorClient
         return rtrim((string) config('services.seo_monitor.app_url'), '/') . "/projects/{$id}";
     }
 
+    /** @return array<int, array> all projects (id, name, domain, google_connected …) */
+    public function projects(): array
+    {
+        return $this->http()->get('projects')->throw()->json('data') ?? [];
+    }
+
     /** false only when SEO-monitor says the project is gone (deleted there). */
     public function projectExists(int $id): bool
     {

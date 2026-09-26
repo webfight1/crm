@@ -108,6 +108,7 @@ Telegram: üks kokkuvõttev teade + link auditile
 | Voog pärast vastust | `app/Seo/Jobs/HandleSeoReplyJob.php` (käivitab `OutreachLead::booted`) |
 | Majutaja tuvastus + ligipääsukiri | `app/Seo/Services/HostingDetector.php`, `AccessRequestService.php` (käivitab `Deal::updated` AppServiceProvideris) |
 | SEO-monitori projekt + kliendikonto | `app/Seo/Services/SeoMonitorClient.php`, `SeoMonitorSyncService.php` |
+| Klientide ülevaade (etapid ✓/●/⏳/○) | `app/Seo/Services/PipelineBoard.php` → `/seo/kliendid` (sama loogika hiljem OpHubi API-sse) |
 | AI klient (mudel Playbookist) | `app/Seo/Services/SeoAi.php` |
 
 **Uus seadistatav reegel:** lisa kirje `Playbook::DEFINITIONS`-isse ja loe seda `Playbook::get()`-iga. Seadete leht tekib selle põhjal ise.
@@ -134,6 +135,7 @@ Telegram: üks kokkuvõttev teade + link auditile
 - [ ] **Kirjamallide A/B**: vastamismäär malli järgi.
 
 ## Muudatuste logi
+- 2026-09-26: SEO klientide ülevaade `/seo/kliendid`: iga kliendi etapid, kelle järel ootab ja mitu päeva.
 - 2026-09-26: Vastus pakkumisele → AI otsus + tehingu link Telegrami.
 - 2026-09-26: Võidetud kliendile luuakse SEO-monitoris projekt, märksõnad ja kliendikonto; paroolilink ligipääsukirja.
 - 2026-09-26: Majutaja tuvastus (platvorm / IP + ASN / nimeserverid) ja ligipääsukiri majutajapõhise SSH-juhendiga, kui tehing võidetakse.

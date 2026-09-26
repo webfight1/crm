@@ -120,6 +120,34 @@ class SeoController extends Controller
         return $data;
     }
 
+    /** Every SEO client, stage by stage (PipelineBoard). */
+    public function clients(Request $request, \App\Seo\Services\PipelineBoard $board): View
+    {
+        $rows = collect($board->rows());
+        $counts = [
+            'me'     => $rows->where('closed', false)->where('waiting', 'me')->count(),
+            'client' => $rows->where('closed', false)->where('waiting', 'client')->count(),
+            'done'   => $rows->where('done', true)->count(),
+            'closed' => $rows->where('closed', true)->count(),
+        ];
+
+        $filter = $request->string('f')->toString() ?: 'open';
+        $rows = match ($filter) {
+            'me', 'client' => $rows->where('closed', false)->where('waiting', $filter),
+            'done'   => $rows->where('done', true),
+            'closed' => $rows->where('closed', true),
+            'all'    => $rows,
+            default  => $rows->where('closed', false)->where('done', false),
+        };
+
+        return view('seo.clients', [
+            'rows'   => $rows->values(),
+            'filter' => $filter,
+            'counts' => $counts,
+            'stages' => \App\Seo\Services\PipelineBoard::STAGES,
+        ]);
+    }
+
     /** docs/seo-automation.md (process + roadmap) rendered read-only. */
     public function docs(): View
     {
