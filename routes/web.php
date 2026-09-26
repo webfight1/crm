@@ -100,6 +100,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('quotations', QuotationController::class);
     Route::get ('/quotations/{quotation}/email', [QuotationController::class, 'composeEmail'])->name('quotations.email');
     Route::post('/quotations/{quotation}/send',  [QuotationController::class, 'sendByEmail'])->name('quotations.send');
+    Route::post('/quotations/{quotation}/accept', [QuotationController::class, 'accept'])->name('quotations.accept');
     Route::get('/quotations/{quotation}/pdf', [QuotationController::class, 'downloadPdf'])->name('quotations.pdf');
     
     // Email routes

@@ -181,6 +181,29 @@ class QuotationController extends Controller
             ->with('success', __('Pakkumine on kustutatud!'));
     }
 
+    /**
+     * Agreed elsewhere (phone, meeting): accepted without being sent.
+     * With `start` the deal also moves to „töös“ — same hooks as by hand.
+     */
+    public function accept(Request $request, Quotation $quotation)
+    {
+        if (! in_array($quotation->status, ['draft', 'sent'], true)) {
+            return back()->with('error', 'Pakkumine on juba ' . $quotation->status . '.');
+        }
+        $quotation->update(['status' => 'accepted']);
+
+        $deal = $quotation->deal;
+        if ($request->boolean('start') && $deal && in_array($deal->stage, ['lead', 'qualified', 'proposal', 'negotiation'], true)) {
+            $deal->update(['stage' => 'töös']);
+
+            return redirect()->route('deals.show', $deal)
+                ->with('success', "Pakkumine {$quotation->number} vastu võetud ja tehing on „töös“.");
+        }
+
+        return redirect()->route('quotations.show', $quotation)
+            ->with('success', "Pakkumine {$quotation->number} märgiti vastu võetuks.");
+    }
+
     public function downloadPdf(Quotation $quotation)
     {
         $quotation->load(['deal', 'deal.customer', 'deal.company', 'items']);
