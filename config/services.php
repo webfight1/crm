@@ -44,6 +44,14 @@ return [
         'key' => env('OPENAI_API_KEY'),
     ],
 
+    // SEO-monitor (seo.webfight.ee) — the SEO pipeline creates a project there
+    // for every won SEO client. Token = Sanctum token of an admin service user.
+    'seo_monitor' => [
+        'api_url' => env('SEO_MONITOR_API_URL'),
+        'token'   => env('SEO_MONITOR_API_TOKEN'),
+        'app_url' => env('SEO_MONITOR_APP_URL', 'https://seo.webfight.ee'),
+    ],
+
     'clickup' => [
         // Personal API token from ClickUp → Settings → Apps ("pk_...").
         'token' => env('CLICKUP_API_TOKEN'),

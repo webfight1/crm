@@ -6,6 +6,8 @@ use App\Outreach\Models\OutreachLead;
 use App\Seo\Playbook;
 use App\Seo\Services\AccessRequestService;
 use App\Seo\Services\HostingDetector;
+use App\Seo\Services\SeoMonitorClient;
+use App\Seo\Services\SeoMonitorSyncService;
 use App\Seo\Services\SiteCrawler;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -38,7 +40,10 @@ class AccessRequestTest extends TestCase
     {
         $this->seedPlaybook(['clarify.gsc_email' => 'seo@webfight.ee', 'access.ssh_key' => 'ssh-ed25519 AAAAtest veiko']);
         $lead = new OutreachLead(['first_name' => 'Mari', 'company' => 'Katus OÜ', 'website' => 'katus.ee']);
-        $service = new AccessRequestService(new HostingDetector(new SiteCrawler()));
+        $service = new AccessRequestService(
+            new HostingDetector(new SiteCrawler()),
+            new SeoMonitorSyncService(new SeoMonitorClient()),
+        );
 
         $zone = $service->draft($lead, ['provider' => 'Zone.ee', 'kind' => 'host']);
         $this->assertStringContainsString('Zone.ee halduspaneelis', $zone);
@@ -53,6 +58,10 @@ class AccessRequestTest extends TestCase
         $unknown = $service->draft($lead, null);
         $this->assertStringContainsString('WordPressi', $unknown);
         $this->assertStringNotContainsString('{{', $unknown);
+        $this->assertStringNotContainsString('seo.webfight.ee', $unknown); // no invite → no paragraph
+
+        $invited = $service->draft($lead, null, 'https://seo.webfight.ee/invite/abc123');
+        $this->assertStringContainsString('<a href="https://seo.webfight.ee/invite/abc123">', $invited);
     }
 
     public function test_trigger_stages(): void

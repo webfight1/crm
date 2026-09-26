@@ -52,6 +52,11 @@
                             <span class="text-gray-500"> · {{ $hosting['note'] }}</span>
                         </p>
                     @endif
+                    @if($audit->lead?->seo_monitor_project_id)
+                        <p><span class="text-gray-500">SEO-monitor:</span>
+                            <a href="{{ app(\App\Seo\Services\SeoMonitorClient::class)->projectUrl($audit->lead->seo_monitor_project_id) }}" target="_blank" rel="noopener" class="text-indigo-600">projekt #{{ $audit->lead->seo_monitor_project_id }} →</a>
+                        </p>
+                    @endif
                     @if($audit->lead?->seo_stage)
                         <p><span class="text-gray-500">Täpsustuskiri:</span>
                             {{ ['clarify_drafted' => 'mustand postkastis, saatmata', 'awaiting_answer' => 'saadetud, ootab vastust', 'answered' => 'klient vastas', 'access_drafted' => 'ligipääsukirja mustand postkastis', 'access_requested' => 'ligipääsud küsitud'][$audit->lead->seo_stage] ?? $audit->lead->seo_stage }}

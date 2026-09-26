@@ -1,0 +1,87 @@
+<?php
+
+namespace App\Seo\Services;
+
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
+
+/**
+ * Thin client for the SEO-monitor API (seo.webfight.ee/api/v1), authenticated
+ * as an admin service user. Throws on failure — callers decide how to report.
+ */
+class SeoMonitorClient
+{
+    public function enabled(): bool
+    {
+        return filled(config('services.seo_monitor.api_url')) && filled(config('services.seo_monitor.token'));
+    }
+
+    /** Frontend link to a project. */
+    public function projectUrl(int $id): string
+    {
+        return rtrim((string) config('services.seo_monitor.app_url'), '/') . "/projects/{$id}";
+    }
+
+    public function createProject(string $name, string $domain, string $url, ?string $gscProperty): int
+    {
+        return (int) $this->http()->post('projects', array_filter([
+            'name' => $name, 'domain' => $domain, 'url' => $url, 'gsc_property' => $gscProperty,
+        ]))->throw()->json('data.id');
+    }
+
+    /** false = already tracked (or rejected); the project stays usable either way. */
+    public function addKeyword(int $projectId, string $keyword, ?string $targetUrl): bool
+    {
+        return $this->http()->post("projects/{$projectId}/keywords", array_filter([
+            'keyword' => $keyword, 'target_url' => $targetUrl,
+        ]))->successful();
+    }
+
+    /**
+     * Client account with access to the project: an existing user (same e-mail)
+     * gets the project added, otherwise a new "client" user with a random
+     * password nobody knows — the client sets their own via the invite link.
+     */
+    public function grantClient(int $projectId, string $email, string $name): int
+    {
+        $existing = collect($this->http()->get('users')->throw()->json('data') ?? [])
+            ->first(fn ($u) => strcasecmp((string) ($u['email'] ?? ''), $email) === 0);
+
+        if ($existing) {
+            $ids = collect($existing['projects'] ?? [])->pluck('id')->push($projectId)->unique()->values()->all();
+            $this->http()->patch("users/{$existing['id']}", ['project_ids' => $ids])->throw();
+
+            return (int) $existing['id'];
+        }
+
+        return (int) $this->http()->post('users', [
+            'name' => $name, 'email' => $email, 'role' => 'client',
+            'password' => Str::password(40), 'project_ids' => [$projectId],
+        ])->throw()->json('data.id');
+    }
+
+    /**
+     * One-time "set your password" link — same contract as OpHub's invites
+     * (POST users/{id}/invite → {"invite_url": …}). null while SEO-monitor has
+     * no invite endpoint yet, or when the user already accepted one (422).
+     */
+    public function inviteUrl(int $userId): ?string
+    {
+        $r = $this->http()->post("users/{$userId}/invite");
+        if (in_array($r->status(), [404, 405, 422], true)) {
+            return null;
+        }
+
+        return $r->throw()->json('invite_url');
+    }
+
+    private function http(): PendingRequest
+    {
+        return Http::baseUrl(rtrim((string) config('services.seo_monitor.api_url'), '/') . '/')
+            ->withToken((string) config('services.seo_monitor.token'))
+            ->acceptJson()
+            ->timeout(20);
+    }
+}

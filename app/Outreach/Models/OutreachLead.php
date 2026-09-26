@@ -43,6 +43,7 @@ class OutreachLead extends Model
         'seo_stage',
         'seo_clarify_body',
         'seo_access_body',
+        'seo_monitor_project_id',
         'seo_extra_keywords',
         'notes',
         'qualification',

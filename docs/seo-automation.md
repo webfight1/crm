@@ -80,6 +80,9 @@ Telegram: üks kokkuvõttev teade + link auditile
    Audit tuvastab majutaja: lehe koodist platvorm (Voog, Wix, Shopify… → haldurikutse), muidu IP → serveri nimi + võrgu omanik (ASN) → Playbooki „Majutajate tuvastus“
    (Zone.ee, Veebimajutus.ee/Elkdata, Radicenter…). Kirja pannakse selle majutaja SSH-juhend (Playbook „Juhendid majutaja kaupa“, sinu avalik võti) + Search Console „Täielik“.
    Cloudflare'i taga näeb ainult nimeservereid — märgitakse oletusena. Paroole e-postiga ei küsi.
+   Samal hetkel luuakse kliendile projekt **SEO-monitoris** (seo.webfight.ee): domeen, `sc-domain:` property, põhimärksõna oma lehega +
+   lisamärksõnad, kliendikonto (roll client) ja ühekordne paroolilink kirja. Search Console'i ühendad ise projekti seadetes (Google'i nõusolek).
+   Vajab CRM-i `.env`-i: `SEO_MONITOR_API_URL`, `SEO_MONITOR_API_TOKEN` (SEO-monitori admin-teenusekasutaja `crm@webfight.ee` token).
 
 ### Käsitsi kontrollpunktid (teadlikult)
 1. **Mustandite kinnitamine** enne saatmist. Kui kirjad on paar nädalat head olnud, võib selle sammu kaotada.
@@ -102,6 +105,7 @@ Telegram: üks kokkuvõttev teade + link auditile
 | Pakkumine | `app/Seo/Services/SeoOfferService.php` |
 | Voog pärast vastust | `app/Seo/Jobs/HandleSeoReplyJob.php` (käivitab `OutreachLead::booted`) |
 | Majutaja tuvastus + ligipääsukiri | `app/Seo/Services/HostingDetector.php`, `AccessRequestService.php` (käivitab `Deal::updated` AppServiceProvideris) |
+| SEO-monitori projekt + kliendikonto | `app/Seo/Services/SeoMonitorClient.php`, `SeoMonitorSyncService.php` |
 | AI klient (mudel Playbookist) | `app/Seo/Services/SeoAi.php` |
 
 **Uus seadistatav reegel:** lisa kirje `Playbook::DEFINITIONS`-isse ja loe seda `Playbook::get()`-iga. Seadete leht tekib selle põhjal ise.
@@ -128,6 +132,7 @@ Telegram: üks kokkuvõttev teade + link auditile
 - [ ] **Kirjamallide A/B**: vastamismäär malli järgi.
 
 ## Muudatuste logi
+- 2026-09-26: Võidetud kliendile luuakse SEO-monitoris projekt, märksõnad ja kliendikonto; paroolilink ligipääsukirja.
 - 2026-09-26: Majutaja tuvastus (platvorm / IP + ASN / nimeserverid) ja ligipääsukiri majutajapõhise SSH-juhendiga, kui tehing võidetakse.
 - 2026-09-26: Täpsustuskirjas valikuline Search Console'i ligipääsu palve koos juhisega.
 - 2026-09-26: Blogi tuvastus auditis; tehniliselt korras saidile pakutakse blogi loomist või iganädalasi artikleid (Playbook „Sisuturundus“).

@@ -15,11 +15,16 @@ use App\Support\Telegram;
  * Creates a "Küsi ligipääsud" task and an e-mail draft (pre-filled in the
  * inbox reply form) with the instructions for the client's host — SSH on
  * Zone/Veebimajutus/Radicenter, an admin invite on Voog/Wix/Shopify — plus
- * Search Console „Täielik“. Never sends anything.
+ * Search Console „Täielik“. Also creates the client's SEO-monitor project
+ * (SeoMonitorSyncService) and puts the client's password link in the draft.
+ * Never sends anything.
  */
 class AccessRequestService
 {
-    public function __construct(private readonly HostingDetector $hosting) {}
+    public function __construct(
+        private readonly HostingDetector $hosting,
+        private readonly SeoMonitorSyncService $monitor,
+    ) {}
 
     /** Deal stages (Playbook access.trigger_stages) that start the request. */
     public static function isTriggerStage(?string $stage): bool
@@ -45,9 +50,20 @@ class AccessRequestService
             }
         }
 
+        try {
+            $monitor = $this->monitor->sync($lead);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[SEO] SEO-monitor sync failed', ['lead' => $lead->id, 'error' => $e->getMessage()]);
+            $monitor = ['project_url' => null, 'invite_url' => null, 'note' => 'SEO-monitori projekti loomine ebaõnnestus: ' . mb_substr($e->getMessage(), 0, 200)];
+        }
+
         $lead->update([
             'seo_stage'       => 'access_drafted',
-            'seo_access_body' => $this->draft($lead, $hosting),
+            'seo_access_body' => $this->draft($lead, $hosting, $monitor['invite_url']),
+        ]);
+        $monitorLines = array_filter([
+            $monitor['note'],
+            $monitor['project_url'] ? 'Ühenda Search Console SEO-monitoris (projekti seaded), kui klient on ligipääsu andnud: ' . $monitor['project_url'] : null,
         ]);
 
         $deal = $lead->deal_id ? Deal::find($lead->deal_id) : null;
@@ -55,7 +71,7 @@ class AccessRequestService
         Task::create([
             'title'       => 'Küsi ligipääsud: ' . ($lead->company ?: $lead->website ?: $lead->email),
             'description' => 'Kirja mustand on postkastis: ' . OutreachMessage::inboxThreadUrl($lead->email) . "\n"
-                . ($hosting['note'] ?? 'Majutaja teadmata.'),
+                . ($hosting['note'] ?? 'Majutaja teadmata.') . ($monitorLines ? "\n" . implode("\n", $monitorLines) : ''),
             'type'        => 'email',
             'priority'    => 'high',
             'status'      => 'pending',
@@ -72,6 +88,7 @@ class AccessRequestService
             "🔑 SEO ligipääsud (" . config('app.name') . ")\n"
             . ($lead->company ?: $lead->email) . "\n"
             . ($hosting['note'] ?? 'Majutaja teadmata.') . "\n"
+            . ($monitorLines ? implode("\n", $monitorLines) . "\n" : '')
             . 'Kirja mustand postkastis: ' . OutreachMessage::inboxThreadUrl($lead->email)
         );
 
@@ -79,7 +96,7 @@ class AccessRequestService
     }
 
     /** HTML body for the inbox reply editor. */
-    public function draft(OutreachLead $lead, ?array $hosting): string
+    public function draft(OutreachLead $lead, ?array $hosting, ?string $inviteUrl = null): string
     {
         $myEmail = trim(Playbook::get('clarify.gsc_email'));
         $sshKey  = trim(Playbook::get('access.ssh_key'));
@@ -97,11 +114,22 @@ class AccessRequestService
         $block = ($hosting['kind'] ?? null) === 'platform' ? 'Platvorm' : $provider;
         $vars['{{instructions}}'] = strtr($this->instructions($block), $vars);
         $vars['{{gsc_request}}'] = $myEmail !== '' ? strtr(Playbook::get('access.gsc_text'), $vars) : '';
+        $vars['{{monitor_request}}'] = $inviteUrl
+            ? strtr(Playbook::get('access.monitor_text'), ['{{monitor_link}}' => $inviteUrl])
+            : '';
 
-        $text = strtr(Playbook::get('access.email'), $vars);
+        // A body saved before {{monitor_request}} existed gets it appended.
+        $body = Playbook::get('access.email');
+        if ($vars['{{monitor_request}}'] !== '' && ! str_contains($body, '{{monitor_request}}')) {
+            $body .= "\n\n{{monitor_request}}";
+        }
+        $text = strtr($body, $vars);
         $paragraphs = array_filter(array_map('trim', preg_split('/\R{2,}/u', trim($text)) ?: []), 'strlen');
 
-        return implode("\n", array_map(fn ($p) => '<p>' . nl2br(e($p), false) . '</p>', $paragraphs));
+        return implode("\n", array_map(function ($p) {
+            $html = nl2br(e($p), false);
+            return '<p>' . preg_replace('~(https?://[^\s<]+[^\s<.,;:!?)])~u', '<a href="$1">$1</a>', $html) . '</p>';
+        }, $paragraphs));
     }
 
     /** The "## <name>" block of access.instructions, else "## Muu". */

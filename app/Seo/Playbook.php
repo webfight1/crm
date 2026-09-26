@@ -29,6 +29,7 @@ class Playbook
         'eshop'   => 'E-pood',
         'content' => 'Sisuturundus (blogi)',
         'access'  => 'Ligipääsud (tasuline töö)',
+        'monitor' => 'SEO-monitor (seo.webfight.ee)',
         'offer'  => 'Pakkumine',
     ];
 
@@ -215,15 +216,21 @@ class Playbook
         ],
         'access.email' => [
             'section' => 'access', 'type' => 'textarea',
-            'default' => "Tere{{name}}!\n\nAitäh, et otsustasite alustada! Et saaksin tööga pihta hakata, vajan ligipääse:\n\n1. {{instructions}}\n\n{{gsc_request}}\n\nParoole ei ole vaja e-postiga saata — iga ligipääsu saab anda eraldi kasutajana ja hiljem ise eemaldada.",
+            'default' => "Tere{{name}}!\n\nAitäh, et otsustasite alustada! Et saaksin tööga pihta hakata, vajan ligipääse:\n\n1. {{instructions}}\n\n{{gsc_request}}\n\n{{monitor_request}}\n\nParoole ei ole vaja e-postiga saata — iga ligipääsu saab anda eraldi kasutajana ja hiljem ise eemaldada.",
             'label'   => 'Kirja tekst',
-            'help'    => 'Kohatäited: {{name}}, {{company}}, {{website}}, {{provider}}, {{instructions}} (majutaja juhend allpool), {{gsc_request}}.',
+            'help'    => 'Kohatäited: {{name}}, {{company}}, {{website}}, {{provider}}, {{instructions}} (majutaja juhend allpool), {{gsc_request}}, {{monitor_request}}.',
         ],
         'access.gsc_text' => [
             'section' => 'access', 'type' => 'textarea',
             'default' => "2. Google Search Console — lisage {{my_email}} kasutajaks õigusega „Täielik“ (Search Console → Seaded → Kasutajad ja load → Lisa kasutaja). Kui lisasite mind varem õigusega „Piiratud“, muutke see palun „Täielikuks“.",
             'label'   => '{{gsc_request}} tekst',
             'help'    => '{{my_email}} = „Sinu Google\'i konto“ täpsustuskirja plokist. Kui see on tühi, jääb lõik kirjast välja.',
+        ],
+        'access.monitor_text' => [
+            'section' => 'access', 'type' => 'textarea',
+            'default' => "3. SEO-ülevaade: teie lehe positsioone, märksõnu ja tulemusi näete keskkonnas seo.webfight.ee. Seadke seal oma parool (link kehtib piiratud aja):\n{{monitor_link}}",
+            'label'   => '{{monitor_request}} tekst',
+            'help'    => 'Lisatakse, kui SEO-monitoris luuakse kliendikonto (plokk „SEO-monitor“). {{monitor_link}} = ühekordne paroolilink.',
         ],
         'access.providers' => [
             'section' => 'access', 'type' => 'lines',
@@ -236,6 +243,18 @@ class Playbook
             'default' => "## Zone.ee\nKodulehe failid (Zone.ee): palun lisage Zone.ee halduspaneelis oma veebimajutusele SSH-ligipääs minu avaliku võtmega:\n{{ssh_key}}\n\n## Veebimajutus.ee (Elkdata)\nKodulehe failid (Veebimajutus.ee): palun lisage halduspaneelis SSH/SFTP-ligipääs minu avaliku võtmega:\n{{ssh_key}}\n\n## Radicenter\nKodulehe failid (Radicenter): palun lisage halduspaneelis SSH/SFTP-ligipääs minu avaliku võtmega:\n{{ssh_key}}\n\n## Platvorm\nKodulehe haldus ({{provider}}): palun kutsuge {{my_email}} oma {{provider}} konto halduriks / toimetajaks.\n\n## Muu\nKodulehe failid: kõige mugavam on SSH või SFTP ligipääs minu avaliku võtmega; kui see pole võimalik, siis kodulehe (nt WordPressi) eraldi administraatori kasutaja. Võti:\n{{ssh_key}}",
             'label'   => 'Juhendid majutaja kaupa',
             'help'    => 'Iga plokk algab reaga „## Majutaja nimi“ (sama nimi mis tuvastuses). „## Platvorm“ = Voog, Wix, Shopify jt; „## Muu“ = kõik ülejäänud. Kohatäited: {{ssh_key}}, {{my_email}}, {{provider}}, {{website}}.',
+        ],
+
+        // ── SEO-monitor ─────────────────────────────────────────────────────
+        'monitor.enabled' => [
+            'section' => 'monitor', 'type' => 'bool', 'default' => '1',
+            'label'   => 'Loo võidetud kliendile projekt SEO-monitoris',
+            'help'    => 'Samal hetkel kui ligipääsukiri (tehing „töös“ või „closed_won“, mis enne tuleb). Domeen, Search Console property (sc-domain:…), põhimärksõna oma lehega + kliendi lisamärksõnad. Search Console\'i ühendad ise projekti seadetes.',
+        ],
+        'monitor.client_account' => [
+            'section' => 'monitor', 'type' => 'bool', 'default' => '1',
+            'label'   => 'Loo kliendile SEO-monitori konto',
+            'help'    => 'Ainult tema projekti vaatamiseks. Parooli seab klient ise ühekordse lingiga, mis pannakse ligipääsukirja.',
         ],
 
         // ── Offer ───────────────────────────────────────────────────────────
