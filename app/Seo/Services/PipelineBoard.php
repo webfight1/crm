@@ -33,6 +33,8 @@ class PipelineBoard
 
     private const CLOSED = ['closed_lost', 'tühistatud'];
 
+    public const PROJECTS_CACHE = 'seo:board:monitor-projects';
+
     public function __construct(private readonly SeoMonitorClient $monitor) {}
 
     /** @return array<int, array{lead:OutreachLead, deal:?Deal, closed:bool, waiting:?string, stages:array<string, array>}> */
@@ -48,7 +50,7 @@ class PipelineBoard
         $audits = SeoAudit::whereIn('lead_id', $leads->pluck('id'))->orderBy('id')->get()->groupBy('lead_id');
         $quotes = Quotation::whereIn('deal_id', $deals->keys())->orderBy('id')->get()->groupBy('deal_id');
         $tasks  = Task::whereIn('deal_id', $deals->keys())->where('title', 'like', 'Küsi ligipääsud:%')->get()->keyBy('deal_id');
-        $projects = $this->monitorProjects();
+        $projects = $this->monitorProjects($leads->pluck('seo_monitor_project_id')->filter()->all());
 
         $rows = [];
         foreach ($leads as $lead) {
@@ -216,14 +218,31 @@ class PipelineBoard
         return $at ? Carbon::parse($at) : null;
     }
 
-    /** SEO-monitor projects by id (cached 5 min); null when unreachable / not set up. */
-    private function monitorProjects(): ?array
+    /**
+     * SEO-monitor projects by id (cached 5 min); null when unreachable / not set up.
+     * A project missing from the cache may just be newer than it — fetched again
+     * before it is shown as deleted.
+     *
+     * @param array<int, int> $needed project ids the rows refer to
+     */
+    private function monitorProjects(array $needed = []): ?array
     {
         if (! $this->monitor->enabled()) {
             return null;
         }
 
-        return Cache::remember('seo:board:monitor-projects', 300, function () {
+        $projects = $this->cachedProjects();
+        if ($projects !== null && array_diff($needed, array_keys($projects))) {
+            Cache::forget(self::PROJECTS_CACHE);
+            $projects = $this->cachedProjects();
+        }
+
+        return $projects;
+    }
+
+    private function cachedProjects(): ?array
+    {
+        return Cache::remember(self::PROJECTS_CACHE, 300, function () {
             try {
                 return collect($this->monitor->projects())->keyBy('id')->all();
             } catch (\Throwable) {
