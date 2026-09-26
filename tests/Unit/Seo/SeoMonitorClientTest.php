@@ -58,4 +58,15 @@ class SeoMonitorClientTest extends TestCase
     {
         $this->assertSame('https://seo.test/projects/5', (new SeoMonitorClient())->projectUrl(5));
     }
+
+    public function test_deleted_project_is_detected(): void
+    {
+        Http::fake([
+            'seo.test/api/v1/projects/3' => Http::response(['message' => 'Not Found'], 404),
+            'seo.test/api/v1/projects/4' => Http::response(['data' => ['id' => 4]]),
+        ]);
+
+        $this->assertFalse((new SeoMonitorClient())->projectExists(3));
+        $this->assertTrue((new SeoMonitorClient())->projectExists(4));
+    }
 }

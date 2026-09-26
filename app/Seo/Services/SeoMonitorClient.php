@@ -24,6 +24,12 @@ class SeoMonitorClient
         return rtrim((string) config('services.seo_monitor.app_url'), '/') . "/projects/{$id}";
     }
 
+    /** false only when SEO-monitor says the project is gone (deleted there). */
+    public function projectExists(int $id): bool
+    {
+        return $this->http()->get("projects/{$id}")->status() !== 404;
+    }
+
     public function createProject(string $name, string $domain, string $url, ?string $gscProperty): int
     {
         return (int) $this->http()->post('projects', array_filter([

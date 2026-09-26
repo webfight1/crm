@@ -28,8 +28,11 @@ class SeoMonitorSyncService
                     'note' => 'SEO-monitori projekti ei loodud — CRM-i .env-is puudub SEO_MONITOR_API_TOKEN.'];
         }
         if ($lead->seo_monitor_project_id) {
-            return ['project_url' => $this->monitor->projectUrl($lead->seo_monitor_project_id), 'invite_url' => null,
-                    'note' => 'SEO-monitori projekt oli juba olemas.'];
+            if ($this->monitor->projectExists($lead->seo_monitor_project_id)) {
+                return ['project_url' => $this->monitor->projectUrl($lead->seo_monitor_project_id), 'invite_url' => null,
+                        'note' => 'SEO-monitori projekt oli juba olemas.'];
+            }
+            $lead->update(['seo_monitor_project_id' => null]); // deleted in SEO-monitor → create again
         }
 
         $audit = SeoAudit::where('lead_id', $lead->id)->latest('id')->first();

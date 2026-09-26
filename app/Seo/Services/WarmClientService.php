@@ -67,8 +67,14 @@ class WarmClientService
             'qualification'    => OutreachLead::QUALIFICATION_LEAD,
             'status'           => OutreachLead::STATUS_COMPLETED,
             'current_step'     => 0,
-            'seo_stage'        => null,
-            'seo_clarify_body' => null,
+            // Adding again = a fresh round: drafts, answers and the
+            // extra keywords of the previous one are dropped.
+            'seo_stage'          => null,
+            'seo_clarify_body'   => null,
+            'seo_access_body'    => null,
+            'seo_extra_keywords' => null,
+            'reply_intent'       => null,
+            'reply_intent_reason' => null,
         ]);
         $lead->enrolled_at ??= now();
         $lead->save();
