@@ -197,16 +197,12 @@ class PipelineBoard
         ];
     }
 
-    /** The first stage waiting on someone: "me" or "client". */
+    /** "me" if anything waits on the operator, else "client" if anything waits on the client. */
     private function waitingOn(array $stages): ?string
     {
-        foreach ($stages as $s) {
-            if (in_array($s['state'], ['me', 'client'], true)) {
-                return $s['state'];
-            }
-        }
+        $states = array_column($stages, 'state');
 
-        return null;
+        return in_array('me', $states, true) ? 'me' : (in_array('client', $states, true) ? 'client' : null);
     }
 
     private function lastOutbound(OutreachLead $lead): ?Carbon
