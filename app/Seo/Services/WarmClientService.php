@@ -75,9 +75,16 @@ class WarmClientService
             'seo_extra_keywords' => null,
             'reply_intent'       => null,
             'reply_intent_reason' => null,
+            // A warm client has already talked to us: their next mail must not
+            // look like a first reply and start the pipeline again.
+            'replied'            => true,
         ]);
-        $lead->enrolled_at ??= now();
-        $lead->save();
+        $lead->replied_at ??= now();
+        // Start of this round — older mail with the same address is history.
+        $lead->enrolled_at = now();
+        // Quietly: flipping `replied` here must not fire the reply pipeline —
+        // the caller starts it itself (HandleSeoReplyJob, manual).
+        $lead->saveQuietly();
 
         return $lead;
     }

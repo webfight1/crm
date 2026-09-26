@@ -210,6 +210,7 @@ class PipelineBoard
         $at = OutreachMessage::where('direction', OutreachMessage::DIRECTION_OUTBOUND)
             ->where(fn ($q) => $q->where('lead_id', $lead->id)
                 ->when($lead->customer_id, fn ($q) => $q->orWhere('customer_id', $lead->customer_id)))
+            ->when($lead->seoSince(), fn ($q, $since) => $q->where('received_at', '>=', $since))
             ->max('received_at');
 
         return $at ? Carbon::parse($at) : null;

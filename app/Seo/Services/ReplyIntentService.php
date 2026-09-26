@@ -67,6 +67,8 @@ class ReplyIntentService
                 }
             })
             ->where('direction', OutreachMessage::DIRECTION_INBOUND)
+            // Older conversations with the same address aren't this round's answer.
+            ->when($lead->seoSince(), fn ($q, $since) => $q->where('received_at', '>=', $since))
             ->latest('received_at')
             ->first();
     }

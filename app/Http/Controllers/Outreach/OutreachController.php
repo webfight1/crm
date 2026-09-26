@@ -988,6 +988,11 @@ class OutreachController extends Controller
             ->sortByDesc(fn($e) => $e->occurred_at?->timestamp ?? 0)
             ->values();
 
+        // An SEO client re-using an address: mail before the current round is
+        // older history, folded away in the view.
+        $seoLead = OutreachLead::pickPreferred($leads);
+        $roundSince = $seoLead?->isSeoClient() ? $seoLead->seoSince() : null;
+
         // Reuse the index data builder for the left rail, then overlay the
         // thread payload so the same Blade can render both panels.
         $shared = $this->buildInboxViewData($request, $email);
@@ -1017,6 +1022,7 @@ class OutreachController extends Controller
             'email'           => $email,
             'leads'           => $leads,
             'timeline'        => $timeline,
+            'roundSince'      => $roundSince,
             'crmLink'         => $crmLink,
             'isArchived'      => $isArchived,
             'replyTemplates'  => $replyTemplates,
@@ -1078,9 +1084,7 @@ class OutreachController extends Controller
         // exist on a Lead, a Customer, or a Contact (or any combination).
         // We attribute the outbound message to as many of them as we find,
         // so it appears in the thread regardless of which lens is used.
-        $lead = OutreachLead::whereRaw('LOWER(email) = ?', [$emailLower])
-            ->orderByDesc('updated_at')
-            ->first();
+        $lead = OutreachLead::preferredFor($emailLower);
         $customer = Customer::whereRaw('LOWER(email) = ?', [$emailLower])->first();
         $contact  = Contact::whereRaw('LOWER(email) = ?', [$emailLower])->first();
 

@@ -446,8 +446,23 @@
                 </div>
             @endif
 
-            <div class="space-y-4">
+            @php
+                $olderCount = $roundSince ? $timeline->filter(fn ($e) => $e->occurred_at && $e->occurred_at->lt($roundSince))->count() : 0;
+                $olderShown = false;
+            @endphp
+            <div class="space-y-4" x-data="{ showOld: false }">
                 @forelse($timeline as $entry)
+                    @php $isOld = $olderCount && $entry->occurred_at && $entry->occurred_at->lt($roundSince); @endphp
+                    @if($isOld && ! $olderShown)
+                        @php $olderShown = true; @endphp
+                        <button type="button"
+                                @click="showOld = ! showOld; $nextTick(() => window.dispatchEvent(new Event('resize')))"
+                                class="w-full flex items-center gap-3 text-xs text-gray-500 hover:text-gray-700">
+                            <span class="flex-1 border-t border-gray-300" style="border-top-style: dashed"></span>
+                            <span x-text="showOld ? '↑ Peida varasemad kirjad' : '↓ Varasemad kirjad ({{ $olderCount }}) — enne SEO-kliendiks lisamist {{ $roundSince->format('d.m.Y') }}'"></span>
+                            <span class="flex-1 border-t border-gray-300" style="border-top-style: dashed"></span>
+                        </button>
+                    @endif
                     @php
                         // Three kinds of timeline entries:
                         //   sent      — campaign step we sent to the lead
@@ -472,7 +487,7 @@
                         }
                         $isReceived = $kind === 'received';
                     @endphp
-                    <div class="border rounded-lg shadow-sm {{ $bg }}">
+                    <div class="border rounded-lg shadow-sm {{ $bg }}" @if($isOld) style="opacity: .75" x-show="showOld" x-cloak @endif>
                         <div class="px-4 py-3 border-b border-gray-200 flex items-start justify-between gap-4">
                             <div class="flex items-start gap-3 min-w-0">
                                 <div class="w-8 h-8 rounded-full {{ $iconBg }} flex items-center justify-center text-sm shrink-0">{{ $icon }}</div>

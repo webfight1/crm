@@ -112,7 +112,11 @@ class OutreachLead extends Model
         // create the warm client, audit, draft an offer (App\Seo\Jobs).
         // Delay lets ReplyDetectionService persist the reply message first.
         static::updated(function (OutreachLead $lead) {
-            if (config('app.seo_pipeline') && $lead->wasChanged('replied') && $lead->replied && $lead->serp_keyword) {
+            // An older lead of a client who is already an SEO client (e.g. a
+            // cold-campaign lead of a hand-added client) must not start a second round.
+            if (config('app.seo_pipeline') && $lead->wasChanged('replied') && $lead->replied && $lead->serp_keyword
+                && self::preferredFor($lead->email)?->id === $lead->id
+            ) {
                 \App\Seo\Jobs\HandleSeoReplyJob::dispatch($lead->id)->delay(now()->addMinutes(2));
             }
         });
@@ -187,6 +191,38 @@ class OutreachLead extends Model
             && ! $this->replied
             && $this->next_send_at !== null
             && $this->next_send_at->isPast();
+    }
+
+    /**
+     * The lead mail from/to this address belongs to when several leads share
+     * it: an active SEO client (with a deal or an SEO stage) first, newest first.
+     */
+    public static function preferredFor(?string $email): ?self
+    {
+        if (! $email) {
+            return null;
+        }
+
+        return self::pickPreferred(self::whereRaw('LOWER(email) = ?', [strtolower(trim($email))])->get());
+    }
+
+    /** @param iterable<self> $leads */
+    public static function pickPreferred(iterable $leads): ?self
+    {
+        return collect($leads)
+            ->sort(fn (self $a, self $b) => [$b->isSeoClient(), $b->id] <=> [$a->isSeoClient(), $a->id])
+            ->first();
+    }
+
+    public function isSeoClient(): bool
+    {
+        return (bool) ($this->deal_id || $this->seo_stage);
+    }
+
+    /** Start of the current SEO round — mail before it belongs to older conversations. */
+    public function seoSince(): ?\Illuminate\Support\Carbon
+    {
+        return $this->enrolled_at ?? $this->created_at;
     }
 
     public function markReplied(): void

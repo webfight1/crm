@@ -287,7 +287,10 @@ class ReplyDetectionService
         }
 
         $leads = $leadQuery->get();
-        $leadsByEmail = $leads->keyBy(fn($lead) => strtolower(trim($lead->email)));
+        // Several leads can share an address (an old campaign + a hand-added
+        // SEO client): the active SEO client wins, then the newest.
+        $leadsByEmail = $leads->groupBy(fn($lead) => strtolower(trim($lead->email)))
+            ->map(fn($group) => OutreachLead::pickPreferred($group));
         $leadsById = $leads->keyBy('id');
         $messageIds = [];
 
@@ -331,10 +334,15 @@ class ReplyDetectionService
                 $knownSenders[strtolower(trim($watched->email))]['watched'] = $watched;
             });
 
-        foreach ($knownSenders as $email => $links) {
-            if ($lead = $leadsByEmail->get($email)) {
-                $knownSenders[$email]['lead'] = $lead;
-            }
+        // Any lead of a known sender counts — a hand-added SEO client has no
+        // campaign send, so it isn't among $leads above.
+        if (! empty($knownSenders)) {
+            OutreachLead::whereIn(\DB::raw('LOWER(email)'), array_keys($knownSenders))
+                ->get()
+                ->groupBy(fn($lead) => strtolower(trim($lead->email)))
+                ->each(function ($group, $email) use (&$knownSenders) {
+                    $knownSenders[$email]['lead'] = OutreachLead::pickPreferred($group);
+                });
         }
 
         $ownMailboxes = OutreachEmailAccount::pluck('email')
@@ -640,13 +648,10 @@ class ReplyDetectionService
             OutreachLead::with(['sendLogs' => fn($q) => $q->where('status', OutreachSendLog::STATUS_SENT)])
                 ->whereIn(\DB::raw('LOWER(email)'), array_keys($contacts))
                 ->get()
-                ->each(function ($lead) use (&$contacts) {
-                    $key = strtolower(trim($lead->email));
-                    // Prefer the lead that's still active and has a send log;
-                    // otherwise just keep whichever we saw first.
-                    if (! isset($contacts[$key]['lead'])) {
-                        $contacts[$key]['lead'] = $lead;
-                    }
+                ->groupBy(fn($lead) => strtolower(trim($lead->email)))
+                ->each(function ($group, $key) use (&$contacts) {
+                    // Several leads per address: the active SEO client, then the newest.
+                    $contacts[$key]['lead'] = OutreachLead::pickPreferred($group);
                 });
         }
 
