@@ -7,12 +7,12 @@ namespace App\Seo\Services;
  * the offer (SeoOfferService): no blog → set one up, blog → weekly articles.
  *
  * Signals: a posts sitemap (post-sitemap.xml), article-like URL paths
- * (/blogi/…, /uudised/…, /2024/05/…) and a blog link in the main menu.
+ * (/blogi/…, /uudised/…, /kasulikku/…, /2024/05/…) and a blog link in the main menu.
  */
 class BlogDetector
 {
-    private const SECTION = '~/(blog|blogi|uudised|artiklid|nouanded|news|articles|postitused)(/|$)~i';
-    private const MENU    = '/^(blogi|blog|uudised|artiklid|nõuanded|news|articles)$/iu';
+    private const SECTION = '~/(blog|blogi|uudised|artiklid|nouanded|kasulik[\w-]*|news|articles|postitused)(/|$)~i';
+    private const MENU    = '/^(blogi|blog|uudised|artiklid|nõuanded|kasulik(ku|\s+info|\s+teada)?|news|articles)$/iu';
 
     public function __construct(private readonly SiteCrawler $site) {}
 

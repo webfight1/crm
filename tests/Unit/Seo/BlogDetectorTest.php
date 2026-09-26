@@ -37,4 +37,20 @@ class BlogDetectorTest extends TestCase
 
         $this->assertFalse((new BlogDetector(new SiteCrawler()))->detect('uks.ee')['exists']);
     }
+
+    public function test_kasulikku_section_counts_as_blog(): void
+    {
+        Http::fake([
+            'aken.ee/robots.txt'  => Http::response('', 404),
+            'aken.ee/sitemap.xml' => Http::response('<?xml version="1.0"?><urlset>'
+                . '<url><loc>https://aken.ee/kasulikku/kuidas-valida-aknaid/</loc></url>'
+                . '<url><loc>https://aken.ee/kasulikku/akende-hooldus/</loc></url></urlset>'),
+            'aken.ee/*' => Http::response('<!doctype html><html><head></head><body><nav><a href="/kasulikku/">Kasulikku</a></nav></body></html>'),
+        ]);
+
+        $r = (new BlogDetector(new SiteCrawler()))->detect('aken.ee');
+
+        $this->assertTrue($r['exists']);
+        $this->assertSame('https://aken.ee/kasulikku', $r['url']);
+    }
 }
