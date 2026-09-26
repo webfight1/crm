@@ -27,7 +27,8 @@ class WarmClientService
      * A warm client the operator knows about from elsewhere (phone, referral).
      * Stored as an outreach lead so the rest of the pipeline — audit,
      * clarification e-mail, answer handling, funnel — treats it like any other.
-     * Adding the same e-mail again updates that lead.
+     * Adding the same e-mail + company again updates that lead (a fresh
+     * round); another company with the same address gets a lead of its own.
      */
     public function addManual(array $data): OutreachLead
     {
@@ -53,7 +54,15 @@ class WarmClientService
 
         $position = isset($data['position']) && $data['position'] !== null ? (int) $data['position'] : null;
 
-        $lead = OutreachLead::firstOrNew(['campaign_id' => $campaign->id, 'email' => strtolower(trim($data['email']))]);
+        // Same address + same company = that client again (a fresh round);
+        // another company with the same contact address gets its own lead.
+        $email = strtolower(trim($data['email']));
+        $existing = OutreachLead::where('campaign_id', $campaign->id)->where('email', $email)->get();
+        $lead = $existing->first(fn (OutreachLead $l) => self::sameCompany($l->company, $data['company']));
+        if (! $lead) {
+            $lead = new OutreachLead(['campaign_id' => $campaign->id, 'email' => $email]);
+            $lead->round_key = $existing->isEmpty() ? '' : strtolower((string) \Illuminate\Support\Str::ulid());
+        }
         $lead->fill([
             'first_name'       => ($data['first_name'] ?? null) ?: 'Friend',
             'last_name'        => $data['last_name'] ?? null,
@@ -87,6 +96,18 @@ class WarmClientService
         $lead->saveQuietly();
 
         return $lead;
+    }
+
+    /** "RV Elekter OÜ" = "rv elekter" — legal form, case and punctuation ignored. */
+    public static function sameCompany(?string $a, ?string $b): bool
+    {
+        $norm = fn (?string $s) => trim(preg_replace(
+            ['/(?<![\p{L}\p{N}])(oü|ou|as|mtü|mtu|fie|tü|sa|ltd|llc|gmbh)(?![\p{L}\p{N}])/u', '/[^\p{L}\p{N}]+/u'],
+            ['', ' '],
+            mb_strtolower((string) $s),
+        ));
+
+        return $norm($a) !== '' && $norm($a) === $norm($b);
     }
 
     public function convert(OutreachLead $lead): Deal
