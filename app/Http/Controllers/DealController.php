@@ -55,6 +55,11 @@ class DealController extends Controller
             'notes' => 'nullable|string',
             'clarity_level' => 'nullable|in:clear,medium,vague',
             'revenue_model' => 'nullable|in:hourly_partner,fixed_project,retainer,uncertain',
+            'retainer_amount' => 'nullable|numeric|min:0',
+            'retainer_note' => 'nullable|string|max:255',
+            'retainer_start' => 'nullable|date_format:Y-m',
+            'retainer_months' => 'nullable|integer|min:1|max:120',
+            'retainer_day' => 'nullable|integer|min:1|max:31',
             'estimated_hours' => 'nullable|integer|min:0',
             'work_type' => 'nullable|in:technical,design,copywriting,ecommerce,website',
             'risk_level' => 'nullable|in:low,medium,high',
@@ -65,6 +70,7 @@ class DealController extends Controller
         ]);
 
         $validated['user_id'] = Auth::id();
+        $validated = $this->retainerFields($validated);
 
         $deal = Deal::create($validated);
 
@@ -142,6 +148,11 @@ class DealController extends Controller
             'notes' => 'nullable|string',
             'clarity_level' => 'nullable|in:clear,medium,vague',
             'revenue_model' => 'nullable|in:hourly_partner,fixed_project,retainer,uncertain',
+            'retainer_amount' => 'nullable|numeric|min:0',
+            'retainer_note' => 'nullable|string|max:255',
+            'retainer_start' => 'nullable|date_format:Y-m',
+            'retainer_months' => 'nullable|integer|min:1|max:120',
+            'retainer_day' => 'nullable|integer|min:1|max:31',
             'estimated_hours' => 'nullable|integer|min:0',
             'work_type' => 'nullable|in:technical,design,copywriting,ecommerce,website',
             'risk_level' => 'nullable|in:low,medium,high',
@@ -151,7 +162,7 @@ class DealController extends Controller
             'contact_id' => 'nullable|exists:contacts,id',
         ]);
 
-        $deal->update($validated);
+        $deal->update($this->retainerFields($validated));
 
         return redirect()->route('deals.index')
             ->with('success', 'Deal updated successfully.');
@@ -262,5 +273,17 @@ class DealController extends Controller
                 'end_date' => $endDate,
             ],
         ]);
+    }
+
+    /** Monthly fee fields: month input "2026-10" → first day; cleared unless „Püsiklient“. */
+    private function retainerFields(array $v): array
+    {
+        if (($v['revenue_model'] ?? null) !== 'retainer') {
+            return array_merge($v, ['retainer_amount' => null, 'retainer_note' => null, 'retainer_start' => null, 'retainer_months' => null]);
+        }
+        $v['retainer_start'] = ! empty($v['retainer_start']) ? $v['retainer_start'] . '-01' : null;
+        $v['retainer_day'] = $v['retainer_day'] ?? 1;
+
+        return $v;
     }
 }

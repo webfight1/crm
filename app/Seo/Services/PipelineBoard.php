@@ -178,6 +178,12 @@ class PipelineBoard
 
     private function invoiceStage(Deal $deal, ?Quotation $quote): array
     {
+        if (($r = \App\Billing\RetainerBilling::status($deal)) && $r['month'] > 0 && ! in_array($deal->stage, \App\Billing\RetainerBilling::STOPPED, true)) {
+            $text = $r['ended'] ? 'kuutasu lõppes' : 'kuutasu ' . $r['month'] . ($r['of'] ? "/{$r['of']}" : '');
+
+            return $this->stage($r['ended'] ? 'me' : 'done', $text, route('deals.show', $deal));
+        }
+
         $rmp = rtrim((string) config('services.rmp.url'), '/') . '/invoices/from-crm' . ($quote ? '?quotation=' . urlencode($quote->number) : '');
 
         return match ($deal->stage) {

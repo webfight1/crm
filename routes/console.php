@@ -72,3 +72,14 @@ Schedule::command('outreach:send-scheduled-replies')
     ->onFailure(function () {
         \Illuminate\Support\Facades\Log::error('[Outreach] send-scheduled-replies run failed.');
     });
+
+// Every morning: monthly invoice reminders of „Püsiklient“ deals (task +
+// Telegram with the RMP link); each month once, on the deal's invoice day.
+Artisan::command('deals:retainer-invoices', function () {
+    $this->info(app(\App\Billing\RetainerBilling::class)->run() . ' meeldetuletust.');
+})->purpose('Monthly invoice reminders of retainer deals');
+
+Schedule::command('deals:retainer-invoices')
+    ->dailyAt('08:00')
+    ->name('deals:retainer-invoices')
+    ->withoutOverlapping();

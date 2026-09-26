@@ -125,6 +125,8 @@
                                 <x-input-error :messages="$errors->get('revenue_model')" class="mt-2" />
                             </div>
 
+                            @include('deals._retainer_fields')
+
                             <!-- Estimated Hours -->
                             <div>
                                 <x-input-label for="estimated_hours" :value="__('Hinnanguline aeg (tunnid)')" />

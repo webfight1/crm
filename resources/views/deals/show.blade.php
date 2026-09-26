@@ -246,6 +246,23 @@
                         </div>
                         @endif
 
+                        @if($retainer = \App\Billing\RetainerBilling::status($deal))
+                            <div class="md:col-span-2 mt-6 border border-indigo-200 bg-indigo-50 rounded-lg p-4 text-sm text-indigo-900">
+                                <div class="font-semibold">🧾 Kuutasu {{ number_format((float) $deal->retainer_amount, 2, ',', ' ') }} € + KM{{ $deal->retainer_note ? ' · ' . $deal->retainer_note : '' }}</div>
+                                <div class="mt-1">
+                                    Alates {{ $deal->retainer_start->format('m/Y') }}{{ $deal->retainer_months ? ', ' . $deal->retainer_months . ' kuud' : ', kuni lõpetad' }}
+                                    · arve iga kuu {{ $deal->retainer_day }}.
+                                    @if($retainer['ended']) · <strong>periood lõppes</strong>
+                                    @elseif($retainer['month'] > 0) · praegu {{ $retainer['month'] }}{{ $retainer['of'] ? '/' . $retainer['of'] : '.' }} kuu
+                                    @endif
+                                    @if($retainer['next'] && ! in_array($deal->stage, \App\Billing\RetainerBilling::STOPPED, true)) · järgmine meeldetuletus {{ $retainer['next']->format('d.m.Y') }}@endif
+                                </div>
+                                @if($retainer['month'] > 0 && ! $retainer['ended'])
+                                    <a href="{{ \App\Billing\RetainerBilling::rmpUrl($deal, $retainer['period']) }}" target="_blank" rel="noopener" class="inline-block mt-2 text-indigo-700 font-medium hover:text-indigo-900">Tee {{ \Illuminate\Support\Carbon::parse($retainer['period'] . '-01')->format('m/Y') }} arve RMP-s →</a>
+                                @endif
+                            </div>
+                        @endif
+
                         <!-- Tasks Summary -->
                         <div class="md:col-span-2 mt-6">
                             <div class="flex items-center justify-between mb-4">

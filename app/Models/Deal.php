@@ -19,6 +19,11 @@ class Deal extends Model
         'notes',
         'clarity_level',
         'revenue_model',
+        'retainer_amount',
+        'retainer_note',
+        'retainer_start',
+        'retainer_months',
+        'retainer_day',
         'estimated_hours',
         'work_type',
         'risk_level',
@@ -35,6 +40,10 @@ class Deal extends Model
         'actual_close_date' => 'date',
         'is_fast_cash' => 'boolean',
         'estimated_hours' => 'integer',
+        'retainer_amount' => 'decimal:2',
+        'retainer_start' => 'date',
+        'retainer_months' => 'integer',
+        'retainer_day' => 'integer',
     ];
 
     // Relationships

@@ -37,6 +37,14 @@ class AppServiceProvider extends ServiceProvider
             if (! $deal->wasChanged('stage') || $deal->stage !== 'valmis') {
                 return;
             }
+            // „Püsiklient“ with a monthly fee: its invoices come monthly (RetainerBilling);
+            // „valmis“ only ends the period.
+            if ($deal->revenue_model === 'retainer' && $deal->retainer_amount > 0) {
+                Telegram::send("✅ Püsikliendi töö lõpetatud (" . config('app.name') . ")\n"
+                    . "{$deal->title} — kuuarvete meeldetuletused lõpevad.\nTehing: " . route('deals.show', $deal));
+
+                return;
+            }
             $quotation = \App\Models\Quotation::where('deal_id', $deal->id)
                 ->whereIn('status', ['accepted', 'sent'])
                 ->orderByRaw("status = 'accepted' DESC")->latest('id')->first();

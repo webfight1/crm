@@ -135,6 +135,7 @@ Telegram: üks kokkuvõttev teade + link auditile
 - [ ] **Kirjamallide A/B**: vastamismäär malli järgi.
 
 ## Muudatuste logi
+- 2026-09-27: Kuutasu („Püsiklient“ tehingud): summa, esimene kuu, kuude arv, arve päev. Iga kuu arve päeval ülesanne + Telegram RMP lingiga `invoices/from-crm?deal=ID&month=YYYY-MM`; perioodi lõpus küsimus pikendamise kohta. „Valmis“ lõpetab kuutasu, ühekordset arvet ei tee.
 - 2026-09-27: Lisalehe audit valmis → märksõna läheb SEO-monitori „Positsioonid“ alla (leht sihtlehena) ja leht „Lehed“ alla (PageSpeed). Projekti loomisel lisatakse ka varem auditeeritud lisalehed.
 - 2026-09-27: Ühel kliendil mitu lehte: auditi lehel „+ Lisa lehti / märksõnu“ (eeltäidetud täpsustuskirja lisamärksõnadega) → lisalehtede auditid sama tehingu all. Üks koondpakkumine: kogu saiti puudutavad parandused (Playbook `offer.site_wide_checks`) ühe korra, iga lehe omad eraldi real; „Uuenda pakkumist“ koostab mustandi uuesti.
 - 2026-09-26: Sama meiliaadressiga mitu leadi (vana kampaania + soe klient): kirjad lähevad aktiivsele SEO-kliendile, AI loeb ainult selle ringi kirju, postkastis on vanemad kirjad kokku volditud. Soe klient loetakse vastanuks, et tema järgmine kiri ahelat uuesti ei käivitaks.
