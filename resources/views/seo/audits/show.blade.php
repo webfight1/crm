@@ -136,10 +136,25 @@
                 </div>
             </div>
 
-            @if($audit->summary)
-                <div class="bg-white shadow-sm rounded-lg p-6">
-                    <h3 class="font-semibold mb-2">Kokkuvõte kliendile</h3>
-                    <div class="text-sm text-gray-800 whitespace-pre-line">{{ $audit->summary }}</div>
+            @if($audit->summary || $audit->status === 'done')
+                <div class="bg-white shadow-sm rounded-lg p-6" x-data="{ editing: false }">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="font-semibold">Kokkuvõte kliendile</h3>
+                        <button type="button" x-show="! editing" @click="editing = true" class="text-sm text-indigo-600 hover:text-indigo-800">✏️ Muuda</button>
+                    </div>
+                    <div x-show="! editing" class="text-sm text-gray-800 whitespace-pre-line">{{ $audit->summary ?: '—' }}</div>
+                    <form x-show="editing" x-cloak method="POST" action="{{ route('seo.audits.summary', $audit) }}" class="space-y-2">
+                        @csrf
+                        <textarea name="summary" rows="12" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">{{ $audit->summary }}</textarea>
+                        <p class="text-xs text-gray-500">
+                            Läheb pakkumise kirjeldusse{{ $audit->quotation && $audit->quotation->status === 'draft' ? " (uuendatakse ka mustandis {$audit->quotation->number})" : '' }}.
+                            Auditi uuesti käivitamine kirjutab selle üle.
+                        </p>
+                        <div class="flex gap-2">
+                            <button class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded">Salvesta</button>
+                            <button type="button" @click="editing = false" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm rounded">Tühista</button>
+                        </div>
+                    </form>
                 </div>
             @endif
 

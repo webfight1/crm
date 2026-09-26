@@ -295,6 +295,22 @@ class SeoController extends Controller
         return back()->with('success', 'Tehing seotud.');
     }
 
+    /** Operator edits the client-facing summary; a still-draft quotation gets it too. */
+    public function auditsSummary(Request $request, SeoAudit $audit): RedirectResponse
+    {
+        $summary = trim($request->validate(['summary' => 'nullable|string|max:20000'])['summary'] ?? '');
+        $audit->update(['summary' => $summary !== '' ? $summary : null]);
+
+        $quotation = $audit->quotation;
+        if ($quotation && $quotation->status === 'draft') {
+            $quotation->update(['description' => $audit->summary]);
+
+            return back()->with('success', "Kokkuvõte salvestatud ja uuendatud ka pakkumise {$quotation->number} mustandis.");
+        }
+
+        return back()->with('success', 'Kokkuvõte salvestatud.' . ($quotation ? " Pakkumine {$quotation->number} on juba saadetud — seda ei muudetud." : ''));
+    }
+
     /** Operator: the client's latest mail IS the clarification answer. */
     public function auditsClarifyAnswer(SeoAudit $audit): RedirectResponse
     {
