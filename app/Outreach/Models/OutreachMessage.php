@@ -57,11 +57,14 @@ class OutreachMessage extends Model
             if (! config('app.seo_pipeline')) {
                 return;
             }
-            // Hand-added SEO clients' replies are matched to the Customer only.
-            $lead = $msg->lead_id ? $msg->lead : ($msg->customer_id
-                ? OutreachLead::where('customer_id', $msg->customer_id)->whereNotNull('seo_stage')->latest('id')->first()
-                : null);
-            if (! $lead) {
+            // The message's own lead, else the SEO lead of the same CRM customer:
+            // a hand-added client's reply is matched to the Customer, or to an
+            // older campaign lead with the same address (which has no SEO stage).
+            $lead = $msg->lead_id ? $msg->lead : null;
+            if (! $lead?->seo_stage && $msg->customer_id) {
+                $lead = OutreachLead::where('customer_id', $msg->customer_id)->whereNotNull('seo_stage')->latest('id')->first() ?? $lead;
+            }
+            if (! $lead?->seo_stage) {
                 return;
             }
 
