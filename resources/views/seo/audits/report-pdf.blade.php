@@ -20,8 +20,10 @@
         .tag-fail { background: #fee2e2; color: #b91c1c; }
         .tag-ok { background: #dcfce7; color: #15803d; }
         .found { font-size: 10px; color: #888; }
-        .ok-list { columns: 2; font-size: 10px; color: #555; }
-        .page { page-break-inside: avoid; }
+        .results { margin-top: 8px; font-size: 10px; }
+        .results th { text-align: left; font-size: 9px; text-transform: uppercase; color: #666; background: #f1f5f9; padding: 5px 6px; }
+        .why { font-size: 9px; color: #888; margin-top: 2px; }
+        tr { page-break-inside: avoid; }
         .footer { margin-top: 24px; font-size: 9px; color: #666; border-top: 1px solid #ddd; padding-top: 8px; }
     </style>
 </head>
@@ -42,8 +44,8 @@
         </table>
     </div>
 
-    <p>Vaatasime üle, kuidas Google näeb allolevaid lehti: mis on korras ja mida oleks vaja parandada,
-        et leht otsingus paremini leitav oleks. Iga puuduse juures on lühidalt kirjas, miks see oluline on.</p>
+    <p>Vaatasime üle, kuidas Google näeb allolevaid lehti. Tabelis on iga kontrolli tulemus ja see, mida lehelt leidsime —
+        „Puudus“ märgitud kohad oleks vaja korda teha, et leht otsingus paremini leitav oleks.</p>
 
     @if($summary)
         <h3>Kokkuvõte</h3>
@@ -58,8 +60,8 @@
                 <tr>
                     <td style="border: none; padding: 0;">
                         @if($s['keyword'])<span class="muted">Märksõna:</span> „{{ $s['keyword'] }}“<br>@endif
-                        <span class="muted">Vajab parandamist:</span> <strong>{{ count($s['failed']) }}</strong>
-                        · <span class="muted">korras:</span> {{ count($s['passed']) }}
+                        <span class="muted">Puudusi:</span> <strong>{{ $s['failed'] }}</strong>
+                        · <span class="muted">korras:</span> {{ $s['passed'] }}
                     </td>
                     <td style="border: none; padding: 0; text-align: right; width: 90px;">
                         <span class="score {{ $score >= 80 ? 'good' : ($score >= 50 ? 'mid' : 'bad') }}">{{ $s['score'] ?? '—' }}</span><span class="muted">/100</span>
@@ -67,31 +69,22 @@
                 </tr>
             </table>
 
-            @if($s['failed'])
-                <h3>Vajab parandamist</h3>
-                <table>
-                    @foreach($s['failed'] as $r)
-                        <tr>
-                            <td style="width: 70px;"><span class="tag tag-fail">Parandada</span></td>
-                            <td>
-                                <strong>{{ $r['label'] }}</strong>
-                                @if($r['explanation'])<div>{{ $r['explanation'] }}</div>@endif
-                                @if($r['note'])<div class="found">{{ $r['note'] }}</div>@endif
-                                @if(($r['value'] ?? '') !== '' && $r['value'] !== null)<div class="found">Leitud: {{ \Illuminate\Support\Str::limit($r['value'], 160) }}</div>@endif
-                            </td>
-                        </tr>
-                    @endforeach
-                </table>
-            @else
-                <p class="good">Kõik kontrollitud punktid on korras.</p>
-            @endif
-
-            @if($s['passed'])
-                <h3>Korras</h3>
-                <div class="ok-list">
-                    @foreach($s['passed'] as $r)<div>✓ {{ $r['label'] }}</div>@endforeach
-                </div>
-            @endif
+            <table class="results">
+                <tr><th style="width: 62px;">Tulemus</th><th style="width: 38%;">Kontroll</th><th>Leitud</th></tr>
+                @foreach($s['rows'] as $r)
+                    <tr>
+                        <td>@if($r['status'] === 'pass')<span class="tag tag-ok">OK</span>@else<span class="tag tag-fail">Puudus</span>@endif</td>
+                        <td>
+                            {{ $r['label'] }}
+                            @if($r['status'] === 'fail' && $r['explanation'])<div class="why">{{ $r['explanation'] }}</div>@endif
+                        </td>
+                        <td>
+                            @if($r['note'])<div>{{ $r['note'] }}</div>@endif
+                            @if(($r['value'] ?? '') !== '' && $r['value'] !== null)<div class="found">{{ \Illuminate\Support\Str::limit($r['value'], 160) }}</div>@endif
+                        </td>
+                    </tr>
+                @endforeach
+            </table>
         </div>
     @endforeach
 

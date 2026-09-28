@@ -25,21 +25,23 @@ class AuditReport
         return $pages->filter(fn (SeoAudit $a) => $a->status === SeoAudit::STATUS_DONE && $a->results)->values();
     }
 
-    /** @return array{url:string, keyword:?string, score:?int, failed:array, passed:array} per page */
+    /** @return array{url:string, keyword:?string, score:?int, rows:array, failed:int, passed:int} per page — the audit page's table, skipped checks left out */
     public function sections(Collection $pages): array
     {
         // Audits made before results carried the client explanation get it from the check.
         $explain = SeoAuditCheck::pluck('client_explanation', 'key');
 
         return $pages->map(function (SeoAudit $a) use ($explain) {
-            $rows = collect($a->results)->map(fn ($r) => $r + ['explanation' => $r['explanation'] ?? $explain[$r['key'] ?? ''] ?? null]);
+            $rows = collect($a->results)->where('status', '!=', SeoAudit::RESULT_SKIP)
+                ->map(fn ($r) => $r + ['explanation' => $r['explanation'] ?? $explain[$r['key'] ?? ''] ?? null])->values();
 
             return [
                 'url'     => $a->url,
                 'keyword' => $a->keyword,
                 'score'   => $a->score,
-                'failed'  => $rows->where('status', SeoAudit::RESULT_FAIL)->sortByDesc('weight')->values()->all(),
-                'passed'  => $rows->where('status', SeoAudit::RESULT_PASS)->values()->all(),
+                'rows'    => $rows->all(),
+                'failed'  => $rows->where('status', SeoAudit::RESULT_FAIL)->count(),
+                'passed'  => $rows->where('status', SeoAudit::RESULT_PASS)->count(),
             ];
         })->all();
     }
