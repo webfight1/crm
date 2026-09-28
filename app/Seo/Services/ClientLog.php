@@ -47,6 +47,11 @@ class ClientLog
         'rejected' => 'ei sobinud', 'expired' => 'aegus',
     ];
 
+    public const TASK_STATUSES = [
+        'pending' => 'Ootel', 'in_progress' => 'Töös', 'needs_testing' => 'Vajab testimist',
+        'needs_clarification' => 'Vajab täpsustust', 'completed' => 'Valmis', 'cancelled' => 'Tühistatud',
+    ];
+
     /** Model hooks that write the log (AppServiceProvider::boot). */
     public static function register(): void
     {
@@ -66,8 +71,19 @@ class ClientLog
             }
         });
 
+        Task::updated(function (Task $task) {
+            if ($task->wasChanged('status') && $task->deal_id && ($leadId = self::leadIdForDeal($task->deal_id))) {
+                self::record($leadId, $task->status === 'completed' ? 'done' : 'task',
+                    "Ülesanne „{$task->title}“: " . (self::TASK_STATUSES[$task->getOriginal('status')] ?? $task->getOriginal('status'))
+                    . ' → ' . (self::TASK_STATUSES[$task->status] ?? $task->status), null, route('tasks.show', $task));
+            }
+        });
+
         Quotation::updated(function (Quotation $quote) {
-            if ($quote->wasChanged('status') && $quote->deal_id && ($leadId = self::leadIdForDeal($quote->deal_id))) {
+            // Sent by e-mail from the CRM → the send row already says so (with the address).
+            $mailed = $quote->status === 'sent'
+                && QuotationEmailSend::where('quotation_id', $quote->id)->where('sent_at', '>=', now()->subMinute())->exists();
+            if ($quote->wasChanged('status') && ! $mailed && $quote->deal_id && ($leadId = self::leadIdForDeal($quote->deal_id))) {
                 self::record($leadId, 'quote', "Pakkumine {$quote->number}: " . (self::QUOTE_STATUSES[$quote->status] ?? $quote->status),
                     null, route('quotations.show', $quote));
             }
@@ -104,7 +120,8 @@ class ClientLog
             }
         };
 
-        foreach (SeoEvent::with('user:id,name')->where('lead_id', $lead->id)->get() as $e) {
+        $events = SeoEvent::with('user:id,name')->where('lead_id', $lead->id)->get();
+        foreach ($events as $e) {
             $add($e->created_at, $e->type, $e->title, $e->body, $e->url, $e->user?->name);
         }
 
@@ -146,7 +163,10 @@ class ClientLog
             $tasks = Task::where('deal_id', $deal->id)->get();
             foreach ($tasks as $t) {
                 $add($t->created_at, 'task', 'Ülesanne: ' . $t->title, null, route('tasks.show', $t));
-                $add($t->completed_at, 'done', 'Tehtud: ' . $t->title, null, route('tasks.show', $t));
+                // Completions since the status log exists are already there as „… → Valmis“.
+                if (! $events->where('type', 'done')->contains('url', route('tasks.show', $t))) {
+                    $add($t->completed_at, 'done', 'Tehtud: ' . $t->title, null, route('tasks.show', $t));
+                }
             }
             foreach (TimeEntry::with('user:id,name')->whereIn('task_id', $tasks->pluck('id'))->get() as $te) {
                 $task = $tasks->firstWhere('id', $te->task_id);

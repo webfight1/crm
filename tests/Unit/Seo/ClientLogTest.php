@@ -33,7 +33,7 @@ class ClientLogTest extends TestCase
         Schema::create('deals', fn (Blueprint $t) => [$t->id(), $t->string('title'), $t->string('stage'), $t->timestamps()]);
         Schema::create('quotations', fn (Blueprint $t) => [$t->id(), $t->unsignedBigInteger('deal_id')->nullable(), $t->string('number'), $t->string('status'), $t->decimal('total', 10, 2)->default(0), $t->timestamps(), $t->softDeletes()]);
         Schema::create('quotation_email_sends', fn (Blueprint $t) => [$t->id(), $t->unsignedBigInteger('quotation_id'), $t->string('to_email'), $t->string('subject')->nullable(), $t->timestamp('sent_at')->nullable(), $t->timestamps()]);
-        Schema::create('tasks', fn (Blueprint $t) => [$t->id(), $t->unsignedBigInteger('deal_id')->nullable(), $t->string('title'), $t->timestamp('completed_at')->nullable(), $t->timestamps(), $t->softDeletes()]);
+        Schema::create('tasks', fn (Blueprint $t) => [$t->id(), $t->unsignedBigInteger('deal_id')->nullable(), $t->string('title'), $t->string('status')->default('pending'), $t->timestamp('completed_at')->nullable(), $t->timestamps(), $t->softDeletes()]);
         Schema::create('time_entries', fn (Blueprint $t) => [$t->id(), $t->unsignedBigInteger('task_id'), $t->unsignedBigInteger('user_id')->nullable(), $t->timestamp('start_time')->nullable(), $t->decimal('duration', 8, 2)->nullable(), $t->text('notes')->nullable(), $t->timestamps()]);
         Schema::create('seo_events', fn (Blueprint $t) => [$t->id(), $t->unsignedBigInteger('lead_id'), $t->string('type'), $t->string('title'), $t->text('body')->nullable(), $t->string('url')->nullable(), $t->unsignedBigInteger('user_id')->nullable(), $t->timestamp('created_at')->nullable()]);
     }
@@ -50,7 +50,7 @@ class ClientLogTest extends TestCase
 
         Carbon::setTestNow('2026-09-22 12:00');
         $deal->update(['stage' => 'töös']);
-        $task = Task::forceCreate(['deal_id' => $deal->id, 'title' => 'Meta kirjeldused', 'completed_at' => now()->addHour()]);
+        $task = Task::forceCreate(['deal_id' => $deal->id, 'title' => 'Meta kirjeldused', 'status' => 'completed', 'completed_at' => now()->addHour()]);
         \App\Models\TimeEntry::forceCreate(['task_id' => $task->id, 'start_time' => now(), 'duration' => 1.5, 'notes' => 'avaleht + teenused']);
         ClientLog::record($lead->id, 'note', 'Helistasin kliendile', at: Carbon::parse('2026-09-19 15:00'));
 
@@ -63,5 +63,14 @@ class ClientLogTest extends TestCase
         $this->assertContains('Täpsustus jäeti vahele', $titles);
         $this->assertContains('Klient kirjutas: Re: pakkumine', $titles);
         $this->assertSame('Helistasin kliendile', end($titles));
+
+        Carbon::setTestNow('2026-09-23 08:00');
+        $task->update(['status' => 'in_progress']);
+        Carbon::setTestNow('2026-09-23 08:30');
+        $task->update(['status' => 'completed', 'completed_at' => now()]);
+        $titles = (new ClientLog)->entries($lead)->pluck('title')->all();
+        $this->assertSame('Ülesanne „Meta kirjeldused“: Töös → Valmis', $titles[0]);
+        $this->assertContains('Ülesanne „Meta kirjeldused“: Valmis → Töös', $titles);
+        $this->assertNotContains('Tehtud: Meta kirjeldused', $titles);
     }
 }
