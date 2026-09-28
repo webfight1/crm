@@ -103,4 +103,17 @@ class SeoMonitorPageSyncTest extends TestCase
         $this->assertSame('https://x.ee/kujundus', $target('kujundus'));
         $this->assertSame('https://x.ee/projektid/', $target('kleebised'));
     }
+
+    public function test_an_existing_project_of_the_same_domain_is_reused(): void
+    {
+        Http::fake([
+            'seo.test/api/v1/projects' => Http::response(['data' => [['id' => 6, 'domain' => 'www.kind.ee']]]),
+            'seo.test/*' => Http::response(['data' => ['id' => 1]], 201),
+        ]);
+        $sync = new SeoMonitorSyncService(new SeoMonitorClient());
+        $method = new \ReflectionMethod($sync, 'projectForDomain');
+
+        $this->assertSame(6, $method->invoke($sync, 'kind.ee'));
+        $this->assertNull($method->invoke($sync, 'muu.ee'));
+    }
 }

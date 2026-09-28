@@ -104,7 +104,9 @@ class SeoMonitorSyncService
         }
         $domain = SiteCrawler::host($origin);
 
-        $projectId = $this->monitor->createProject(
+        // Same site already there (made by hand, or for another lead of this client) → use it.
+        $existing = $this->projectForDomain($domain);
+        $projectId = $existing ?? $this->monitor->createProject(
             $lead->company ?: $domain,
             $domain,
             $origin . '/',
@@ -133,9 +135,17 @@ class SeoMonitorSyncService
         }
 
         [$invite, $note] = $clientAccount ? $this->clientAccount($lead, $projectId) : [null, ''];
-        $note = 'SEO-monitori projekt loodud.' . $note;
+        $note = ($existing ? "SEO-monitoris oli {$domain} projekt juba olemas (#{$projectId}) — kasutasin seda." : 'SEO-monitori projekt loodud.') . $note;
 
         return ['project_url' => $this->monitor->projectUrl($projectId), 'invite_url' => $invite, 'note' => $note];
+    }
+
+    private function projectForDomain(string $domain): ?int
+    {
+        $bare = fn (?string $d) => preg_replace('/^www\./', '', mb_strtolower((string) $d));
+        $match = collect($this->monitor->projects())->first(fn ($p) => $bare($p['domain'] ?? null) === $bare($domain));
+
+        return $match ? (int) $match['id'] : null;
     }
 
     /**
