@@ -4,7 +4,10 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 Audit: {{ $audit->lead?->company ?: parse_url($audit->url, PHP_URL_HOST) ?: $audit->url }}
             </h2>
-            <a href="{{ route('seo.audits.index') }}" class="text-sm text-indigo-600 hover:text-indigo-900">← Kõik auditid</a>
+            <div class="flex gap-4 text-sm">
+                @if($root->lead)<a href="{{ route('seo.clients.log', $root->lead) }}" class="text-indigo-600 hover:text-indigo-900">📜 Logi</a>@endif
+                <a href="{{ route('seo.audits.index') }}" class="text-indigo-600 hover:text-indigo-900">← Kõik auditid</a>
+            </div>
         </div>
     </x-slot>
 

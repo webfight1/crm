@@ -149,6 +149,30 @@ class SeoController extends Controller
     }
 
     /** docs/seo-automation.md (process + roadmap) rendered read-only. */
+    /** What was done for this client and when — /seo/kliendid/{lead}/logi. */
+    public function clientLog(OutreachLead $lead, \App\Seo\Services\ClientLog $log): View
+    {
+        return view('seo.log', [
+            'lead'    => $lead,
+            'deal'    => $lead->deal_id ? Deal::find($lead->deal_id) : null,
+            'audit'   => SeoAudit::main()->where('lead_id', $lead->id)->latest('id')->first(),
+            'entries' => $log->entries($lead),
+        ]);
+    }
+
+    public function clientLogNote(Request $request, OutreachLead $lead): RedirectResponse
+    {
+        $data = $request->validate([
+            'title' => 'required|string|max:480',
+            'body'  => 'nullable|string|max:5000',
+            'at'    => 'nullable|date',
+        ]);
+        \App\Seo\Services\ClientLog::record($lead->id, 'note', $data['title'], $data['body'] ?? null,
+            at: ! empty($data['at']) ? \Illuminate\Support\Carbon::parse($data['at']) : null);
+
+        return back()->with('success', 'Märge lisatud.');
+    }
+
     public function docs(): View
     {
         $path = base_path('docs/seo-automation.md');
@@ -444,6 +468,9 @@ class SeoController extends Controller
             return back()->with('error', 'SEO-monitor ei vastanud: ' . mb_substr($e->getMessage(), 0, 200));
         }
         \Illuminate\Support\Facades\Cache::forget(\App\Seo\Services\PipelineBoard::PROJECTS_CACHE);
+        if ($added) {
+            \App\Seo\Services\ClientLog::record($lead->id, 'monitor', "SEO-monitori lisatud märksõnu: {$added}", trim((string) $request->input('keywords')));
+        }
 
         return back()->with('success', $result['note'] . ($added ? " Lisatud märksõnu: {$added}." : '')
             . ' Positsioonid tulevad SEO-monitori järgmise kontrolliga.');

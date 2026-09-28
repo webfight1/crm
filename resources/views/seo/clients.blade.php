@@ -62,6 +62,7 @@
                                     @if($row['stages']['audit']['url'])<a href="{{ $row['stages']['audit']['url'] }}" class="text-indigo-600 hover:text-indigo-900">audit</a>@endif
                                     <a href="{{ route('deals.show', $row['deal']) }}" class="text-indigo-600 hover:text-indigo-900">tehing</a>
                                     <a href="{{ \App\Outreach\Models\OutreachMessage::inboxThreadUrl($row['lead']->email) }}" class="text-indigo-600 hover:text-indigo-900">postkast</a>
+                                    <a href="{{ route('seo.clients.log', $row['lead']) }}" class="text-indigo-600 hover:text-indigo-900">logi</a>
                                 </div>
                             </td>
                             @foreach($stages as $key => $label)

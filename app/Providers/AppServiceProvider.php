@@ -31,6 +31,9 @@ class AppServiceProvider extends ServiceProvider
         // every job so edits on /seo/playbook apply without a worker restart.
         Queue::before(fn () => Playbook::flush());
 
+        // Per-client SEO log (/seo/kliendid/{lead}/logi): stage, deal and quotation changes.
+        \App\Seo\Services\ClientLog::register();
+
         // Work done → Telegram reminder with the link that opens the invoice
         // form in RMP for this deal's quotation (RMP makes the draft invoice).
         \App\Models\Deal::updated(function (\App\Models\Deal $deal) {

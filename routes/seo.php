@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('seo')->name('seo.')->group(function () {
     Route::get  ('/',                       [SeoController::class, 'playbook'])->name('playbook');
     Route::get  ('/kliendid',               [SeoController::class, 'clients'])->name('clients');
+    Route::get  ('/kliendid/{lead}/logi',   [SeoController::class, 'clientLog'])->name('clients.log');
+    Route::post ('/kliendid/{lead}/logi',   [SeoController::class, 'clientLogNote'])->name('clients.log.note');
     Route::get  ('/docs',                   [SeoController::class, 'docs'])->name('docs');
     Route::patch('/playbook',               [SeoController::class, 'updatePlaybook'])->name('playbook.update');
 
