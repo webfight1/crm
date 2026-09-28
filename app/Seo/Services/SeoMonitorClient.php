@@ -127,6 +127,12 @@ class SeoMonitorClient
         return $r->throw()->json('invite_url');
     }
 
+    /** @return array<int, array{sent_at:string, recipients:array, subject:string, message:?string, user:?string}> mailed reports, newest first */
+    public function reportSends(int $projectId): array
+    {
+        return $this->http()->timeout(5)->get("projects/{$projectId}/report/sends")->throw()->json('data') ?? [];
+    }
+
     private function http(): PendingRequest
     {
         return Http::baseUrl(rtrim((string) config('services.seo_monitor.api_url'), '/') . '/')

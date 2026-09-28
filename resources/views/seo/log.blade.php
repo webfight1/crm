@@ -15,7 +15,7 @@
         ];
         $groups = [
             'work'  => ['note', 'time', 'done', 'task', 'monitor'],
-            'mail'  => ['mail_in', 'mail_out'],
+            'mail'  => ['mail_in', 'mail_out', 'report'],
             'stage' => ['stage', 'deal', 'quote', 'audit', 'fail'],
         ];
         $f = request('f', '');

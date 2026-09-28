@@ -25,6 +25,8 @@ use Illuminate\Support\Str;
  */
 class ClientLog
 {
+    public function __construct(private readonly SeoMonitorClient $monitor) {}
+
     public const SEO_STAGES = [
         'clarify_drafted'  => 'Täpsustuskiri koostatud (mustand)',
         'awaiting_answer'  => 'Täpsustuskiri saadetud — ootab vastust',
@@ -137,6 +139,20 @@ class ClientLog
                 Str::limit(trim((string) $m->body_text), 300), OutreachMessage::inboxThreadUrl($lead->email));
         }
 
+        // Reports mailed from SEO-monitor (projects/{id}/raport) live there, not here.
+        if ($lead->seo_monitor_project_id && $this->monitor->enabled()) {
+            try {
+                $reportUrl = $this->monitor->projectUrl($lead->seo_monitor_project_id) . '/raport';
+                foreach ($this->monitor->reportSends($lead->seo_monitor_project_id) as $r) {
+                    $add(Carbon::parse($r['sent_at'])->setTimezone(config('app.timezone')), 'report',
+                        'SEO raport saadetud: ' . implode(', ', $r['recipients'] ?? []),
+                        trim(($r['subject'] ?? '') . "\n" . Str::limit((string) ($r['message'] ?? ''), 300)), $reportUrl, $r['user'] ?? null);
+                }
+            } catch (\Throwable $e) {
+                $add(now(), 'fail', 'SEO-monitori raportide ajalugu ei saanud kätte', mb_substr($e->getMessage(), 0, 200));
+            }
+        }
+
         foreach (SeoAudit::where('lead_id', $lead->id)->get() as $a) {
             $what = ($a->main_audit_id ? 'Lisaleht' : 'Audit') . ': ' . $a->url . ($a->keyword ? " · „{$a->keyword}“" : '');
             $url = route('seo.audits.show', $a);
@@ -188,6 +204,6 @@ class ClientLog
     private const ICONS = [
         'stage' => '🔀', 'deal' => '💼', 'quote' => '📄', 'monitor' => '📈', 'note' => '📝',
         'mail_in' => '📥', 'mail_out' => '📤', 'audit' => '🔍', 'fail' => '⚠️',
-        'task' => '📌', 'done' => '✅', 'time' => '⏱',
+        'task' => '📌', 'done' => '✅', 'time' => '⏱', 'report' => '📊',
     ];
 }

@@ -21,6 +21,10 @@ class ClientLogTest extends TestCase
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
 
         // Only the columns the log reads (the real migrations are MySQL-only).
+        config(['services.seo_monitor' => ['api_url' => 'https://seo.test/api/v1', 'token' => 't', 'app_url' => 'https://seo.test']]);
+        \Illuminate\Support\Facades\Http::fake(['seo.test/api/v1/projects/7/report/sends' => \Illuminate\Support\Facades\Http::response(['data' => [
+            ['sent_at' => '2026-09-21T11:00:00+00:00', 'recipients' => ['a@firma.ee'], 'subject' => 'SEO raport', 'message' => 'Tere!', 'user' => 'Veiko'],
+        ]])]);
         Schema::create('users', fn (Blueprint $t) => [$t->id(), $t->string('name')]);
         Schema::create('outreach_leads', function (Blueprint $t) {
             $t->id(); $t->string('email')->nullable(); $t->string('company')->nullable(); $t->string('serp_keyword')->nullable();
@@ -42,7 +46,7 @@ class ClientLogTest extends TestCase
     {
         Carbon::setTestNow('2026-09-20 10:00');
         $deal = Deal::forceCreate(['title' => 'SEO — Firma', 'stage' => 'qualified']);
-        $lead = OutreachLead::forceCreate(['email' => 'a@firma.ee', 'serp_keyword' => 'elektritööd', 'deal_id' => $deal->id]);
+        $lead = OutreachLead::forceCreate(['email' => 'a@firma.ee', 'serp_keyword' => 'elektritööd', 'deal_id' => $deal->id, 'seo_monitor_project_id' => 7]);
 
         Carbon::setTestNow('2026-09-21 09:00');
         OutreachMessage::forceCreate(['lead_id' => $lead->id, 'direction' => 'inbound', 'subject' => 'Re: pakkumine', 'received_at' => now()]);
@@ -56,10 +60,11 @@ class ClientLogTest extends TestCase
 
         $this->assertSame(3, SeoEvent::where('lead_id', $lead->id)->count());
 
-        $titles = (new ClientLog)->entries($lead)->pluck('title')->all();
+        $titles = app(ClientLog::class)->entries($lead)->pluck('title')->all();
         $this->assertSame('Tehtud: Meta kirjeldused', $titles[0]);
         $this->assertContains('Tööaeg 1:30 h — Meta kirjeldused', $titles);
         $this->assertContains('Tehing: Kvalifitseeritud → Töös', $titles);
+        $this->assertContains('SEO raport saadetud: a@firma.ee', $titles);
         $this->assertContains('Täpsustus jäeti vahele', $titles);
         $this->assertContains('Klient kirjutas: Re: pakkumine', $titles);
         $this->assertSame('Helistasin kliendile', end($titles));
@@ -68,7 +73,7 @@ class ClientLogTest extends TestCase
         $task->update(['status' => 'in_progress']);
         Carbon::setTestNow('2026-09-23 08:30');
         $task->update(['status' => 'completed', 'completed_at' => now()]);
-        $titles = (new ClientLog)->entries($lead)->pluck('title')->all();
+        $titles = app(ClientLog::class)->entries($lead)->pluck('title')->all();
         $this->assertSame('Ülesanne „Meta kirjeldused“: Töös → Valmis', $titles[0]);
         $this->assertContains('Ülesanne „Meta kirjeldused“: Valmis → Töös', $titles);
         $this->assertNotContains('Tehtud: Meta kirjeldused', $titles);
