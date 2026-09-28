@@ -10,6 +10,7 @@ use App\Outreach\Models\OutreachLead;
 use App\Outreach\Models\OutreachMessage;
 use App\Outreach\Models\OutreachSendLog;
 use App\Outreach\Models\OutreachWatchedEmail;
+use App\Outreach\Support\MimeHeader;
 use Illuminate\Support\Collection;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -1151,12 +1152,7 @@ class ReplyDetectionService
      */
     private function decodeMimeHeader(string $value): string
     {
-        if ($value === '') {
-            return '';
-        }
-
-        $decoded = @iconv_mime_decode($value, ICONV_MIME_DECODE_CONTINUE_ON_ERROR, 'UTF-8');
-        return $decoded !== false ? $decoded : $value;
+        return MimeHeader::decode($value);
     }
 
     /**

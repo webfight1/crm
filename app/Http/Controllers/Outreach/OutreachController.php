@@ -19,6 +19,7 @@ use App\Outreach\Models\OutreachSendLog;
 use App\Outreach\Models\OutreachWatchedEmail;
 use App\Outreach\Services\OutreachCsvImportService;
 use App\Outreach\Services\ReplyDetectionService;
+use App\Outreach\Support\MimeHeader;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -1069,6 +1070,8 @@ class OutreachController extends Controller
             'body'         => 'required|string',
             'scheduled_at' => 'nullable|date',
         ]);
+        // Old inbound rows may still hold a raw "=?utf-8?Q?…" subject.
+        $data['subject'] = MimeHeader::decode($data['subject']);
 
         $primary = OutreachEmailAccount::primaryReplyAccount();
         if (! $primary) {
