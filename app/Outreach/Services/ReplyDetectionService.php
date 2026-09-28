@@ -1190,6 +1190,14 @@ class ReplyDetectionService
      */
     private function parseReceivedAt(string $rawHeaders, $imap, int $msgNum): \Carbon\Carbon
     {
+        // The Date header carries the sender's offset (Gmail: +0000). Eloquent
+        // stores the wall-clock time as-is, so convert to the app timezone first
+        // or a 17:07 reply is saved (and shown) as 14:07.
+        return $this->receivedAtFromHeaders($rawHeaders, $imap, $msgNum)->setTimezone(config('app.timezone'));
+    }
+
+    private function receivedAtFromHeaders(string $rawHeaders, $imap, int $msgNum): \Carbon\Carbon
+    {
         $dateHeader = $this->extractHeader($rawHeaders, 'Date');
         if ($dateHeader !== '') {
             try {
