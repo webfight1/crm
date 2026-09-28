@@ -211,9 +211,37 @@ class OutreachEmailService
                 }
                 $renderedBody = (string) $lead->outreach_email_body;
             } elseif ($stepOrder === 2 && trim((string) $lead->outreach_followup_body) !== '') {
-                // Follow-up threads on the original subject — Gmail will
-                // "Re:" it via In-Reply-To header wiring at the mailer layer.
+                // Subject becomes "Re: <first subject>" in THREADING below.
                 $renderedBody = (string) $lead->outreach_followup_body;
+            }
+        }
+
+        // ── THREADING (follow-ups) ───────────────────────────────────────────
+        // Step 2+ must land in the SAME conversation as the first email, so the
+        // recipient sees the original when they scroll down. Mail clients group
+        // by References / In-Reply-To and (Gmail, Outlook) a matching subject,
+        // so chain every earlier Message-ID of this lead in this campaign and
+        // reuse the first email's subject as "Re: …". Only mails sent to the
+        // current address count.
+        $inReplyTo  = null;
+        $references = null;
+        if ($step->step_order > 1) {
+            $priorSent = OutreachSendLog::where('lead_id', $lead->id)
+                ->where('campaign_id', $campaign->id)
+                ->where('to_email', $lead->email)
+                ->where('status', OutreachSendLog::STATUS_SENT)
+                ->whereNotNull('message_id')
+                ->orderBy('sent_at')
+                ->orderBy('id')
+                ->get(['message_id', 'subject']);
+
+            if ($priorSent->isNotEmpty()) {
+                $ids        = $priorSent->map(fn ($l) => '<' . trim((string) $l->message_id, '<> ') . '>')->all();
+                $inReplyTo  = end($ids);
+                $references = implode(' ', $ids);
+
+                $firstSubject    = trim((string) $priorSent->first()->subject) ?: $renderedSubject;
+                $renderedSubject = preg_match('/^\s*re:/i', $firstSubject) ? $firstSubject : 'Re: ' . $firstSubject;
             }
         }
 
@@ -261,9 +289,11 @@ class OutreachEmailService
                 account:  $account,
                 toEmail:  $lead->email,
                 toName:   $toName,
-                subject:  $renderedSubject,
-                htmlBody: $renderedBody,
-                footer:   $unsubscribeFooter,
+                subject:    $renderedSubject,
+                htmlBody:   $renderedBody,
+                inReplyTo:  $inReplyTo,
+                references: $references,
+                footer:     $unsubscribeFooter,
             );
 
             $log->markSent($messageId);
