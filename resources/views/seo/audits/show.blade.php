@@ -120,6 +120,12 @@
                         <form method="POST" action="{{ route('seo.audits.rerun', $audit) }}">@csrf
                             <button class="w-full text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50">Käivita uuesti</button>
                         </form>
+                        @if($audit->status === 'done')
+                            <a href="{{ route('seo.audits.report.compose', $audit) }}"
+                               class="block w-full text-xs border border-indigo-300 text-indigo-700 rounded px-2 py-1 hover:bg-indigo-50"
+                               title="PDF: mis on lehel korras ja mida oleks vaja parandada — kliendile e-postiga">📄 Saada ülevaade kliendile</a>
+                            <a href="{{ route('seo.audits.report', $audit) }}" target="_blank" class="block text-xs text-gray-500 hover:text-indigo-700">vaata PDF-i</a>
+                        @endif
                         @if($audit->lead?->seo_stage === 'awaiting_answer')
                             <form method="POST" action="{{ route('seo.audits.clarify-answer', $audit) }}">@csrf
                                 <button class="w-full text-xs border border-gray-300 rounded px-2 py-1 hover:bg-gray-50" title="Kliendi viimane kiri loetakse täpsustuskirja vastuseks">✉️ Töötle täpsustuse vastusena</button>

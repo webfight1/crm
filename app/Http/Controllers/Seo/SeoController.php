@@ -476,6 +476,89 @@ class SeoController extends Controller
             . ' Positsioonid tulevad SEO-monitori järgmise kontrolliga.');
     }
 
+    /** Client-facing PDF of this page's technical SEO state (?all=1 = every page of the client). */
+    public function auditsReportPdf(Request $request, SeoAudit $audit, \App\Seo\Services\AuditReport $report): \Illuminate\Http\Response
+    {
+        return response($report->pdf($audit, $request->boolean('all')), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $report->fileName($audit) . '"',
+        ]);
+    }
+
+    public function auditsReportCompose(Request $request, SeoAudit $audit, \App\Seo\Services\AuditReport $report): View
+    {
+        $root = $audit->root();
+        $lead = $root->lead;
+        $deal = $root->deal ?? ($lead?->deal_id ? Deal::find($lead->deal_id) : null);
+        $all  = $request->boolean('all');
+        $site = $report->site($audit);
+
+        return view('seo.audits.report-compose', [
+            'audit'     => $audit,
+            'all'       => $all,
+            'pageCount' => $report->pages($audit, true)->count(),
+            'pdfName'   => $report->fileName($audit),
+            'accounts'  => $this->smtpAccounts(),
+            'to'        => $lead?->email ?: $deal?->customer?->email,
+            'subject'   => "Teie lehe {$site} tehnilise SEO ülevaade",
+            'body'      => "Tere,\n\n"
+                . 'Saadan teile ' . ($all ? "lehe {$site} olulisemate lehtede" : "lehe {$audit->url}") . ' tehnilise SEO ülevaate seisuga ' . now()->format('d.m.Y') . ".\n\n"
+                . "Manuses on näha, mis on korras ja mida oleks vaja parandada, et leht Google'is paremini leitav oleks — iga puuduse juures on lühidalt kirjas ka põhjus.\n\n"
+                . "Kui soovite, teeme parandused teie eest ära. Andke julgelt teada, kui tekib küsimusi.\n\n"
+                . "Lugupidamisega,\n" . auth()->user()?->name,
+        ]);
+    }
+
+    public function auditsReportSend(Request $request, SeoAudit $audit, \App\Seo\Services\AuditReport $report, \App\Outreach\Services\OutreachMailer $mailer): RedirectResponse
+    {
+        $data = $request->validate([
+            'to'         => 'required|email',
+            'subject'    => 'required|string|max:500',
+            'body'       => 'required|string|max:20000',
+            'account_id' => 'required|integer',
+            'all'        => 'boolean',
+        ]);
+        $sender = $this->smtpAccounts()->firstWhere('id', (int) $data['account_id']);
+        if (! $sender) {
+            return back()->withInput()->with('error', 'Valitud saatja konto pole aktiivne või ei toeta manuseid.');
+        }
+        $all = (bool) ($data['all'] ?? false);
+
+        @mkdir(storage_path('app/temp'), 0775, true);
+        $path = storage_path('app/temp/' . uniqid('seo-report-') . '.pdf');
+        file_put_contents($path, $report->pdf($audit, $all));
+        try {
+            $mailer->send(
+                account: $sender, toEmail: $data['to'], toName: $data['to'], subject: $data['subject'],
+                htmlBody: nl2br(e($data['body'])),
+                attachments: [['path' => $path, 'name' => $report->fileName($audit), 'mime' => 'application/pdf']],
+            );
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withInput()->with('error', 'Saatmine ebaõnnestus: ' . mb_substr($e->getMessage(), 0, 200));
+        } finally {
+            @unlink($path);
+        }
+
+        if ($lead = $audit->root()->lead) {
+            \App\Seo\Services\ClientLog::record($lead->id, 'report',
+                'Tehnilise SEO ülevaade saadetud: ' . $data['to'] . ($all ? ' (kõik lehed)' : ' (' . $audit->url . ')'),
+                $data['subject'], route('seo.audits.report', ['audit' => $audit, 'all' => $all ? 1 : null]));
+        }
+
+        return redirect()->route('seo.audits.show', $audit)->with('success', "Ülevaade saadetud aadressile {$data['to']}.");
+    }
+
+    /** SMTP accounts that can carry a PDF attachment (Zone Relay can't). */
+    private function smtpAccounts(): \Illuminate\Support\Collection
+    {
+        return \App\Outreach\Models\OutreachEmailAccount::where('is_active', true)
+            ->where(fn ($q) => $q->where('provider', '!=', 'zone_relay')->orWhereNull('provider'))
+            ->whereNotNull('smtp_host')
+            ->orderByDesc('is_primary_reply_account')->orderBy('name')->get();
+    }
+
     public function auditsOffer(Request $request, SeoAudit $audit, SeoOfferService $offers): RedirectResponse
     {
         try {

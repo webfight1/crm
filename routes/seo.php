@@ -38,5 +38,8 @@ Route::prefix('seo')->name('seo.')->group(function () {
     Route::post('/audits/{audit}/monitor',  [SeoController::class, 'auditsMonitor'])->name('audits.monitor');
     Route::post('/audits/{audit}/access-granted', [SeoController::class, 'auditsAccessGranted'])->name('audits.access-granted');
     Route::post('/audits/{audit}/access',   [SeoController::class, 'auditsAccess'])->name('audits.access');
+    Route::get ('/audits/{audit}/report',        [SeoController::class, 'auditsReportPdf'])->name('audits.report');
+    Route::get ('/audits/{audit}/report/send',   [SeoController::class, 'auditsReportCompose'])->name('audits.report.compose');
+    Route::post('/audits/{audit}/report/send',   [SeoController::class, 'auditsReportSend'])->name('audits.report.send');
     Route::post('/audits/{audit}/offer',    [SeoController::class, 'auditsOffer'])->name('audits.offer');
 });
