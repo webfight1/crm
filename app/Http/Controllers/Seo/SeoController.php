@@ -422,6 +422,33 @@ class SeoController extends Controller
         return back()->with('success', 'Ligipääsud märgitud olemasolevaks — kirja ei saadeta ja „töös“ ei küsi neid uuesti.');
     }
 
+    /** Quick research: the client's project in SEO-monitor (no client login yet) + keywords to track. */
+    public function auditsMonitor(Request $request, SeoAudit $audit, \App\Seo\Services\SeoMonitorSyncService $sync): RedirectResponse
+    {
+        $request->validate(['keywords' => 'nullable|string|max:5000']);
+        $lead = $audit->root()->lead;
+        if (! $lead) {
+            return back()->with('error', 'Auditil pole kliendi leadi — SEO-monitori projekti saab teha ainult SEO-kliendile.');
+        }
+
+        try {
+            $result = $sync->sync($lead, clientAccount: false);
+            $projectId = $lead->fresh()->seo_monitor_project_id;
+            if (! $projectId) {
+                return back()->with('error', $result['note'] ?: 'SEO-monitor on Playbookis välja lülitatud (monitor.enabled).');
+            }
+            $added = $sync->addKeywords($projectId, (string) $request->input('keywords'));
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'SEO-monitor ei vastanud: ' . mb_substr($e->getMessage(), 0, 200));
+        }
+        \Illuminate\Support\Facades\Cache::forget(\App\Seo\Services\PipelineBoard::PROJECTS_CACHE);
+
+        return back()->with('success', $result['note'] . ($added ? " Lisatud märksõnu: {$added}." : '')
+            . ' Positsioonid tulevad SEO-monitori järgmise kontrolliga.');
+    }
+
     public function auditsOffer(Request $request, SeoAudit $audit, SeoOfferService $offers): RedirectResponse
     {
         try {

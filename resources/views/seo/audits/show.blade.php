@@ -193,6 +193,40 @@
                 </form>
             </div>
 
+            {{-- SEO-monitor: the client's project for tracking positions + page speed. --}}
+            @php $monLead = $root->lead; $monId = $monLead?->seo_monitor_project_id; @endphp
+            @if($monLead)
+                <div class="bg-white shadow-sm rounded-lg p-6" x-data="{ open: false }">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="font-semibold">SEO-monitor</h3>
+                        @if($monId)
+                            <a href="{{ app(\App\Seo\Services\SeoMonitorClient::class)->projectUrl($monId) }}/positsioonid" target="_blank" rel="noopener" class="text-sm text-indigo-600 hover:text-indigo-800">Ava positsioonid →</a>
+                        @endif
+                    </div>
+                    <p class="text-sm text-gray-600">
+                        @if($monId)
+                            Projekt #{{ $monId }} on olemas. Lisa sinna märksõnu, mille positsiooni tahad jälgida.
+                        @else
+                            Klienti pole veel SEO-monitoris. Loo projekt kohe, et näha tema positsioone
+                            („{{ $monLead->serp_keyword }}“ ja allpool lisatud märksõnad). Kliendile kontot ega kirja ei tehta.
+                        @endif
+                    </p>
+                    <button type="button" x-show="! open" @click="open = true"
+                            class="mt-3 px-3 py-1.5 {{ $monId ? 'border border-indigo-300 text-indigo-700 hover:bg-indigo-50' : 'bg-indigo-600 hover:bg-indigo-700 text-white' }} text-sm rounded">
+                        {{ $monId ? '+ Lisa märksõnu' : '📈 Lisa SEO-monitori' }}
+                    </button>
+                    <form x-show="open" x-cloak method="POST" action="{{ route('seo.audits.monitor', $audit) }}" class="mt-3 space-y-2">
+                        @csrf
+                        <textarea name="keywords" rows="4" placeholder="elektritööd tallinn&#10;elektrik harjumaa | https://klient.ee/elektrik" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                        <p class="text-xs text-gray-500">Üks märksõna reale. Soovi korral „märksõna | leht“, siis jälgitakse ka, kas just see leht on tulemustes.</p>
+                        <div class="flex gap-2">
+                            <button class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded">{{ $monId ? 'Lisa märksõnad' : 'Loo projekt' }}</button>
+                            <button type="button" @click="open = false" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm rounded">Tühista</button>
+                        </div>
+                    </form>
+                </div>
+            @endif
+
             @if($audit->summary || $audit->status === 'done')
                 <div class="bg-white shadow-sm rounded-lg p-6" x-data="{ editing: false }">
                     <div class="flex items-center justify-between mb-2">

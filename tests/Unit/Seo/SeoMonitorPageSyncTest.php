@@ -68,4 +68,21 @@ class SeoMonitorPageSyncTest extends TestCase
 
         Http::assertNothingSent();
     }
+
+    public function test_typed_keywords_go_to_positions(): void
+    {
+        Http::fake([
+            'seo.test/api/v1/projects/5' => Http::response(['data' => ['id' => 5, 'url' => 'https://x.ee/']]),
+            'seo.test/*' => Http::response(['data' => ['id' => 1]], 201),
+        ]);
+
+        $added = (new SeoMonitorSyncService(new SeoMonitorClient()))
+            ->addKeywords(5, "elektrik tallinn\nhttp://www.x.ee/kilbid | kilbid\n\n");
+
+        $this->assertSame(2, $added);
+        Http::assertSent(fn ($r) => str_ends_with($r->url(), 'projects/5/keywords')
+            && $r['keyword'] === 'elektrik tallinn' && ! isset($r['target_url']));
+        Http::assertSent(fn ($r) => str_ends_with($r->url(), 'projects/5/keywords')
+            && $r['keyword'] === 'kilbid' && $r['target_url'] === 'https://x.ee/kilbid');
+    }
 }

@@ -43,8 +43,37 @@ class SeoMonitorSyncService
         $this->monitor->addPage($projectId, $url);
     }
 
-    /** @return array{project_url:?string, invite_url:?string, note:string} */
-    public function sync(OutreachLead $lead): array
+    /**
+     * Keywords typed on the audit page, one per line: „märksõna“ or
+     * „märksõna | https://klient.ee/leht“. @return int how many were new
+     */
+    public function addKeywords(int $projectId, string $lines): int
+    {
+        $site = null;
+        $added = 0;
+        foreach (Playbook::parseLines($lines) as $line) {
+            [$kw, $url] = array_pad(array_map('trim', explode('|', $line, 2)), 2, '');
+            if (preg_match('~^https?://~i', $kw)) {
+                [$kw, $url] = [$url, $kw]; // „URL | märksõna“ works too
+            }
+            if ($kw === '') {
+                continue;
+            }
+            if ($url !== '') {
+                $url = SeoMonitorClient::onSite($url, $site ??= $this->monitor->projectSite($projectId));
+            }
+            $added += (int) $this->monitor->addKeyword($projectId, mb_substr($kw, 0, 200), $url ?: null);
+        }
+
+        return $added;
+    }
+
+    /**
+     * @param bool $clientAccount false = only the project (quick research from the
+     *             audit page); the client login comes with the access e-mail later.
+     * @return array{project_url:?string, invite_url:?string, note:string}
+     */
+    public function sync(OutreachLead $lead, bool $clientAccount = true): array
     {
         if (! Playbook::bool('monitor.enabled')) {
             return ['project_url' => null, 'invite_url' => null, 'note' => ''];
@@ -55,8 +84,11 @@ class SeoMonitorSyncService
         }
         if ($lead->seo_monitor_project_id) {
             if ($this->monitor->projectExists($lead->seo_monitor_project_id)) {
-                return ['project_url' => $this->monitor->projectUrl($lead->seo_monitor_project_id), 'invite_url' => null,
-                        'note' => 'SEO-monitori projekt oli juba olemas.'];
+                // Made earlier from the audit page without a client login: add it now.
+                [$invite, $note] = $clientAccount ? $this->clientAccount($lead, $lead->seo_monitor_project_id) : [null, ''];
+
+                return ['project_url' => $this->monitor->projectUrl($lead->seo_monitor_project_id), 'invite_url' => $invite,
+                        'note' => trim('SEO-monitori projekt oli juba olemas.' . $note)];
             }
             $lead->update(['seo_monitor_project_id' => null]); // deleted in SEO-monitor → create again
         }
@@ -97,17 +129,28 @@ class SeoMonitorSyncService
             }
         }
 
-        $invite = null;
-        $note = 'SEO-monitori projekt loodud.';
-        if (Playbook::bool('monitor.client_account') && $lead->email) {
-            $name = trim(($lead->first_name !== 'Friend' ? $lead->first_name : '') . ' ' . $lead->last_name) ?: ($lead->company ?: $lead->email);
-            $userId = $this->monitor->grantClient($projectId, $lead->email, $name);
-            $invite = $this->monitor->inviteUrl($userId);
-            $note .= $invite
-                ? ' Kliendikonto + paroolilink on ligipääsukirjas.'
-                : ' Kliendikonto loodud, aga SEO-monitor ei anna veel paroolilinki (kutsed pole seal veel valmis).';
-        }
+        [$invite, $note] = $clientAccount ? $this->clientAccount($lead, $projectId) : [null, ''];
+        $note = 'SEO-monitori projekt loodud.' . $note;
 
         return ['project_url' => $this->monitor->projectUrl($projectId), 'invite_url' => $invite, 'note' => $note];
+    }
+
+    /**
+     * Client login with access to the project (Playbook monitor.client_account).
+     * An existing user just gets the project added, so calling it again is harmless.
+     *
+     * @return array{0:?string, 1:string} invite URL, note
+     */
+    private function clientAccount(OutreachLead $lead, int $projectId): array
+    {
+        if (! Playbook::bool('monitor.client_account') || ! $lead->email) {
+            return [null, ''];
+        }
+        $name = trim(($lead->first_name !== 'Friend' ? $lead->first_name : '') . ' ' . $lead->last_name) ?: ($lead->company ?: $lead->email);
+        $invite = $this->monitor->inviteUrl($this->monitor->grantClient($projectId, $lead->email, $name));
+
+        return [$invite, $invite
+            ? ' Kliendikonto + paroolilink on ligipääsukirjas.'
+            : ' Kliendikonto loodud, aga SEO-monitor ei anna veel paroolilinki (kutsed pole seal veel valmis).'];
     }
 }
