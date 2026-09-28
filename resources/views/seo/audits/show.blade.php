@@ -226,8 +226,8 @@
                     </button>
                     <form x-show="open" x-cloak method="POST" action="{{ route('seo.audits.monitor', $audit) }}" class="mt-3 space-y-2">
                         @csrf
-                        <textarea name="keywords" rows="4" placeholder="elektritööd tallinn&#10;elektrik harjumaa | https://klient.ee/elektrik" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
-                        <p class="text-xs text-gray-500">Üks märksõna reale. Soovi korral „märksõna | leht“, siis jälgitakse ka, kas just see leht on tulemustes.</p>
+                        <textarea name="keywords" rows="8" placeholder="elektritööd tallinn&#10;&#10;https://klient.ee/elektrik/&#10;elektrik harjumaa&#10;elektrik tallinn&#10;elektriku hind" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                        <p class="text-xs text-gray-500">Üks märksõna reale. Et jälgida, kas tulemustes on just kindel leht, kirjuta lehe aadress oma reale — kõik selle all olevad märksõnad lähevad sellele lehele (kuni järgmise aadressini). Üksikule märksõnale sobib ka „märksõna | leht“.</p>
                         <div class="flex gap-2">
                             <button class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded">{{ $monId ? 'Lisa märksõnad' : 'Loo projekt' }}</button>
                             <button type="button" @click="open = false" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm rounded">Tühista</button>

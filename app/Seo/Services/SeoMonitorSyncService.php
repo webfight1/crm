@@ -50,6 +50,7 @@ class SeoMonitorSyncService
     public function addKeywords(int $projectId, string $lines): int
     {
         $site = null;
+        $page = ''; // a line with only a URL = the page for the keywords below it
         $added = 0;
         foreach (Playbook::parseLines($lines) as $line) {
             [$kw, $url] = array_pad(array_map('trim', explode('|', $line, 2)), 2, '');
@@ -57,8 +58,10 @@ class SeoMonitorSyncService
                 [$kw, $url] = [$url, $kw]; // „URL | märksõna“ works too
             }
             if ($kw === '') {
+                $page = $url;
                 continue;
             }
+            $url = $url !== '' ? $url : $page;
             if ($url !== '') {
                 $url = SeoMonitorClient::onSite($url, $site ??= $this->monitor->projectSite($projectId));
             }
