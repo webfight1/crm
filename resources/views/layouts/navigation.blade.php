@@ -79,28 +79,57 @@
                             {{ __('Kalender') }}
                         </x-nav-link>
 
-                        <x-nav-dropdown :active="request()->routeIs(['email-campaigns.*', 'email-logs.*', 'outreach.*', 'seo.*'])" :label="__('E-post')">
-                            <x-nav-dropdown-link :href="route('email-campaigns.index')" :active="request()->routeIs('email-campaigns.*')">
+                        <x-nav-dropdown :active="request()->routeIs(['outreach.*', 'email-campaigns.*', 'email-logs.*'])" :label="__('Outreach')">
+                            <x-nav-dropdown-link :href="route('outreach.dashboard')" :active="request()->routeIs('outreach.dashboard')">
+                                {{ __('Töölaud') }}
+                            </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="route('outreach.inbox.index')" :active="request()->routeIs('outreach.inbox.*')">
+                                {{ __('Postkast') }}
+                            </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="route('outreach.campaigns.index')" :active="request()->routeIs('outreach.campaigns.*', 'outreach.leads.*', 'outreach.logs.*')">
                                 {{ __('Kampaaniad') }}
                             </x-nav-dropdown-link>
-                            <x-nav-dropdown-link :href="route('email-logs.index')" :active="request()->routeIs('email-logs.*')">
-                                {{ __('Logid') }}
+                            <x-nav-dropdown-link :href="route('outreach.accounts.index')" :active="request()->routeIs('outreach.accounts.*')">
+                                {{ __('Saatekontod') }}
                             </x-nav-dropdown-link>
-                            <x-nav-dropdown-link :href="route('outreach.dashboard')" :active="request()->routeIs('outreach.*')">
-                                {{ __('Outreach') }}
+                            <x-nav-dropdown-link :href="route('outreach.reply-templates.index')" :active="request()->routeIs('outreach.reply-templates.*')">
+                                {{ __('Vastuste mallid') }}
                             </x-nav-dropdown-link>
                             <x-nav-dropdown-link :href="route('outreach.clickup.index')" :active="request()->routeIs('outreach.clickup.*')">
                                 {{ __('ClickUpi import') }}
                             </x-nav-dropdown-link>
-                            @if(config('app.seo_pipeline'))
-                            <x-nav-dropdown-link :href="route('seo.clients')" :active="request()->routeIs('seo.clients')">
-                                {{ __('SEO kliendid') }}
+                            <div class="border-t border-gray-100 my-1"></div>
+                            <x-nav-dropdown-link :href="route('email-campaigns.index')" :active="request()->routeIs('email-campaigns.*')">
+                                {{ __('Uudiskirjad') }}
                             </x-nav-dropdown-link>
-                            <x-nav-dropdown-link :href="route('seo.playbook')" :active="request()->routeIs('seo.*') && ! request()->routeIs('seo.clients')">
-                                {{ __('SEO Playbook') }}
+                            <x-nav-dropdown-link :href="route('email-logs.index')" :active="request()->routeIs('email-logs.*')">
+                                {{ __('Saatmislogid') }}
                             </x-nav-dropdown-link>
-                            @endif
                         </x-nav-dropdown>
+
+                        @if(config('app.seo_pipeline'))
+                        <x-nav-dropdown :active="request()->routeIs('seo.*')" :label="__('SEO')">
+                            <x-nav-dropdown-link :href="route('seo.clients')" :active="request()->routeIs('seo.clients*')">
+                                {{ __('Kliendid') }}
+                            </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="route('seo.audits.index')" :active="request()->routeIs('seo.audits.*')">
+                                {{ __('Auditid') }}
+                            </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="route('seo.audits.index', ['warm' => 1]) . '#warm'">
+                                {{ __('+ Soe klient') }}
+                            </x-nav-dropdown-link>
+                            <div class="border-t border-gray-100 my-1"></div>
+                            <x-nav-dropdown-link :href="route('seo.playbook')" :active="request()->routeIs('seo.playbook')">
+                                {{ __('Playbook') }}
+                            </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="route('seo.docs')" :active="request()->routeIs('seo.docs')">
+                                {{ __('Juhend') }}
+                            </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="config('services.seo_monitor.app_url')" target="_blank" rel="noopener">
+                                {{ __('SEO-monitor ↗') }}
+                            </x-nav-dropdown-link>
+                        </x-nav-dropdown>
+                        @endif
                     @endif
                 </div>
             </div>
@@ -258,24 +287,30 @@
                     </x-responsive-nav-link>
                 </div>
 
-                <!-- E-post -->
+                <!-- Outreach -->
                 <div class="pl-3">
-                    <div class="font-medium text-base text-gray-800 mb-1">{{ __('E-post') }}</div>
-                    <x-responsive-nav-link :href="route('email-campaigns.index')" :active="request()->routeIs('email-campaigns.*')">
-                        {{ __('Kampaaniad') }}
-                    </x-responsive-nav-link>
-                    <x-responsive-nav-link :href="route('email-logs.index')" :active="request()->routeIs('email-logs.*')">
-                        {{ __('Logid') }}
-                    </x-responsive-nav-link>
-                    @if(config('app.seo_pipeline'))
-                    <x-responsive-nav-link :href="route('seo.clients')" :active="request()->routeIs('seo.clients')">
-                        {{ __('SEO kliendid') }}
-                    </x-responsive-nav-link>
-                    <x-responsive-nav-link :href="route('seo.playbook')" :active="request()->routeIs('seo.*') && ! request()->routeIs('seo.clients')">
-                        {{ __('SEO Playbook') }}
-                    </x-responsive-nav-link>
-                    @endif
+                    <div class="font-medium text-base text-gray-800 mb-1">{{ __('Outreach') }}</div>
+                    <x-responsive-nav-link :href="route('outreach.dashboard')" :active="request()->routeIs('outreach.dashboard')">{{ __('Töölaud') }}</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('outreach.inbox.index')" :active="request()->routeIs('outreach.inbox.*')">{{ __('Postkast') }}</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('outreach.campaigns.index')" :active="request()->routeIs('outreach.campaigns.*')">{{ __('Kampaaniad') }}</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('outreach.accounts.index')" :active="request()->routeIs('outreach.accounts.*')">{{ __('Saatekontod') }}</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('outreach.reply-templates.index')" :active="request()->routeIs('outreach.reply-templates.*')">{{ __('Vastuste mallid') }}</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('outreach.clickup.index')" :active="request()->routeIs('outreach.clickup.*')">{{ __('ClickUpi import') }}</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('email-campaigns.index')" :active="request()->routeIs('email-campaigns.*')">{{ __('Uudiskirjad') }}</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('email-logs.index')" :active="request()->routeIs('email-logs.*')">{{ __('Saatmislogid') }}</x-responsive-nav-link>
                 </div>
+
+                @if(config('app.seo_pipeline'))
+                <!-- SEO -->
+                <div class="pl-3">
+                    <div class="font-medium text-base text-gray-800 mb-1">{{ __('SEO') }}</div>
+                    <x-responsive-nav-link :href="route('seo.clients')" :active="request()->routeIs('seo.clients*')">{{ __('Kliendid') }}</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('seo.audits.index')" :active="request()->routeIs('seo.audits.*')">{{ __('Auditid') }}</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('seo.playbook')" :active="request()->routeIs('seo.playbook')">{{ __('Playbook') }}</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('seo.docs')" :active="request()->routeIs('seo.docs')">{{ __('Juhend') }}</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="config('services.seo_monitor.app_url')" target="_blank" rel="noopener">{{ __('SEO-monitor ↗') }}</x-responsive-nav-link>
+                </div>
+                @endif
             @endif
         </div>
 
