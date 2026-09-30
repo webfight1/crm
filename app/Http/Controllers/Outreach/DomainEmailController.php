@@ -25,20 +25,32 @@ class DomainEmailController extends Controller
         ], [], ['file' => 'CSV fail']);
 
         $file = $request->file('file');
-        $out = tempnam(sys_get_temp_dir(), 'domain_emails_');
+        $slug = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'domeenid';
+
+        $found = tempnam(sys_get_temp_dir(), 'domain_emails_');
+        $missing = tempnam(sys_get_temp_dir(), 'domain_emails_');
+        $zip = tempnam(sys_get_temp_dir(), 'domain_emails_');
 
         try {
-            $lookup->enrichFile($file->getRealPath(), $out);
+            $lookup->enrichFile($file->getRealPath(), $found, $missing);
+
+            // Two files: rows with an e-mail, and the rest to search elsewhere.
+            $archive = new \ZipArchive();
+            $archive->open($zip, \ZipArchive::OVERWRITE);
+            $archive->addFile($found, "{$slug}-emailidega.csv");
+            $archive->addFile($missing, "{$slug}-emailita.csv");
+            $archive->close();
         } catch (\Throwable $e) {
-            @unlink($out);
+            @unlink($zip);
 
             return back()->withErrors(['file' => $e->getMessage()]);
+        } finally {
+            @unlink($found);
+            @unlink($missing);
         }
 
-        $name = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '-emailidega.csv';
-
-        return response()->download($out, $name, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+        return response()->download($zip, "{$slug}.zip", [
+            'Content-Type' => 'application/zip',
         ])->deleteFileAfterSend();
     }
 }

@@ -71,4 +71,26 @@ class DomainEmailLookupTest extends TestCase
         @unlink($in);
         @unlink($out);
     }
+
+    public function test_rows_without_email_go_to_separate_file(): void
+    {
+        $in = tempnam(sys_get_temp_dir(), 'in');
+        $out = tempnam(sys_get_temp_dir(), 'out');
+        $missing = tempnam(sys_get_temp_dir(), 'miss');
+        file_put_contents($in, "Domeen,Märksõna\nkpartner.ee,Katuse\ntundmatu.ee,x\n");
+
+        (new DomainEmailLookupService())->enrichFile($in, $out, $missing);
+
+        $found = explode("\n", trim(substr(file_get_contents($out), 3)));
+        $rest = explode("\n", trim(substr(file_get_contents($missing), 3)));
+        $this->assertCount(2, $found);
+        $this->assertStringStartsWith('kpartner.ee,', $found[1]);
+        $this->assertCount(2, $rest);
+        $this->assertStringStartsWith('tundmatu.ee,', $rest[1]);
+        $this->assertSame($found[0], $rest[0]);
+
+        @unlink($in);
+        @unlink($out);
+        @unlink($missing);
+    }
 }

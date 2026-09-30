@@ -30,11 +30,12 @@ class DomainEmailLookupService
     }
 
     /**
-     * Read $inPath, write the enriched CSV to $outPath.
+     * Read $inPath, write the enriched CSV to $outPath. With $missingPath the
+     * rows without an e-mail go there instead, so they can be searched further.
      *
      * @return array{rows: int, found: int, domains: int}
      */
-    public function enrichFile(string $inPath, string $outPath): array
+    public function enrichFile(string $inPath, string $outPath, ?string $missingPath = null): array
     {
         [$header, $rows, $delimiter] = $this->readCsv($inPath);
 
@@ -53,21 +54,20 @@ class DomainEmailLookupService
 
         $matches = $this->lookup(array_keys($domains));
 
-        $out = fopen($outPath, 'w');
-        // Excel on Windows needs the BOM to read UTF-8 correctly.
-        fwrite($out, "\xEF\xBB\xBF");
-        fputcsv($out, array_merge($header, self::EXTRA_HEADERS), $delimiter, '"', '\\');
+        $out = $this->openCsv($outPath, $header, $delimiter);
+        $missing = $missingPath ? $this->openCsv($missingPath, $header, $delimiter) : $out;
 
         $found = 0;
         foreach ($rows as $row) {
             $row = array_pad($row, count($header), '');
             $m = $matches[self::normalizeDomain($row[$col] ?? '') ?? ''] ?? null;
+            $hasEmail = $m && $m['emails'];
 
-            if ($m && $m['emails']) {
+            if ($hasEmail) {
                 $found++;
             }
 
-            fputcsv($out, array_merge($row, [
+            fputcsv($hasEmail ? $out : $missing, array_merge($row, [
                 $m['emails'][0] ?? '',
                 implode(', ', $m['emails'] ?? []),
                 $m['name'] ?? '',
@@ -78,8 +78,22 @@ class DomainEmailLookupService
         }
 
         fclose($out);
+        if ($missingPath) {
+            fclose($missing);
+        }
 
         return ['rows' => count($rows), 'found' => $found, 'domains' => count($domains)];
+    }
+
+    /** @return resource */
+    private function openCsv(string $path, array $header, string $delimiter)
+    {
+        $fh = fopen($path, 'w');
+        // Excel on Windows needs the BOM to read UTF-8 correctly.
+        fwrite($fh, "\xEF\xBB\xBF");
+        fputcsv($fh, array_merge($header, self::EXTRA_HEADERS), $delimiter, '"', '\\');
+
+        return $fh;
     }
 
     /**

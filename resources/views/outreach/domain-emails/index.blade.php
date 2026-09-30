@@ -29,14 +29,14 @@
                 </div>
 
                 <div class="text-sm text-gray-600 bg-gray-50 rounded p-3">
-                    Tagasi saad sama CSV, lõppu lisatakse veerud:
+                    Tagasi saad ZIP-i kahe failiga: <strong>…-emailidega.csv</strong> (leitud emailiga read) ja <strong>…-emailita.csv</strong> (edasi otsimiseks). Mõlemas on sinu veerud ja lõppu lisatud:
                     <strong>Email</strong> (parim — eelistatakse sama domeeni aadressi), <strong>Kõik emailid</strong>,
                     <strong>Ettevõte</strong>, <strong>Registrikood</strong>, <strong>Telefon</strong> ja
                     <strong>Leitud</strong> (<em>www</em> = ettevõtte kodulehe järgi, <em>e-posti domeen</em> = leitud @domeen aadressi järgi).
                     Otsitakse ettevõtete andmebaasist.
                 </div>
 
-                <x-primary-button>Otsi emailid ja laadi CSV alla</x-primary-button>
+                <x-primary-button>Otsi emailid ja laadi alla</x-primary-button>
             </form>
         </div>
     </div>
