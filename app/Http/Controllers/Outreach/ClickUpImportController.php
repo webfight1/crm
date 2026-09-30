@@ -128,7 +128,8 @@ class ClickUpImportController extends Controller
 
         return redirect()
             ->route('outreach.campaigns.leads.index', $campaign)
-            ->with('success', "ClickUpist imporditud {$count} rida. Duplikaadid jäeti vahele.");
+            ->with('success', "ClickUpist imporditud {$count} rida. Duplikaadid jäeti vahele."
+                . ($importer->suppressed ? " {$importer->suppressed} loobujat jäeti vahele." : ''));
     }
 
     /** @return array{source: string, per_contact: bool, with_empty: bool} */

@@ -101,6 +101,9 @@
                             <x-nav-dropdown-link :href="route('outreach.domain-emails.index')" :active="request()->routeIs('outreach.domain-emails.*')">
                                 {{ __('Emailid domeeni järgi') }}
                             </x-nav-dropdown-link>
+                            <x-nav-dropdown-link :href="route('outreach.suppressions.index')" :active="request()->routeIs('outreach.suppressions.*')">
+                                {{ __('Loobujad') }}
+                            </x-nav-dropdown-link>
                             <div class="border-t border-gray-100 my-1"></div>
                             <x-nav-dropdown-link :href="route('email-campaigns.index')" :active="request()->routeIs('email-campaigns.*')">
                                 {{ __('Uudiskirjad') }}
@@ -300,6 +303,7 @@
                     <x-responsive-nav-link :href="route('outreach.reply-templates.index')" :active="request()->routeIs('outreach.reply-templates.*')">{{ __('Vastuste mallid') }}</x-responsive-nav-link>
                     <x-responsive-nav-link :href="route('outreach.clickup.index')" :active="request()->routeIs('outreach.clickup.*')">{{ __('ClickUpi import') }}</x-responsive-nav-link>
                     <x-responsive-nav-link :href="route('outreach.domain-emails.index')" :active="request()->routeIs('outreach.domain-emails.*')">{{ __('Emailid domeeni järgi') }}</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('outreach.suppressions.index')" :active="request()->routeIs('outreach.suppressions.*')">{{ __('Loobujad') }}</x-responsive-nav-link>
                     <x-responsive-nav-link :href="route('email-campaigns.index')" :active="request()->routeIs('email-campaigns.*')">{{ __('Uudiskirjad') }}</x-responsive-nav-link>
                     <x-responsive-nav-link :href="route('email-logs.index')" :active="request()->routeIs('email-logs.*')">{{ __('Saatmislogid') }}</x-responsive-nav-link>
                 </div>

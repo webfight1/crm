@@ -387,6 +387,17 @@ class OutreachEmailService
             return false;
         }
 
+        // Global do-not-contact list (Outreach → Loobujad). Checked here too,
+        // not only at import: the address may have been added after import.
+        if (\App\Outreach\Models\OutreachSuppression::isSuppressed($lead->email)) {
+            $this->logger->info('[Outreach] Lead is on the suppression list, skipping', [
+                'lead_id' => $lead->id,
+                'email'   => $lead->email,
+            ]);
+            $lead->update(['status' => OutreachLead::STATUS_UNSUBSCRIBED]);
+            return false;
+        }
+
         // MX guard — mx_ok=false means the domain has no MX record and
         // the send would 100% bounce. mx_ok=null means never checked;
         // we let those pass (backwards compat: leads imported before

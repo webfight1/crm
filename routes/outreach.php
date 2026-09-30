@@ -3,6 +3,7 @@
 use App\Http\Controllers\Outreach\ClickUpImportController;
 use App\Http\Controllers\Outreach\DomainEmailController;
 use App\Http\Controllers\Outreach\OutreachController;
+use App\Http\Controllers\Outreach\SuppressionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -29,6 +30,11 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
     // ── CSV domains → e-mails from the company register ─────────────────────
     Route::get ('/domain-emails',  [DomainEmailController::class, 'index'])->name('domain-emails.index');
     Route::post('/domain-emails',  [DomainEmailController::class, 'enrich'])->name('domain-emails.enrich');
+
+    // ── Global do-not-contact list ──────────────────────────────────────────
+    Route::get   ('/loobujad',               [SuppressionController::class, 'index'])->name('suppressions.index');
+    Route::post  ('/loobujad',               [SuppressionController::class, 'store'])->name('suppressions.store');
+    Route::delete('/loobujad/{suppression}', [SuppressionController::class, 'destroy'])->name('suppressions.destroy');
 
     // ── Email Accounts ──────────────────────────────────────────────────────
     Route::prefix('accounts')->name('accounts.')->group(function () {

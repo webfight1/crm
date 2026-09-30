@@ -120,6 +120,16 @@ class OutreachLead extends Model
                 \App\Seo\Jobs\HandleSeoReplyJob::dispatch($lead->id)->delay(now()->addMinutes(2));
             }
         });
+
+        // Global do-not-contact list: unsubscribed, bounced or "not
+        // interested" in one campaign means no mail from any other campaign.
+        static::saved(function (OutreachLead $lead) {
+            if ($lead->wasChanged('status') && in_array($lead->status, [self::STATUS_UNSUBSCRIBED, self::STATUS_BOUNCED], true)) {
+                OutreachSuppression::add($lead->email, $lead->status, $lead->id);
+            } elseif ($lead->wasChanged('reply_intent') && $lead->reply_intent === 'not_interested') {
+                OutreachSuppression::add($lead->email, 'not_interested', $lead->id);
+            }
+        });
     }
 
     // ─── Relationships ──────────────────────────────────────────────────────

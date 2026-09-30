@@ -484,7 +484,8 @@ class OutreachController extends Controller
 
         return redirect()
             ->route('outreach.campaigns.leads.index', $campaign)
-            ->with('success', "Imporditi {$count} leadi.");
+            ->with('success', "Imporditi {$count} leadi."
+                . ($importer->suppressed ? " {$importer->suppressed} jäeti vahele (loobujate nimekirjas)." : ''));
     }
 
     /**

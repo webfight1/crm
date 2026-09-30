@@ -4,6 +4,7 @@ namespace App\Outreach\Services;
 
 use App\Outreach\Models\OutreachCampaign;
 use App\Outreach\Models\OutreachLead;
+use App\Outreach\Models\OutreachSuppression;
 use App\Seo\Services\SerpLeadFilter;
 use Illuminate\Support\Facades\DB;
 
@@ -68,6 +69,9 @@ class OutreachCsvImportService
     /** UTF-8 byte-order mark */
     private const BOM = "\xEF\xBB\xBF";
 
+    /** Rows the last import() left out because they are on the suppression list. */
+    public int $suppressed = 0;
+
     /**
      * Import leads from a CSV file into the given campaign.
      *
@@ -89,6 +93,8 @@ class OutreachCsvImportService
         if ($handle === false) {
             throw new \InvalidArgumentException("Cannot open CSV file: {$filePath}");
         }
+
+        $this->suppressed = 0;
 
         try {
             return $this->processFile($handle, $campaignId);
@@ -251,12 +257,23 @@ class OutreachCsvImportService
             $this->flush($batch);
         }
 
-        return $queued;
+        return $queued - $this->suppressed;
     }
 
     /** @param array<int, array<string, mixed>> $rows */
     private function flush(array $rows): void
     {
+        // Global do-not-contact list: drop those rows entirely.
+        $blocked = OutreachSuppression::matching(array_column($rows, 'email'));
+        if ($blocked) {
+            $before = count($rows);
+            $rows = array_values(array_filter($rows, fn ($r) => ! isset($blocked[$r['email']])));
+            $this->suppressed += $before - count($rows);
+            if (! $rows) {
+                return;
+            }
+        }
+
         // insertOrIgnore silently skips rows that violate the
         // UNIQUE(campaign_id, email) index — no exception thrown.
         DB::table('outreach_leads')->insertOrIgnore($rows);
