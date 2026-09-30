@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Outreach\ClickUpImportController;
+use App\Http\Controllers\Outreach\DomainEmailController;
 use App\Http\Controllers\Outreach\OutreachController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,6 +25,10 @@ Route::prefix('outreach')->name('outreach.')->group(function () {
         Route::post('/download',  [ClickUpImportController::class, 'download'])->name('download');
         Route::post('/import',    [ClickUpImportController::class, 'import'])->name('import');
     });
+
+    // ── CSV domains → e-mails from the company register ─────────────────────
+    Route::get ('/domain-emails',  [DomainEmailController::class, 'index'])->name('domain-emails.index');
+    Route::post('/domain-emails',  [DomainEmailController::class, 'enrich'])->name('domain-emails.enrich');
 
     // ── Email Accounts ──────────────────────────────────────────────────────
     Route::prefix('accounts')->name('accounts.')->group(function () {
