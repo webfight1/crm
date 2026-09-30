@@ -102,7 +102,13 @@ class OutreachCsvImportService
     /** @param resource $handle */
     private function processFile($handle, int $campaignId): int
     {
-        $rawHeaders = fgetcsv($handle);
+        // Excel with an Estonian locale (and our own domain-email export)
+        // writes ";" — pick whichever of , ; tab occurs most in the header.
+        $firstLine = (string) fgets($handle);
+        rewind($handle);
+        $delimiter = collect([',', ';', "\t"])->sortByDesc(fn ($d) => substr_count($firstLine, $d))->first();
+
+        $rawHeaders = fgetcsv($handle, 0, $delimiter);
 
         if ($rawHeaders === false || empty($rawHeaders)) {
             return 0;
@@ -144,7 +150,7 @@ class OutreachCsvImportService
         $batch    = [];
         $queued   = 0;
 
-        while (($row = fgetcsv($handle)) !== false) {
+        while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
             // Skip completely empty rows
             if (empty(array_filter($row, fn($v) => trim($v) !== ''))) {
                 continue;
