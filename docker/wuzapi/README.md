@@ -4,7 +4,7 @@ Loeb isikliku WhatsAppi sõnumeid ja saadab need webhookiga CRM-i
 (`/api/chats/whatsapp/{secret}`). CRM ainult loeb — vastad telefonist.
 
 * Üks konteiner, SQLite, meediat ei laeta (`-skipmedia`), ~30 MB RAM.
-* API kuulab ainult `127.0.0.1:8090`.
+* API kuulab ainult `127.0.0.1:8091`.
 * Kohalolek `unavailable` — kontaktid ei näe sind „online“ ja telefoni teavitused töötavad edasi.
 
 ## Paigaldus (VPS, /opt/wuzapi)
@@ -21,13 +21,13 @@ Loo üks WuzAPI kasutaja (token = CRM-i `WUZAPI_USER_TOKEN`):
 USER_TOKEN=$(openssl rand -hex 24)
 curl -s -X POST -H "Authorization: $WUZAPI_ADMIN_TOKEN" -H 'Content-Type: application/json' \
   --data "{\"name\":\"crm\",\"token\":\"$USER_TOKEN\",\"events\":\"Message\"}" \
-  http://127.0.0.1:8090/admin/users
+  http://127.0.0.1:8091/admin/users
 ```
 
 CRM-i `.env`:
 
 ```
-WUZAPI_URL=http://127.0.0.1:8090
+WUZAPI_URL=http://127.0.0.1:8091
 WUZAPI_USER_TOKEN=<USER_TOKEN>
 WUZAPI_WEBHOOK_SECRET=<openssl rand -hex 24>
 ```

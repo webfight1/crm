@@ -48,7 +48,7 @@ return [
     // WhatsApp account. Messages arrive via webhook /api/chats/whatsapp/{secret};
     // the CRM only calls the API to connect (QR) and check the session.
     'wuzapi' => [
-        'url'            => env('WUZAPI_URL', 'http://127.0.0.1:8090'),
+        'url'            => env('WUZAPI_URL', 'http://127.0.0.1:8091'),
         'token'          => env('WUZAPI_USER_TOKEN'),
         'webhook_secret' => env('WUZAPI_WEBHOOK_SECRET'),
     ],

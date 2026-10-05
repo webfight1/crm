@@ -9,7 +9,7 @@ services:
     restart: unless-stopped
     # API only on localhost — the CRM (same host) talks to it, nobody else.
     ports:
-      - "127.0.0.1:8090:8080"
+      - "127.0.0.1:8091:8080"
     command: ["-datadir=/app/data", "-skipmedia", "-logtype=console"]
     environment:
       - WUZAPI_ADMIN_TOKEN=${WUZAPI_ADMIN_TOKEN}
