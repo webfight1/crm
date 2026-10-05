@@ -52,6 +52,8 @@ def config():
 def homeserver():
     s = load_state()
     reg = yaml.safe_load(open(os.path.join(BASE, "meta", "registration.yaml")))
+    # The bridge bot's user id comes from the bridge config, not sender_localpart (random).
+    bot = yaml.safe_load(open(os.path.join(BASE, "meta", "config.yaml")))["appservice"]["bot"]["username"]
 
     def ns(kind, items):
         return "".join(
@@ -94,7 +96,7 @@ regex = ".*"
 # Lets the CRM read room members/name as the bridge bot (it is in every portal).
 [[global.appservice.crm.users]]
 exclusive = false
-regex = {toml_str('^@' + reg['sender_localpart'] + ':' + SERVER.replace('.', chr(92) + '.') + '$')}
+regex = {toml_str('^@' + bot + ':' + SERVER.replace('.', chr(92) + '.') + '$')}
 """
     write_private(os.path.join(BASE, "tuwunel.toml"), toml)
     write_private(os.path.join(BASE, "crm.env"), f"""
@@ -103,7 +105,7 @@ MESSENGER_PROVISION_SECRET={s['provision_secret']}
 MESSENGER_MATRIX_USER={USER}
 MESSENGER_HS_TOKEN={s['crm_hs_token']}
 MESSENGER_AS_TOKEN={s['crm_as_token']}
-MESSENGER_BOT={'@' + reg['sender_localpart'] + ':' + SERVER}
+MESSENGER_BOT=@{bot}:{SERVER}
 """)
     print("tuwunel.toml + crm.env written")
 
