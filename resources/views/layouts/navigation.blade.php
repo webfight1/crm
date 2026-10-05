@@ -66,7 +66,7 @@
                             {{ __('Kontaktid') }}
                         </x-nav-link>
 
-                        @if(config('services.wuzapi.token'))
+                        @if(config('services.wuzapi.token') || config('services.messenger.hs_token'))
                         <x-nav-link :href="route('chats.index')" :active="request()->routeIs('chats.*')">
                             {{ __('Vestlused') }}
                         </x-nav-link>
@@ -288,7 +288,7 @@
                     {{ __('Kontaktid') }}
                 </x-responsive-nav-link>
 
-                @if(config('services.wuzapi.token'))
+                @if(config('services.wuzapi.token') || config('services.messenger.hs_token'))
                 <x-responsive-nav-link :href="route('chats.index')" :active="request()->routeIs('chats.*')">
                     {{ __('Vestlused') }}
                 </x-responsive-nav-link>

@@ -142,6 +142,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/connect', 'connectStart')->name('connect.start');
         Route::get('/connect/status', 'connectStatus')->name('connect.status');
         Route::post('/connect/logout', 'logout')->name('connect.logout');
+        Route::post('/connect/messenger', 'messengerLogin')->name('connect.messenger');
+        Route::post('/connect/messenger/logout', 'messengerLogout')->name('connect.messenger.logout');
         Route::post('/messages/{message}/task', 'taskFromMessage')->name('messages.task');
         Route::get('/{thread}', 'show')->name('show');
         Route::patch('/{thread}', 'update')->name('update');

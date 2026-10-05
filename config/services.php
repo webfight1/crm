@@ -53,6 +53,17 @@ return [
         'webhook_secret' => env('WUZAPI_WEBHOOK_SECRET'),
     ],
 
+    // Messenger (docker/messenger on the VPS): tuwunel + mautrix-meta. The CRM
+    // is an appservice there — room events arrive at /api/chats/matrix (auth =
+    // hs_token); login goes through the bridge's provisioning API.
+    'messenger' => [
+        'provision_url'    => env('MESSENGER_PROVISION_URL', 'http://127.0.0.1:29319/_matrix/provision'),
+        'provision_secret' => env('MESSENGER_PROVISION_SECRET'),
+        'matrix_user'      => env('MESSENGER_MATRIX_USER', '@veiko:wf.local'),
+        'hs_token'         => env('MESSENGER_HS_TOKEN'),
+        'ghost_prefix'     => '@facebook_',
+    ],
+
     // RMP (rmp.webfight.shop) — own accounting app; invoices are made there
     // from accepted CRM quotations (RMP reads the crm DB).
     'rmp' => [

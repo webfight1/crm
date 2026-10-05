@@ -31,3 +31,11 @@ Route::middleware('api.token')->group(function () {
 // WuzAPI → CRM (WhatsApp messages). Auth = secret in the path.
 Route::post('/chats/whatsapp/{secret}', \App\Http\Controllers\Chats\WhatsAppWebhookController::class)
     ->name('chats.whatsapp.webhook');
+
+// tuwunel → CRM (Messenger via mautrix-meta). Auth = hs_token.
+Route::prefix('/chats/matrix')->controller(\App\Http\Controllers\Chats\MatrixAppserviceController::class)->group(function () {
+    Route::put('/_matrix/app/v1/transactions/{txnId}', 'transaction');
+    Route::put('/transactions/{txnId}', 'transaction');
+    Route::post('/_matrix/app/v1/ping', 'query');
+    Route::get('/_matrix/app/v1/{kind}/{id}', 'query')->where('id', '.*');
+});

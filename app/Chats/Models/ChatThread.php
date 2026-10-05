@@ -46,6 +46,11 @@ class ChatThread extends Model
         return $this->belongsTo(Contact::class);
     }
 
+    public function networkLabel(): string
+    {
+        return $this->network === 'messenger' ? 'Messenger' : 'WhatsApp';
+    }
+
     public function displayName(): string
     {
         return $this->contact?->full_name

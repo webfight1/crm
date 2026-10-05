@@ -6,6 +6,7 @@ use App\Chats\Models\ChatMessage;
 use App\Chats\Models\ChatThread;
 use App\Chats\Services\ChatTaskFactory;
 use App\Chats\Services\ChatTriage;
+use App\Chats\Services\MessengerBridge;
 use App\Chats\Services\WuzApi;
 use App\Http\Controllers\Controller;
 use App\Models\Contact;
@@ -110,9 +111,35 @@ class ChatController extends Controller
             : back()->with('error', 'AI ei pakkunud ülesannet.');
     }
 
-    public function connect(WuzApi $wuz): View
+    public function connect(WuzApi $wuz, MessengerBridge $messenger): View
     {
-        return view('chats.connect', ['enabled' => $wuz->enabled(), 'status' => $wuz->enabled() ? $wuz->status() : null]);
+        return view('chats.connect', [
+            'enabled'          => $wuz->enabled(),
+            'messengerEnabled' => $messenger->enabled(),
+            'messenger'        => $messenger->enabled() ? $messenger->status() : null,
+        ]);
+    }
+
+    public function messengerLogin(Request $request, MessengerBridge $messenger): RedirectResponse
+    {
+        $cookies = MessengerBridge::parseCookies((string) $request->input('cookies'));
+        $missing = array_diff(['c_user', 'xs', 'datr'], array_keys($cookies));
+        if ($missing) {
+            return back()->with('error', 'Puudu küpsis(ed): ' . implode(', ', $missing));
+        }
+
+        $error = $messenger->login($cookies);
+
+        return $error === null
+            ? back()->with('success', 'Messenger ühendatud. Vestlused ilmuvad paari minuti jooksul.')
+            : back()->with('error', 'Messenger: ' . $error);
+    }
+
+    public function messengerLogout(MessengerBridge $messenger): RedirectResponse
+    {
+        $messenger->logout();
+
+        return back()->with('success', 'Messenger lahti ühendatud.');
     }
 
     public function connectStart(WuzApi $wuz): RedirectResponse

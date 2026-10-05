@@ -2,7 +2,8 @@
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                💬 {{ $thread->displayName() }}
+                @include('chats._network', ['t' => $thread])
+                {{ $thread->displayName() }}
                 @if($thread->phone)<span class="text-sm font-normal text-gray-500 ml-2">+{{ $thread->phone }}</span>@endif
             </h2>
             <a href="{{ route('chats.index') }}" class="text-sm text-indigo-600 hover:text-indigo-900">← Vestlused</a>
@@ -22,7 +23,7 @@
                     @forelse($messages as $m)
                         <div class="flex {{ $m->isInbound() ? 'justify-start' : 'justify-end' }}">
                             <div class="max-w-[80%] rounded-lg px-3 py-2 {{ $m->isInbound() ? 'bg-gray-100' : 'bg-green-50' }}">
-                                @if($thread->is_group && $m->isInbound() && $m->sender_name)
+                                @if(($thread->is_group || $thread->network === 'messenger') && $m->isInbound() && $m->sender_name && $m->sender_name !== $thread->name)
                                     <div class="text-xs font-semibold text-gray-600">{{ $m->sender_name }}</div>
                                 @endif
                                 <div class="text-sm text-gray-900 whitespace-pre-line break-words">{{ $m->body }}</div>
@@ -42,7 +43,7 @@
                     @empty
                         <p class="text-sm text-gray-500">Sõnumeid pole veel salvestatud. Uued sõnumid ilmuvad siia automaatselt.</p>
                     @endforelse
-                    <p class="text-xs text-gray-400 text-center pt-2">Vastamiseks kasuta WhatsAppi telefonis — CRM ainult loeb.</p>
+                    <p class="text-xs text-gray-400 text-center pt-2">Vastamiseks kasuta {{ $thread->networkLabel() }}i telefonis — CRM ainult loeb.</p>
                 </div>
 
                 {{-- Side panel --}}

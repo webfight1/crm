@@ -14,7 +14,7 @@ class ChatTriage
 {
     private const SYSTEM = <<<'TXT'
 Sa oled veebiagentuuri Webfight (veebilehed, e-poed, SEO, hooldus) assistent.
-Saad kliendi WhatsAppi vestluse viimased sõnumid ("Klient:" = klient, "Mina:" = Veiko).
+Saad kliendi WhatsAppi/Messengeri vestluse viimased sõnumid ("Klient:" = klient, "Mina:" = Veiko).
 Otsusta, kas kliendil on pooleli soov, küsimus või probleem, mis vajab Veiko tegevust.
 Vasta AINULT JSON-ina:
 {"needs_action": true|false,
@@ -47,7 +47,7 @@ TXT;
             $m->body
         ))->implode("\n");
 
-        $result = $this->ai->json(self::SYSTEM, "Klient: {$thread->displayName()}\n\n{$transcript}");
+        $result = $this->ai->json(self::SYSTEM, "Klient: {$thread->displayName()} ({$thread->networkLabel()})\n\n{$transcript}");
         if ($result === null) {
             return null;
         }

@@ -15,7 +15,7 @@ class ChatTaskFactory
     public function fromMessage(ChatMessage $message, int $userId): Task
     {
         $thread = $message->thread;
-        $title  = 'WhatsApp: ' . $thread->displayName() . ' — ' . mb_strimwidth(preg_replace('/\s+/', ' ', (string) $message->body), 0, 80, '…');
+        $title  = $thread->networkLabel() . ': ' . $thread->displayName() . ' — ' . mb_strimwidth(preg_replace('/\s+/', ' ', (string) $message->body), 0, 80, '…');
 
         return $this->create($thread, $message, $userId, [
             'title'       => mb_substr($title, 0, 255),

@@ -1,0 +1,34 @@
+# Read-only Facebook Messenger bridge for the CRM "Vestlused" module.
+# tuwunel = minimal private Matrix homeserver (no federation, localhost only)
+# meta    = mautrix-meta bridge (Messenger, incl. encrypted chats)
+# The CRM is registered as a second appservice: tuwunel pushes every room
+# event to https://crm.webfight.shop/api/chats/matrix. Runs in /opt/messenger.
+services:
+  tuwunel:
+    image: ghcr.io/matrix-construct/tuwunel:latest
+    container_name: messenger-tuwunel
+    restart: unless-stopped
+    environment:
+      TUWUNEL_CONFIG: /etc/tuwunel.toml
+    volumes:
+      - ./tuwunel.toml:/etc/tuwunel.toml:ro
+      - ./tuwunel:/var/lib/tuwunel
+    ports:
+      - "127.0.0.1:8008:8008"
+    mem_limit: 384m
+    logging: &logging
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+
+  meta:
+    image: dock.mau.dev/mautrix/meta:latest
+    container_name: messenger-meta
+    restart: unless-stopped
+    depends_on: [tuwunel]
+    volumes:
+      - ./meta:/data
+    # Provisioning API (login) — used by the CRM on the same host only.
+    ports:
+      - "127.0.0.1:29319:29319"
+    mem_limit: 384m
+    logging: *logging

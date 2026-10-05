@@ -84,7 +84,7 @@ Schedule::command('deals:retainer-invoices')
     ->name('deals:retainer-invoices')
     ->withoutOverlapping();
 
-// Every 5 minutes: AI triage of monitored WhatsApp threads with auto_ai on.
+// Every 5 minutes: AI triage of monitored WhatsApp/Messenger threads with auto_ai on.
 // Waits until the client has been quiet for 3 min so a burst of messages is
 // read as one request; a new client wish → task + Telegram (no duplicate
 // while an earlier task from the same chat is still open).
@@ -110,13 +110,13 @@ Artisan::command('chats:triage', function () {
         }
         $task = $factory->openTask($thread) ?? $factory->fromTriage($thread, $ownerId);
         \App\Support\Telegram::send(
-            "💬 WhatsApp — {$thread->displayName()}\n" . ($ai['summary'] ?? '')
+            "💬 {$thread->networkLabel()} — {$thread->displayName()}\n" . ($ai['summary'] ?? '')
             . ($task ? "\n\n✔ Ülesanne: {$task->title}\n" . route('tasks.show', $task) : '')
             . "\n\n" . route('chats.show', $thread)
         );
         $this->info("Triaged {$thread->displayName()}");
     }
-})->purpose('AI triage of monitored WhatsApp chats (auto_ai)');
+})->purpose('AI triage of monitored WhatsApp/Messenger chats (auto_ai)');
 
 Schedule::command('chats:triage')
     ->everyFiveMinutes()
