@@ -13,7 +13,6 @@ use Throwable;
  */
 class MessengerBridge
 {
-    public const COOKIES = ['c_user', 'xs', 'datr', 'sb'];   // sb is optional
     private const SELF_KEY = 'chats.messenger.self_id';
 
     public function enabled(): bool
@@ -49,7 +48,7 @@ class MessengerBridge
     }
 
     /**
-     * @param  array<string, string>  $cookies  c_user, xs, datr, sb
+     * @param  array<string, string>  $cookies  c_user, xs, datr
      * @return string|null error message, null on success
      */
     public function login(array $cookies): ?string
@@ -74,34 +73,6 @@ class MessengerBridge
     {
         $this->call('post', '/v3/logout/all');
         Cache::forget(self::SELF_KEY);
-    }
-
-    /**
-     * Accepts a Cookie header, a "Copy as cURL" command or a JSON object and
-     * returns just the four cookies the bridge needs.
-     *
-     * @return array<string, string>
-     */
-    public static function parseCookies(string $raw): array
-    {
-        $raw = trim($raw);
-        $json = json_decode($raw, true);
-        $pairs = is_array($json) ? $json : [];
-
-        if (! $pairs) {
-            // cURL: -H 'cookie: a=b; c=d'  or  -b 'a=b; c=d'
-            if (preg_match("/(?:-H\\s+['\"]cookie:\\s*|-b\\s+['\"])([^'\"]+)/i", $raw, $m)) {
-                $raw = $m[1];
-            }
-            foreach (preg_split('/;\s*/', preg_replace('/^cookie:\s*/i', '', $raw)) as $part) {
-                [$k, $v] = array_pad(explode('=', $part, 2), 2, null);
-                if ($k !== null && $v !== null) {
-                    $pairs[trim($k)] = trim($v);
-                }
-            }
-        }
-
-        return array_filter(array_intersect_key(array_map('strval', $pairs), array_flip(self::COOKIES)), 'strlen');
     }
 
     private function call(string $method, string $path, array $body = []): ?array

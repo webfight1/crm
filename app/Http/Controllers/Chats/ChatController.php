@@ -122,11 +122,13 @@ class ChatController extends Controller
 
     public function messengerLogin(Request $request, MessengerBridge $messenger): RedirectResponse
     {
-        $cookies = MessengerBridge::parseCookies((string) $request->input('cookies'));
-        $missing = array_diff(['c_user', 'xs', 'datr'], array_keys($cookies));
-        if ($missing) {
-            return back()->with('error', 'Puudu küpsis(ed): ' . implode(', ', $missing));
-        }
+        $cookies = $request->validate([
+            'c_user' => 'required|string|max:64',
+            'xs'     => 'required|string|max:512',
+            'datr'   => 'required|string|max:128',
+        ]);
+        // Tolerate a pasted "name=value" or stray quotes/spaces.
+        $cookies = array_map(fn ($v) => trim(preg_replace('/^(c_user|xs|datr)=/', '', trim($v)), " \t\"';"), $cookies);
 
         $error = $messenger->login($cookies);
 

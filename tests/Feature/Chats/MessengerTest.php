@@ -96,11 +96,20 @@ class MessengerTest extends TestCase
         $this->assertSame('📷 Pilt: screenshot.png', ChatMessage::sole()->body);
     }
 
-    public function test_parse_cookies_from_curl_header_and_json(): void
+    public function test_login_form_sends_cleaned_cookies_to_the_bridge(): void
     {
-        $curl = "curl 'https://www.messenger.com/' -H 'accept: */*' -H 'cookie: datr=D1; sb=S1; c_user=100; xs=X%3A1; wd=1x1' --compressed";
-        $this->assertSame(['datr' => 'D1', 'sb' => 'S1', 'c_user' => '100', 'xs' => 'X%3A1'], MessengerBridge::parseCookies($curl));
-        $this->assertSame(['c_user' => '1', 'xs' => '2', 'datr' => '3'], MessengerBridge::parseCookies('c_user=1; xs=2; datr=3; presence=x'));
-        $this->assertSame(['c_user' => '1', 'xs' => '2'], MessengerBridge::parseCookies('{"c_user":"1","xs":"2","other":"z"}'));
+        config(['services.messenger.provision_secret' => 'p', 'services.messenger.provision_url' => 'http://bridge']);
+        \Illuminate\Support\Facades\Http::fake([
+            'bridge/v3/login/start/*' => ['login_id' => 'L1', 'step_id' => 'S1', 'type' => 'cookies'],
+            'bridge/v3/login/step/*'  => ['login_id' => 'L1', 'type' => 'complete'],
+            'bridge/v3/whoami*'       => ['logins' => [['id' => '999', 'name' => 'Veiko']]],
+        ]);
+        $this->withoutMiddleware(\Illuminate\Auth\Middleware\Authenticate::class);
+
+        $this->from('/chats/connect')->post('/chats/connect/messenger', ['c_user' => ' 100 ', 'xs' => 'xs=48%3Aabc;', 'datr' => '"D1"'])
+            ->assertRedirect('/chats/connect')->assertSessionHas('success');
+
+        \Illuminate\Support\Facades\Http::assertSent(fn ($r) => str_contains($r->url(), '/v3/login/step/L1/S1/cookies')
+            && $r->data() === ['c_user' => '100', 'xs' => '48%3Aabc', 'datr' => 'D1']);
     }
 }

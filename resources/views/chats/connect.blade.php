@@ -66,15 +66,20 @@
                     </form>
                 @else
                     <ol class="text-sm text-gray-700 list-decimal ml-5 space-y-1 mb-3">
-                        <li>Ava arvutis <b>messenger.com</b> ja logi sisse (soovitavalt privaatne aken).</li>
-                        <li>Ava arendaja tööriistad (F12) → <b>Network</b>, värskenda lehte, paremklõps suvalisel <code>messenger.com</code> päringul → <b>Copy → Copy as cURL</b>.</li>
-                        <li>Kleebi see allolevasse kasti. Vajalikud on küpsised <code>c_user</code>, <code>xs</code>, <code>datr</code>.</li>
-                        <li>Pärast ühendamist sulge privaatne aken <b>ilma välja logimata</b> — väljalogimine tühistab küpsised.</li>
+                        <li>Ava uues vahelehes <b>www.messenger.com</b> ja logi sisse.</li>
+                        <li>Samal vahelehel ava arendaja tööriistad (F12 / Cmd+Option+I) → <b>Application</b> → <b>Cookies</b> → <code>https://www.messenger.com</code>.</li>
+                        <li>Kopeeri sealt veeru <b>Value</b> väärtused allolevatesse väljadesse.</li>
+                        <li>Pärast ühendamist sulge vaheleht <b>ilma välja logimata</b> — väljalogimine tühistab küpsised.</li>
                     </ol>
-                    <form method="POST" action="{{ route('chats.connect.messenger') }}" class="space-y-2">
+                    <form method="POST" action="{{ route('chats.connect.messenger') }}" class="space-y-3" autocomplete="off">
                         @csrf
-                        <textarea name="cookies" rows="5" required class="w-full text-xs font-mono border-gray-300 rounded"
-                                  placeholder="curl 'https://www.messenger.com/…' -H 'cookie: datr=…; c_user=…; xs=…'"></textarea>
+                        @foreach(['c_user' => 'ainult numbrid', 'xs' => 'nt 48%3Aabc…', 'datr' => 'nt AbCdEf…'] as $cookie => $hint)
+                            <label class="block text-sm">
+                                <span class="font-mono text-gray-700">{{ $cookie }}</span>
+                                <input type="text" name="{{ $cookie }}" required spellcheck="false" placeholder="{{ $hint }}"
+                                       class="mt-1 w-full text-sm font-mono border-gray-300 rounded">
+                            </label>
+                        @endforeach
                         <button class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">Ühenda Messenger</button>
                     </form>
                     <p class="text-xs text-gray-500 mt-2">Küpsiseid CRM ei salvesta — need antakse ainult sillale edasi. Meta võib harva küsida kontol turvakontrolli.</p>
