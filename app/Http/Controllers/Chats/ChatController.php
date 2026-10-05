@@ -128,9 +128,9 @@ class ChatController extends Controller
 
         return response()->json([
             'reachable' => $status !== null,
-            'connected' => (bool) data_get($status, 'Connected'),
-            'loggedIn'  => (bool) data_get($status, 'LoggedIn'),
-            'qr'        => $status && ! data_get($status, 'LoggedIn') && data_get($status, 'Connected') ? $wuz->qr() : null,
+            'connected' => $status['connected'] ?? false,
+            'loggedIn'  => $status['loggedIn'] ?? false,
+            'qr'        => ($status['loggedIn'] ?? true) ? null : $status['qr'],
         ]);
     }
 
