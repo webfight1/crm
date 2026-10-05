@@ -51,9 +51,10 @@ class MessengerBridge
      * @param  array<string, string>  $cookies  c_user, xs, datr
      * @return string|null error message, null on success
      */
-    public function login(array $cookies): ?string
+    public function login(array $cookies, string $site = 'facebook'): ?string
     {
-        $start = $this->call('post', '/v3/login/start/messenger');
+        // Flow ids of mautrix-meta: "facebook" (facebook.com cookies) or "messenger" (messenger.com).
+        $start = $this->call('post', '/v3/login/start/' . ($site === 'messenger' ? 'messenger' : 'facebook'));
         if (! isset($start['login_id'], $start['step_id'])) {
             return data_get($start, 'error', 'Sild ei vastanud.');
         }
@@ -66,7 +67,10 @@ class MessengerBridge
             return null;
         }
 
-        return data_get($done, 'error', 'Sisselogimine ebaõnnestus.');
+        return match (data_get($done, 'errcode')) {
+            'FI.MAU.META_TOKEN_ERROR' => 'Meta ei tunnustanud küpsiseid (sessioon pole sisse logitud). Kopeeri need uuesti samalt saidilt, kus oled sisse logitud, ja vali õige sait.',
+            default => data_get($done, 'error', 'Sisselogimine ebaõnnestus.'),
+        };
     }
 
     public function logout(): void

@@ -66,13 +66,20 @@
                     </form>
                 @else
                     <ol class="text-sm text-gray-700 list-decimal ml-5 space-y-1 mb-3">
-                        <li>Ava uues vahelehes <b>www.messenger.com</b> ja logi sisse.</li>
-                        <li>Samal vahelehel ava arendaja tööriistad (F12 / Cmd+Option+I) → <b>Application</b> → <b>Cookies</b> → <code>https://www.messenger.com</code>.</li>
+                        <li>Ava uues vahelehes <b>www.facebook.com</b> ja veendu, et oled sisse logitud.</li>
+                        <li>Samal vahelehel ava arendaja tööriistad (F12 / Cmd+Option+I) → <b>Application</b> → <b>Cookies</b> → <code>https://www.facebook.com</code>.</li>
                         <li>Kopeeri sealt veeru <b>Value</b> väärtused allolevatesse väljadesse.</li>
                         <li>Pärast ühendamist sulge vaheleht <b>ilma välja logimata</b> — väljalogimine tühistab küpsised.</li>
                     </ol>
                     <form method="POST" action="{{ route('chats.connect.messenger') }}" class="space-y-3" autocomplete="off">
                         @csrf
+                        <label class="block text-sm">
+                            <span class="text-gray-700">Küpsised saidilt</span>
+                            <select name="site" class="mt-1 w-full text-sm border-gray-300 rounded">
+                                <option value="facebook">facebook.com (soovitatav)</option>
+                                <option value="messenger">messenger.com</option>
+                            </select>
+                        </label>
                         @foreach(['c_user' => 'ainult numbrid', 'xs' => 'nt 48%3Aabc…', 'datr' => 'nt AbCdEf…'] as $cookie => $hint)
                             <label class="block text-sm">
                                 <span class="font-mono text-gray-700">{{ $cookie }}</span>

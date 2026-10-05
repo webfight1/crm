@@ -109,6 +109,7 @@ class MessengerTest extends TestCase
         $this->from('/chats/connect')->post('/chats/connect/messenger', ['c_user' => ' 100 ', 'xs' => 'xs=48%3Aabc;', 'datr' => '"D1"'])
             ->assertRedirect('/chats/connect')->assertSessionHas('success');
 
+        \Illuminate\Support\Facades\Http::assertSent(fn ($r) => str_contains($r->url(), '/v3/login/start/facebook'));
         \Illuminate\Support\Facades\Http::assertSent(fn ($r) => str_contains($r->url(), '/v3/login/step/L1/S1/cookies')
             && $r->data() === ['c_user' => '100', 'xs' => '48%3Aabc', 'datr' => 'D1']);
     }

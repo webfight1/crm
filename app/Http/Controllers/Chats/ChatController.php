@@ -122,6 +122,7 @@ class ChatController extends Controller
 
     public function messengerLogin(Request $request, MessengerBridge $messenger): RedirectResponse
     {
+        $site = $request->input('site') === 'messenger' ? 'messenger' : 'facebook';
         $cookies = $request->validate([
             'c_user' => 'required|string|max:64',
             'xs'     => 'required|string|max:512',
@@ -130,7 +131,7 @@ class ChatController extends Controller
         // Tolerate a pasted "name=value" or stray quotes/spaces.
         $cookies = array_map(fn ($v) => trim(preg_replace('/^(c_user|xs|datr)=/', '', trim($v)), " \t\"';"), $cookies);
 
-        $error = $messenger->login($cookies);
+        $error = $messenger->login($cookies, $site);
 
         return $error === null
             ? back()->with('success', 'Messenger ühendatud. Vestlused ilmuvad paari minuti jooksul.')
