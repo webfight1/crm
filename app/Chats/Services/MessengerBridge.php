@@ -14,6 +14,7 @@ use Throwable;
 class MessengerBridge
 {
     private const SELF_KEY = 'chats.messenger.self_id';
+    private const SELF_NAME_KEY = 'chats.messenger.self_name';
 
     public function enabled(): bool
     {
@@ -27,6 +28,9 @@ class MessengerBridge
         $login = data_get($who, 'logins.0');
         if ($login) {
             Cache::forever(self::SELF_KEY, (string) $login['id']);
+            if ($name = data_get($login, 'name') ?: data_get($login, 'profile.name')) {
+                Cache::forever(self::SELF_NAME_KEY, $name);
+            }
         }
 
         return [
@@ -47,12 +51,21 @@ class MessengerBridge
         return Cache::get(self::SELF_KEY);
     }
 
+    public function selfName(): ?string
+    {
+        return Cache::get(self::SELF_NAME_KEY);
+    }
+
     /**
      * @param  array<string, string>  $cookies  c_user, xs, datr
      * @return string|null error message, null on success
      */
     public function login(array $cookies, string $site = 'facebook'): ?string
     {
+        // c_user is our own Facebook id. Known before the bridge creates any
+        // portal, so the first room events already tell our ghost from theirs.
+        Cache::forever(self::SELF_KEY, (string) $cookies['c_user']);
+
         // Flow ids of mautrix-meta: "facebook" (facebook.com cookies) or "messenger" (messenger.com).
         $start = $this->call('post', '/v3/login/start/' . ($site === 'messenger' ? 'messenger' : 'facebook'));
         if (! isset($start['login_id'], $start['step_id'])) {
@@ -62,7 +75,6 @@ class MessengerBridge
         $done = $this->call('post', "/v3/login/step/{$start['login_id']}/{$start['step_id']}/cookies", $cookies);
 
         if (data_get($done, 'type') === 'complete') {
-            Cache::forget(self::SELF_KEY);
             $this->status();
             return null;
         }

@@ -8,6 +8,8 @@ use App\Models\Contact;
 use App\Models\Customer;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Throwable;
 
 /**
  * Turns Matrix room events pushed by tuwunel (appservice transaction) into
@@ -72,7 +74,9 @@ class MessengerIngest
         if ($name) {
             Cache::put('chats.mx.name.' . $user, $name, now()->addDays(30));
         }
-        if ($user === $this->selfGhost()) {
+        // Until we know which ghost is us, don't guess names/groups from members.
+        $self = $this->selfGhost();
+        if ($self === null || $user === $self) {
             return 0;
         }
 
@@ -158,6 +162,59 @@ class MessengerIngest
         return [null, null];
     }
 
+    /**
+     * Re-read a portal's members and name from the homeserver (as the bridge
+     * bot, which is in every portal) and fix name / group flag / links.
+     * Undoes links to ourselves made before our own ghost was known.
+     *
+     * @return bool false when the homeserver could not be read
+     */
+    public function resync(ChatThread $thread): bool
+    {
+        $members = $this->matrix("/rooms/{$thread->external_id}/joined_members");
+        if (! isset($members['joined'])) {
+            return false;
+        }
+
+        $self = $this->selfGhost();
+        $others = collect($members['joined'])
+            ->filter(fn ($m, $userId) => $this->isGhost($userId) && $userId !== $self);
+        foreach ($others as $userId => $m) {
+            if (! empty($m['display_name'])) {
+                Cache::put('chats.mx.name.' . $userId, $m['display_name'], now()->addDays(30));
+            }
+        }
+        Cache::put('chats.mx.members.' . $thread->external_id, $others->map(fn () => true)->all(), now()->addDays(30));
+
+        $thread->is_group = $others->count() > 1;
+        $roomName = data_get($this->matrix("/rooms/{$thread->external_id}/state/m.room.name/"), 'name');
+        $thread->name = $roomName ?: ($others->count() === 1 ? ($others->first()['display_name'] ?? null) : null) ?: $thread->name;
+
+        $selfName = mb_strtolower(trim((string) $this->bridge->selfName()));
+        $linked = $thread->contact?->full_name ?? $thread->customer?->full_name;
+        if ($selfName !== '' && $linked !== null && mb_strtolower(trim($linked)) === $selfName) {
+            $thread->fill(['contact_id' => null, 'customer_id' => null, 'is_monitored' => false, 'auto_ai' => false]);
+        }
+
+        $this->autoLink($thread, force: true);
+        $thread->save();
+
+        return true;
+    }
+
+    private function matrix(string $path): ?array
+    {
+        try {
+            $response = Http::withToken((string) config('services.messenger.as_token'))->timeout(10)
+                ->get(rtrim(config('services.messenger.homeserver_url'), '/') . '/_matrix/client/v3' . $path,
+                    ['user_id' => config('services.messenger.bot')]);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return $response->successful() ? (array) $response->json() : null;
+    }
+
     private function thread(string $roomId): ChatThread
     {
         return ChatThread::firstOrNew(['network' => 'messenger', 'external_id' => $roomId]);
@@ -180,14 +237,14 @@ class MessengerIngest
      * monitoring. Only while the portal is being set up (name/members arrive
      * in the first minutes), so a later manual unlink is never undone.
      */
-    private function autoLink(ChatThread $thread): void
+    private function autoLink(ChatThread $thread, bool $force = false): void
     {
-        $settingUp = ! $thread->exists || $thread->created_at?->gt(now()->subMinutes(10));
+        $settingUp = $force || ! $thread->exists || $thread->created_at?->gt(now()->subMinutes(10));
         if (! $settingUp || $thread->contact_id || $thread->customer_id || $thread->is_monitored) {
             return;
         }
         $name = mb_strtolower(trim((string) $thread->name));
-        if ($name === '' || $thread->is_group) {
+        if ($name === '' || $thread->is_group || $name === mb_strtolower(trim((string) $this->bridge->selfName()))) {
             return;
         }
 

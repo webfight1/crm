@@ -122,3 +122,20 @@ Schedule::command('chats:triage')
     ->everyFiveMinutes()
     ->name('chats:triage')
     ->withoutOverlapping(10);
+
+// Re-read every Messenger portal's members + name from the homeserver and fix
+// thread names, group flags and wrong self-links (see MessengerIngest::resync).
+Artisan::command('chats:messenger-resync', function () {
+    $status = app(\App\Chats\Services\MessengerBridge::class)->status();   // caches our id + name
+    if (! $status['loggedIn']) {
+        $this->error('Messenger pole sisse logitud.');
+        return 1;
+    }
+    $ingest = app(\App\Chats\Services\MessengerIngest::class);
+    $ok = $failed = 0;
+    \App\Chats\Models\ChatThread::with(['contact', 'customer'])->where('network', 'messenger')
+        ->each(function ($thread) use ($ingest, &$ok, &$failed) {
+            $ingest->resync($thread) ? $ok++ : $failed++;
+        });
+    $this->info("Uuendatud: {$ok}, ebaõnnestus: {$failed}");
+})->purpose('Re-read Messenger room names/members and fix links');

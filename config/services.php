@@ -61,6 +61,10 @@ return [
         'provision_secret' => env('MESSENGER_PROVISION_SECRET'),
         'matrix_user'      => env('MESSENGER_MATRIX_USER', '@veiko:wf.local'),
         'hs_token'         => env('MESSENGER_HS_TOKEN'),
+        // Client-API access as the bridge bot (to read room members / name).
+        'homeserver_url'   => env('MESSENGER_HS_URL', 'http://127.0.0.1:8008'),
+        'as_token'         => env('MESSENGER_AS_TOKEN'),
+        'bot'              => env('MESSENGER_BOT', '@facebookbot:wf.local'),
         'ghost_prefix'     => '@facebook_',
     ],
 

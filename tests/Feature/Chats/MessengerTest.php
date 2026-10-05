@@ -113,4 +113,49 @@ class MessengerTest extends TestCase
         \Illuminate\Support\Facades\Http::assertSent(fn ($r) => str_contains($r->url(), '/v3/login/step/L1/S1/cookies')
             && $r->data() === ['c_user' => '100', 'xs' => '48%3Aabc', 'datr' => 'D1']);
     }
+
+    public function test_member_events_before_our_ghost_is_known_do_not_name_or_link_the_thread(): void
+    {
+        Cache::forget('chats.messenger.self_id');
+        \Illuminate\Support\Facades\Http::fake(['*' => \Illuminate\Support\Facades\Http::response(['logins' => []])]);
+        DB::table('contacts')->insert(['id' => 1, 'first_name' => 'Veiko', 'last_name' => 'Teekel']);
+
+        $this->txn([
+            ['type' => 'm.room.member', 'room_id' => self::ROOM, 'sender' => self::ME, 'state_key' => self::ME, 'content' => ['membership' => 'join', 'displayname' => 'Veiko Teekel']],
+        ])->assertOk();
+
+        $this->assertSame(0, ChatThread::count());
+    }
+
+    public function test_resync_fixes_name_group_flag_and_undoes_self_link(): void
+    {
+        Cache::forever('chats.messenger.self_name', 'Veiko Teekel');
+        config(['services.messenger.as_token' => 'as', 'services.messenger.homeserver_url' => 'http://hs', 'services.messenger.bot' => '@facebookbot:wf.local']);
+        DB::table('contacts')->insert([['id' => 1, 'first_name' => 'Veiko', 'last_name' => 'Teekel', 'customer_id' => null],
+                                       ['id' => 2, 'first_name' => 'Taaniel', 'last_name' => 'Vardja', 'customer_id' => null]]);
+        $thread = ChatThread::create(['network' => 'messenger', 'external_id' => self::ROOM, 'name' => 'Veiko Teekel',
+            'is_group' => true, 'contact_id' => 1, 'is_monitored' => true, 'auto_ai' => true]);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'hs/_matrix/client/v3/rooms/*/joined_members*' => ['joined' => [
+                self::ME => ['display_name' => 'Veiko Teekel'],
+                '@facebook_200:wf.local' => ['display_name' => 'Taaniel Vardja'],
+                '@facebookbot:wf.local' => ['display_name' => 'Facebook bridge bot'],
+                '@veiko:wf.local' => ['display_name' => 'veiko'],
+            ]],
+            'hs/_matrix/client/v3/rooms/*/state/m.room.name/*' => \Illuminate\Support\Facades\Http::response(['errcode' => 'M_NOT_FOUND'], 404),
+            'bridge/v3/whoami*' => ['logins' => [['id' => '999', 'name' => 'Veiko Teekel']]],
+        ]);
+        config(['services.messenger.provision_url' => 'http://bridge']);
+
+        $this->artisan('chats:messenger-resync')->assertSuccessful();
+
+        $thread->refresh();
+        $this->assertSame('Taaniel Vardja', $thread->name);
+        $this->assertFalse($thread->is_group);
+        $this->assertSame(2, $thread->contact_id);       // re-linked to the real person
+        $this->assertTrue($thread->is_monitored);
+        $this->assertFalse($thread->auto_ai);
+        \Illuminate\Support\Facades\Http::assertSent(fn ($r) => $r['user_id'] === '@facebookbot:wf.local' && $r->hasHeader('Authorization', 'Bearer as'));
+    }
 }
