@@ -5,6 +5,7 @@
                 @include('chats._network', ['t' => $thread])
                 {{ $thread->displayName() }}
                 @if($thread->phone)<span class="text-sm font-normal text-gray-500 ml-2">+{{ $thread->phone }}</span>@endif
+                @if($linked = $thread->linkedName())<span class="text-sm font-normal text-indigo-600 ml-2">→ {{ $linked }}</span>@endif
             </h2>
             <a href="{{ route('chats.index') }}" class="text-sm text-indigo-600 hover:text-indigo-900">← Vestlused</a>
         </div>
@@ -53,20 +54,20 @@
                         <form method="POST" action="{{ route('chats.update', $thread) }}" class="space-y-3">
                             @csrf @method('PATCH')
                             <label class="block text-sm">
-                                <span class="text-gray-700">Kontakt</span>
-                                <select name="contact_id" class="mt-1 w-full text-sm border-gray-300 rounded">
-                                    <option value="">—</option>
-                                    @foreach($contacts as $c)
-                                        <option value="{{ $c->id }}" @selected($thread->contact_id === $c->id)>{{ $c->full_name }}</option>
-                                    @endforeach
-                                </select>
-                            </label>
-                            <label class="block text-sm">
                                 <span class="text-gray-700">Klient</span>
                                 <select name="customer_id" class="mt-1 w-full text-sm border-gray-300 rounded">
                                     <option value="">—</option>
                                     @foreach($customers as $c)
                                         <option value="{{ $c->id }}" @selected($thread->customer_id === $c->id)>{{ $c->full_name }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                            <label class="block text-sm">
+                                <span class="text-gray-700">Kontaktisik <span class="text-gray-400">(valikuline)</span></span>
+                                <select name="contact_id" class="mt-1 w-full text-sm border-gray-300 rounded">
+                                    <option value="">—</option>
+                                    @foreach($contacts as $c)
+                                        <option value="{{ $c->id }}" @selected($thread->contact_id === $c->id)>{{ $c->full_name }}</option>
                                     @endforeach
                                 </select>
                             </label>

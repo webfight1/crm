@@ -21,6 +21,7 @@
                             <div class="flex items-center gap-2">
                                 @include('chats._network', ['t' => $t])
                                 <span class="font-medium text-gray-900">{{ $t->displayName() }}</span>
+                                @if(($linked = $t->linkedName()) && $linked !== $t->displayName())<span class="text-xs text-indigo-600">→ {{ $linked }}</span>@endif
                                 @if($t->is_group)<span class="text-xs bg-gray-100 text-gray-600 px-1.5 rounded">grupp</span>@endif
                                 @if($t->auto_ai)<span class="text-xs bg-purple-100 text-purple-700 px-1.5 rounded">AI</span>@endif
                                 @if($t->unread_count)<span class="text-xs bg-green-600 text-white px-1.5 rounded-full">{{ $t->unread_count }}</span>@endif

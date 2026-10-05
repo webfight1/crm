@@ -67,9 +67,12 @@ class ChatController extends Controller
             'contact_id'  => 'nullable|exists:contacts,id',
         ]);
 
-        // A contact already knows its customer.
-        if (! empty($data['contact_id']) && empty($data['customer_id'])) {
-            $data['customer_id'] = Contact::find($data['contact_id'])->customer_id;
+        // A contact already knows its customer; a contact of another customer is dropped.
+        $contact = ! empty($data['contact_id']) ? Contact::find($data['contact_id']) : null;
+        if ($contact && empty($data['customer_id'])) {
+            $data['customer_id'] = $contact->customer_id;
+        } elseif ($contact && $contact->customer_id && (int) $contact->customer_id !== (int) $data['customer_id']) {
+            $data['contact_id'] = null;
         }
 
         $thread->update($data + [

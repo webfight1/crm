@@ -51,11 +51,20 @@ class ChatThread extends Model
         return $this->network === 'messenger' ? 'Messenger' : 'WhatsApp';
     }
 
+    /** The chat partner as WhatsApp/Messenger names them; the linked record is shown separately. */
     public function displayName(): string
     {
-        return $this->contact?->full_name
+        return $this->name
+            ?? $this->contact?->full_name
             ?? $this->customer?->full_name
-            ?? $this->name
             ?? ($this->phone ? '+' . $this->phone : $this->external_id);
+    }
+
+    /** "Helina Tee" or "Helina Tee / Mari Maasikas" — null when not linked. */
+    public function linkedName(): ?string
+    {
+        $parts = array_filter([$this->customer?->full_name, $this->contact?->full_name]);
+
+        return $parts ? implode(' / ', array_unique($parts)) : null;
     }
 }
