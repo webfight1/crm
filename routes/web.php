@@ -135,6 +135,21 @@ Route::middleware('auth')->group(function () {
     Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
     Route::post('/comments/{comment}/read', [CommentController::class, 'markAsRead'])->name('comments.read');
 
+    // ── Vestlused (read-only WhatsApp mirror via WuzAPI) ─────────────────────
+    Route::controller(\App\Http\Controllers\Chats\ChatController::class)->prefix('chats')->name('chats.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/connect', 'connect')->name('connect');
+        Route::post('/connect', 'connectStart')->name('connect.start');
+        Route::get('/connect/status', 'connectStatus')->name('connect.status');
+        Route::post('/connect/logout', 'logout')->name('connect.logout');
+        Route::post('/messages/{message}/task', 'taskFromMessage')->name('messages.task');
+        Route::get('/{thread}', 'show')->name('show');
+        Route::patch('/{thread}', 'update')->name('update');
+        Route::post('/{thread}/monitor', 'monitor')->name('monitor');
+        Route::post('/{thread}/triage', 'triage')->name('triage');
+        Route::post('/{thread}/task', 'taskFromTriage')->name('task');
+    });
+
     // ── Outreach Engine ──────────────────────────────────────────────────────
     require __DIR__ . '/outreach.php';
 

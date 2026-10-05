@@ -66,6 +66,12 @@
                             {{ __('Kontaktid') }}
                         </x-nav-link>
 
+                        @if(config('services.wuzapi.token'))
+                        <x-nav-link :href="route('chats.index')" :active="request()->routeIs('chats.*')">
+                            {{ __('Vestlused') }}
+                        </x-nav-link>
+                        @endif
+
                         <x-nav-dropdown :active="request()->routeIs('tasks.*')" :label="__('Ülesanded')">
                             <x-nav-dropdown-link :href="route('tasks.index')" :active="request()->routeIs('tasks.index') && !request()->has('favorite')">
                                 {{ __('Kõik ülesanded') }}
@@ -281,6 +287,12 @@
                 <x-responsive-nav-link :href="route('contacts.index')" :active="request()->routeIs('contacts.*')">
                     {{ __('Kontaktid') }}
                 </x-responsive-nav-link>
+
+                @if(config('services.wuzapi.token'))
+                <x-responsive-nav-link :href="route('chats.index')" :active="request()->routeIs('chats.*')">
+                    {{ __('Vestlused') }}
+                </x-responsive-nav-link>
+                @endif
 
                 <!-- Ülesanded -->
                 <div class="pl-3">

@@ -44,6 +44,15 @@ return [
         'key' => env('OPENAI_API_KEY'),
     ],
 
+    // WuzAPI (docker/wuzapi on the VPS) — read-only bridge to the personal
+    // WhatsApp account. Messages arrive via webhook /api/chats/whatsapp/{secret};
+    // the CRM only calls the API to connect (QR) and check the session.
+    'wuzapi' => [
+        'url'            => env('WUZAPI_URL', 'http://127.0.0.1:8090'),
+        'token'          => env('WUZAPI_USER_TOKEN'),
+        'webhook_secret' => env('WUZAPI_WEBHOOK_SECRET'),
+    ],
+
     // RMP (rmp.webfight.shop) — own accounting app; invoices are made there
     // from accepted CRM quotations (RMP reads the crm DB).
     'rmp' => [

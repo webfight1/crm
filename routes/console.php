@@ -83,3 +83,42 @@ Schedule::command('deals:retainer-invoices')
     ->dailyAt('08:00')
     ->name('deals:retainer-invoices')
     ->withoutOverlapping();
+
+// Every 5 minutes: AI triage of monitored WhatsApp threads with auto_ai on.
+// Waits until the client has been quiet for 3 min so a burst of messages is
+// read as one request; a new client wish → task + Telegram (no duplicate
+// while an earlier task from the same chat is still open).
+Artisan::command('chats:triage', function () {
+    $triage  = app(\App\Chats\Services\ChatTriage::class);
+    $factory = app(\App\Chats\Services\ChatTaskFactory::class);
+    if (! $triage->enabled()) {
+        return;
+    }
+    $ownerId = \App\Models\User::where('is_admin', true)->value('id') ?? \App\Models\User::value('id');
+
+    $threads = \App\Chats\Models\ChatThread::where('is_monitored', true)
+        ->where('auto_ai', true)
+        ->where('last_message_at', '<', now()->subMinutes(3))
+        ->whereHas('messages', fn ($q) => $q->where('direction', 'in')
+            ->where(fn ($w) => $w->whereNull('chat_threads.triaged_at')->orWhereColumn('chat_messages.sent_at', '>', 'chat_threads.triaged_at')))
+        ->get();
+
+    foreach ($threads as $thread) {
+        $ai = $triage->run($thread);
+        if (! $ai || empty($ai['needs_action'])) {
+            continue;
+        }
+        $task = $factory->openTask($thread) ?? $factory->fromTriage($thread, $ownerId);
+        \App\Support\Telegram::send(
+            "💬 WhatsApp — {$thread->displayName()}\n" . ($ai['summary'] ?? '')
+            . ($task ? "\n\n✔ Ülesanne: {$task->title}\n" . route('tasks.show', $task) : '')
+            . "\n\n" . route('chats.show', $thread)
+        );
+        $this->info("Triaged {$thread->displayName()}");
+    }
+})->purpose('AI triage of monitored WhatsApp chats (auto_ai)');
+
+Schedule::command('chats:triage')
+    ->everyFiveMinutes()
+    ->name('chats:triage')
+    ->withoutOverlapping(10);

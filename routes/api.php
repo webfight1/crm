@@ -27,3 +27,7 @@ Route::middleware('api.token')->group(function () {
     Route::get('/quotations', [QuotationController::class, 'index']);
     Route::get('/quotation-items', [QuotationItemController::class, 'index']);
 });
+
+// WuzAPI → CRM (WhatsApp messages). Auth = secret in the path.
+Route::post('/chats/whatsapp/{secret}', \App\Http\Controllers\Chats\WhatsAppWebhookController::class)
+    ->name('chats.whatsapp.webhook');
