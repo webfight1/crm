@@ -53,7 +53,7 @@
                     <p class="text-sm text-gray-700">Messengeri sild pole seadistatud (vt <code>docker/messenger/README.md</code>).</p>
                 @elseif(! $messenger['reachable'])
                     <p class="text-sm text-red-600 font-medium">Messengeri sild ei vasta.</p>
-                @elseif($messenger['loggedIn'])
+                @elseif($messenger['loggedIn'] && ! $messenger['loggedOut'])
                     <p class="text-sm text-green-700 font-medium">✓ Ühendatud{{ $messenger['name'] ? ' — ' . $messenger['name'] : '' }}
                         @if($messenger['state'] && $messenger['state'] !== 'CONNECTED')
                             <span class="text-amber-700">({{ $messenger['state'] }})</span>
@@ -65,6 +65,9 @@
                         <button class="px-3 py-1.5 bg-gray-200 text-gray-800 text-sm rounded hover:bg-gray-300">Ühenda lahti</button>
                     </form>
                 @else
+                    @if($messenger['loggedOut'])
+                        <p class="text-sm text-red-600 font-medium mb-3">✗ Välja logitud{{ $messenger['name'] ? ' — ' . $messenger['name'] : '' }}: Meta tühistas sessiooni, sõnumid ei jõua CRM-i. Sisesta värsked küpsised.</p>
+                    @endif
                     <ol class="text-sm text-gray-700 list-decimal ml-5 space-y-1 mb-3">
                         <li>Ava uues vahelehes <b>www.facebook.com</b> ja veendu, et oled sisse logitud.</li>
                         <li>Samal vahelehel ava arendaja tööriistad (F12 / Cmd+Option+I) → <b>Application</b> → <b>Cookies</b> → <code>https://www.facebook.com</code>.</li>

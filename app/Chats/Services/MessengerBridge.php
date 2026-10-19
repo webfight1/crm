@@ -15,13 +15,17 @@ class MessengerBridge
 {
     private const SELF_KEY = 'chats.messenger.self_id';
     private const SELF_NAME_KEY = 'chats.messenger.self_name';
+    private const STATUS_KEY = 'chats.messenger.status';
+
+    /** Bridge states meaning Meta dropped the session — only a fresh cookie login helps. */
+    private const LOGGED_OUT_STATES = ['BAD_CREDENTIALS', 'LOGGED_OUT'];
 
     public function enabled(): bool
     {
         return filled(config('services.messenger.provision_secret')) && filled(config('services.messenger.hs_token'));
     }
 
-    /** @return array{reachable: bool, loggedIn: bool, name: ?string, state: ?string} */
+    /** @return array{reachable: bool, loggedIn: bool, loggedOut: bool, name: ?string, state: ?string, message: ?string} */
     public function status(): array
     {
         $who = $this->call('get', '/v3/whoami');
@@ -33,12 +37,33 @@ class MessengerBridge
             }
         }
 
-        return [
+        $state = data_get($login, 'state.state_event');
+        $status = [
             'reachable' => $who !== null,
             'loggedIn'  => (bool) $login,
+            'loggedOut' => in_array($state, self::LOGGED_OUT_STATES, true),
             'name'      => data_get($login, 'name') ?: data_get($login, 'profile.name'),
-            'state'     => data_get($login, 'state.state_event'),
+            'state'     => $state,
+            'message'   => data_get($login, 'state.message'),
         ];
+        Cache::put(self::STATUS_KEY, $status, now()->addMinutes(5));
+
+        return $status;
+    }
+
+    /** Warning for the chat pages when Messenger stopped delivering, else null. Cached 5 min. */
+    public function problem(): ?string
+    {
+        if (! $this->enabled()) {
+            return null;
+        }
+        $status = Cache::get(self::STATUS_KEY) ?? $this->status();
+
+        return match (true) {
+            ! $status['reachable'] => 'Messengeri sild ei vasta — uusi Messengeri sõnumeid ei tule.',
+            $status['loggedOut']   => 'Messenger on välja logitud (Meta tühistas sessiooni) — uusi sõnumeid ei tule. Logi uuesti sisse.',
+            default                => null,
+        };
     }
 
     /** Our own Facebook id — messages from its ghost are the ones we sent from the phone. */
@@ -75,6 +100,7 @@ class MessengerBridge
         $done = $this->call('post', "/v3/login/step/{$start['login_id']}/{$start['step_id']}/cookies", $cookies);
 
         if (data_get($done, 'type') === 'complete') {
+            Cache::forget(self::STATUS_KEY);
             $this->status();
             return null;
         }
@@ -89,6 +115,7 @@ class MessengerBridge
     {
         $this->call('post', '/v3/logout/all');
         Cache::forget(self::SELF_KEY);
+        Cache::forget(self::STATUS_KEY);
     }
 
     private function call(string $method, string $path, array $body = []): ?array
