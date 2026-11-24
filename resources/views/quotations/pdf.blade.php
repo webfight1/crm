@@ -64,7 +64,7 @@
         }
         .items-table {
             table-layout: fixed;
-            margin-bottom: 0;
+            margin: 6px 0 0 0;
         }
         .text-block {
             padding: 6px;
@@ -77,7 +77,7 @@
         .q-rich ul, .q-rich ol { margin: 2px 0; padding-left: 16px; }
         .totals {
             margin-left: auto;
-            width: 200px;
+            width: 260px;
         }
         .totals td {
             padding: 4px;
@@ -201,7 +201,6 @@
                 $blocks[] = ['kind' => $kind, 'items' => [$item]];
             }
         }
-        $headerShown = false;
     @endphp
 
     @foreach($blocks as $block)
@@ -209,7 +208,6 @@
             <div class="q-rich text-block">{{ $block['items'][0]->formattedDescription() }}</div>
         @else
             <table class="items-table">
-                @unless($headerShown)
                 <thead>
                     <tr>
                         <th style="width: 40%;">{{ __('Kirjeldus') }}</th>
@@ -219,13 +217,11 @@
                         <th style="width: 15%;">{{ __('Summa') }}</th>
                     </tr>
                 </thead>
-                @php($headerShown = true)
-                @endunless
                 <tbody>
                     @foreach($block['items'] as $item)
                         <tr>
                             <td class="q-rich" style="width: 40%;">{{ $item->formattedDescription() }}</td>
-                            <td style="width: 15%;">{{ number_format($item->quantity, 2) }}</td>
+                            <td style="width: 15%;">{{ rtrim(rtrim(number_format($item->quantity, 2, ',', ''), '0'), ',') }}</td>
                             <td style="width: 15%;">{{ $item->unit }}</td>
                             <td style="width: 15%;">€{{ number_format($item->unit_price, 2) }}</td>
                             <td style="width: 15%;">€{{ number_format($item->subtotal, 2) }}</td>
