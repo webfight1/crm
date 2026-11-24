@@ -148,7 +148,7 @@
         const template = isText ? `
             <div class="item-row grid grid-cols-12 gap-4 items-start">
                 <input type="hidden" name="items[${i}][type]" value="text">
-                <div class="col-span-11">
+                <div style="grid-column: span 11 / span 11;">
                     <label class="block font-medium text-sm text-gray-700">{{ __('Tekst') }} <span class="text-gray-400 font-normal">({{ __('ilma hinnata') }})</span></label>
                     <textarea name="items[${i}][description]" rows="3" class="${itemInput} bg-gray-50" required>${esc(item.description)}</textarea>
                 </div>
