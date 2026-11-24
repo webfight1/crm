@@ -116,10 +116,14 @@
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     @foreach($quotation->items as $item)
+                                        @if($item->isText())
                                         <tr>
-                                            <td class="px-6 py-4 text-sm text-gray-900">
-                                                {{ $item->description }}
-                                            </td>
+                                            <td colspan="5" class="px-6 py-4 text-sm text-gray-900 whitespace-pre-line">{{ $item->description }}</td>
+                                        </tr>
+                                        @continue
+                                        @endif
+                                        <tr>
+                                            <td class="px-6 py-4 text-sm text-gray-900 whitespace-pre-line">{{ $item->description }}</td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 {{ number_format($item->quantity, 2) }}
                                             </td>

@@ -8,6 +8,7 @@ class QuotationItem extends Model
 {
     protected $fillable = [
         'quotation_id',
+        'type',
         'description',
         'quantity',
         'unit',
@@ -21,6 +22,12 @@ class QuotationItem extends Model
         'unit_price' => 'decimal:2',
         'subtotal' => 'decimal:2'
     ];
+
+    /** A text-only line (heading/explanation) without quantity or price. */
+    public function isText(): bool
+    {
+        return $this->type === 'text';
+    }
 
     public function quotation()
     {
@@ -39,6 +46,11 @@ class QuotationItem extends Model
         });
 
         static::saving(function ($item) {
+            if ($item->type === 'text') {
+                $item->quantity = 0;
+                $item->unit = '';
+                $item->unit_price = 0;
+            }
             $item->subtotal = $item->quantity * $item->unit_price;
         });
     }

@@ -51,10 +51,11 @@ class QuotationController extends Controller
             'terms' => 'nullable|string',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.description' => 'required|string',
-            'items.*.quantity' => 'required|numeric|min:0',
-            'items.*.unit' => 'required|string|max:50',
-            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.type' => 'nullable|in:item,text',
+            'items.*.description' => 'required|string|max:10000',
+            'items.*.quantity' => 'exclude_if:items.*.type,text|required|numeric|min:0',
+            'items.*.unit' => 'exclude_if:items.*.type,text|required|string|max:50',
+            'items.*.unit_price' => 'exclude_if:items.*.type,text|required|numeric|min:0',
         ]);
 
         $quotation = DB::transaction(function () use ($validated, $request) {
@@ -79,15 +80,7 @@ class QuotationController extends Controller
             $quotation->save();
 
             // Lisa pakkumise read
-            foreach ($request->items as $item) {
-                $quotation->items()->create([
-                    'description' => $item['description'],
-                    'quantity' => $item['quantity'],
-                    'unit' => $item['unit'],
-                    'unit_price' => $item['unit_price'],
-                    'subtotal' => $item['quantity'] * $item['unit_price'],
-                ]);
-            }
+            $this->saveItems($quotation, $validated['items']);
 
             // Arvuta summad
             $quotation->calculateTotals()->save();
@@ -98,6 +91,22 @@ class QuotationController extends Controller
         return redirect()
             ->route('quotations.show', $quotation)
             ->with('success', __('Pakkumine on loodud!'));
+    }
+
+    /** Rows in the order the form sent them; text rows carry no price. */
+    private function saveItems(Quotation $quotation, array $items): void
+    {
+        foreach (array_values($items) as $i => $item) {
+            $isText = ($item['type'] ?? 'item') === 'text';
+            $quotation->items()->create([
+                'type' => $isText ? 'text' : 'item',
+                'description' => $item['description'],
+                'quantity' => $isText ? 0 : $item['quantity'],
+                'unit' => $isText ? '' : $item['unit'],
+                'unit_price' => $isText ? 0 : $item['unit_price'],
+                'sort_order' => $i + 1,
+            ]);
+        }
     }
 
     public function show(Quotation $quotation)
@@ -127,10 +136,11 @@ class QuotationController extends Controller
             'terms' => 'nullable|string',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.description' => 'required|string',
-            'items.*.quantity' => 'required|numeric|min:0',
-            'items.*.unit' => 'required|string|max:50',
-            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.type' => 'nullable|in:item,text',
+            'items.*.description' => 'required|string|max:10000',
+            'items.*.quantity' => 'exclude_if:items.*.type,text|required|numeric|min:0',
+            'items.*.unit' => 'exclude_if:items.*.type,text|required|string|max:50',
+            'items.*.unit_price' => 'exclude_if:items.*.type,text|required|numeric|min:0',
         ]);
 
         DB::transaction(function () use ($validated, $request, $quotation) {
@@ -149,15 +159,7 @@ class QuotationController extends Controller
             $quotation->items()->delete();
 
             // Lisa uued read
-            foreach ($request->items as $item) {
-                $quotation->items()->create([
-                    'description' => $item['description'],
-                    'quantity' => $item['quantity'],
-                    'unit' => $item['unit'],
-                    'unit_price' => $item['unit_price'],
-                    'subtotal' => $item['quantity'] * $item['unit_price'],
-                ]);
-            }
+            $this->saveItems($quotation, $validated['items']);
 
             // Arvuta summad
             $quotation->calculateTotals()->save();

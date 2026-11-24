@@ -36,45 +36,35 @@
     </div>
 
     <!-- Pakkumise read -->
+    @php
+        $formItems = old('items', $quotation?->items->map(fn ($i) => [
+            'type' => $i->type ?? 'item',
+            'description' => $i->description,
+            'quantity' => $i->quantity,
+            'unit' => $i->unit,
+            'unit_price' => $i->unit_price,
+        ])->values()->all() ?? []);
+    @endphp
     <div>
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-medium">{{ __('Pakkumise read') }}</h3>
-            <button type="button" onclick="addItem()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                {{ __('Lisa rida') }}
-            </button>
+            <div class="flex gap-2">
+                <button type="button" onclick="addItem()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    {{ __('Lisa rida') }}
+                </button>
+                <button type="button" onclick="addItem({type: 'text'})" class="bg-white border border-blue-500 text-blue-600 hover:bg-blue-50 font-bold py-2 px-4 rounded" title="{{ __('Pealkiri või selgitus ilma hinnata') }}">
+                    {{ __('Lisa tekstirida') }}
+                </button>
+            </div>
         </div>
-        
-        <div id="items-container" class="space-y-4">
-            @if($quotation && $quotation->items->count() > 0)
-                @foreach($quotation->items as $item)
-                    <div class="item-row grid grid-cols-12 gap-4 items-start">
-                        <div class="col-span-5">
-                            <x-input-label :value="__('Kirjeldus')" />
-                            <textarea name="items[{{ $loop->index }}][description]" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>{{ $item->description }}</textarea>
-                        </div>
-                        <div class="col-span-2">
-                            <x-input-label :value="__('Kogus')" />
-                            <x-text-input type="number" name="items[{{ $loop->index }}][quantity]" class="mt-1 block w-full" value="{{ $item->quantity }}" step="0.01" required />
-                        </div>
-                        <div class="col-span-2">
-                            <x-input-label :value="__('Ühik')" />
-                            <x-text-input type="text" name="items[{{ $loop->index }}][unit]" class="mt-1 block w-full" value="{{ $item->unit }}" required />
-                        </div>
-                        <div class="col-span-2">
-                            <x-input-label :value="__('Ühiku hind')" />
-                            <x-text-input type="number" name="items[{{ $loop->index }}][unit_price]" class="mt-1 block w-full" value="{{ $item->unit_price }}" step="0.01" required />
-                        </div>
-                        <div class="col-span-1 pt-7">
-                            <button type="button" onclick="this.closest('.item-row').remove()" class="text-red-600 hover:text-red-900">
-                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                @endforeach
+        <x-input-error :messages="$errors->get('items')" class="mb-2" />
+        @foreach($errors->getMessages() as $key => $msgs)
+            @if(str_starts_with($key, 'items.'))
+                <x-input-error :messages="$msgs" class="mb-2" />
             @endif
-        </div>
+        @endforeach
+
+        <div id="items-container" class="space-y-4"></div>
     </div>
 
     {{-- Live totals — recomputed in JS on every input change. Server is the
@@ -135,44 +125,64 @@
 
 @push('scripts')
 <script>
-    function addItem() {
+    const itemInput = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500';
+    const trashIcon = `<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>`;
+    // Never reuse an index: after a removal, children.length would collide
+    // with a surviving row and overwrite it on submit.
+    let itemIndex = 0;
+
+    function esc(v) {
+        const d = document.createElement('div');
+        d.textContent = v ?? '';
+        return d.innerHTML.replace(/"/g, '&quot;');
+    }
+
+    function addItem(item = {}) {
         const container = document.getElementById('items-container');
-        const index = container.children.length;
-        
-        const template = `
+        const i = itemIndex++;
+        const isText = item.type === 'text';
+        const removeBtn = `<div class="col-span-1 pt-7">
+                <button type="button" onclick="this.closest('.item-row').remove()" class="text-red-600 hover:text-red-900" title="{{ __('Eemalda') }}">${trashIcon}</button>
+            </div>`;
+
+        const template = isText ? `
             <div class="item-row grid grid-cols-12 gap-4 items-start">
+                <input type="hidden" name="items[${i}][type]" value="text">
+                <div class="col-span-11">
+                    <label class="block font-medium text-sm text-gray-700">{{ __('Tekst') }} <span class="text-gray-400 font-normal">({{ __('ilma hinnata') }})</span></label>
+                    <textarea name="items[${i}][description]" rows="3" class="${itemInput} bg-gray-50" required>${esc(item.description)}</textarea>
+                </div>
+                ${removeBtn}
+            </div>` : `
+            <div class="item-row grid grid-cols-12 gap-4 items-start">
+                <input type="hidden" name="items[${i}][type]" value="item">
                 <div class="col-span-5">
                     <label class="block font-medium text-sm text-gray-700">{{ __('Kirjeldus') }}</label>
-                    <textarea name="items[${index}][description]" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required></textarea>
+                    <textarea name="items[${i}][description]" rows="2" class="${itemInput}" required>${esc(item.description)}</textarea>
                 </div>
                 <div class="col-span-2">
                     <label class="block font-medium text-sm text-gray-700">{{ __('Kogus') }}</label>
-                    <input type="number" name="items[${index}][quantity]" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" value="1" step="0.01" required />
+                    <input type="number" name="items[${i}][quantity]" class="${itemInput}" value="${esc(item.quantity ?? 1)}" step="0.01" required />
                 </div>
                 <div class="col-span-2">
                     <label class="block font-medium text-sm text-gray-700">{{ __('Ühik') }}</label>
-                    <input type="text" name="items[${index}][unit]" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" value="tk" required />
+                    <input type="text" name="items[${i}][unit]" class="${itemInput}" value="${esc(item.unit ?? 'tk')}" required />
                 </div>
                 <div class="col-span-2">
                     <label class="block font-medium text-sm text-gray-700">{{ __('Ühiku hind') }}</label>
-                    <input type="number" name="items[${index}][unit_price]" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" value="0" step="0.01" required />
+                    <input type="number" name="items[${i}][unit_price]" class="${itemInput}" value="${esc(item.unit_price ?? 0)}" step="0.01" required />
                 </div>
-                <div class="col-span-1 pt-7">
-                    <button type="button" onclick="this.closest('.item-row').remove()" class="text-red-600 hover:text-red-900">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        `;
-        
+                ${removeBtn}
+            </div>`;
+
         container.insertAdjacentHTML('beforeend', template);
         recomputeTotals();
     }
 
+    const initialItems = @json(array_values($formItems));
+    initialItems.forEach(it => addItem(it));
     // Lisa esimene rida, kui pole ühtegi rida
-    if (document.querySelectorAll('.item-row').length === 0) {
+    if (initialItems.length === 0) {
         addItem();
     }
 

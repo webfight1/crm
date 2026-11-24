@@ -186,8 +186,14 @@
         </thead>
         <tbody>
             @foreach($quotation->items as $item)
+                @if($item->isText())
                 <tr>
-                    <td>{{ $item->description }}</td>
+                    <td colspan="5">{!! nl2br(e($item->description)) !!}</td>
+                </tr>
+                @continue
+                @endif
+                <tr>
+                    <td>{!! nl2br(e($item->description)) !!}</td>
                     <td>{{ number_format($item->quantity, 2) }}</td>
                     <td>{{ $item->unit }}</td>
                     <td>€{{ number_format($item->unit_price, 2) }}</td>
