@@ -59,9 +59,20 @@
         }
         th {
             background-color: #f1f5f9;
-            font-weight: 600;
+            /* DejaVu has no 600 weight; DomPDF fell back to a serif font */
+            font-weight: bold;
+        }
+        .items-table {
+            table-layout: fixed;
+            margin-bottom: 0;
+        }
+        .text-block {
+            padding: 6px;
+            border-bottom: 1px solid #ddd;
+            font-size: 11px;
         }
         .q-rich h1, .q-rich h2, .q-rich h3 { font-size: 12px; margin: 8px 0 3px 0; color: #111; }
+        .q-rich h1, .q-rich h2, .q-rich h3 { page-break-after: avoid; }
         .q-rich p { margin: 2px 0; }
         .q-rich ul, .q-rich ol { margin: 2px 0; padding-left: 16px; }
         .totals {
@@ -177,34 +188,54 @@
         @endif
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th style="width: 40%;">{{ __('Kirjeldus') }}</th>
-                <th style="width: 15%;">{{ __('Kogus') }}</th>
-                <th style="width: 15%;">{{ __('Ühik') }}</th>
-                <th style="width: 15%;">{{ __('Ühiku hind') }}</th>
-                <th style="width: 15%;">{{ __('Summa') }}</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($quotation->items as $item)
-                @if($item->isText())
-                <tr>
-                    <td colspan="5" class="q-rich">{{ $item->formattedDescription() }}</td>
-                </tr>
-                @continue
-                @endif
-                <tr>
-                    <td class="q-rich">{{ $item->formattedDescription() }}</td>
-                    <td>{{ number_format($item->quantity, 2) }}</td>
-                    <td>{{ $item->unit }}</td>
-                    <td>€{{ number_format($item->unit_price, 2) }}</td>
-                    <td>€{{ number_format($item->subtotal, 2) }}</td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
+    @php
+        // Consecutive price rows share a table; text rows are plain blocks
+        // between them so long text can break across PDF pages (DomPDF never
+        // splits a table row) and doesn't sit under Kogus/Ühik/Hind columns.
+        $blocks = [];
+        foreach ($quotation->items as $item) {
+            $kind = $item->isText() ? 'text' : 'items';
+            if ($kind === 'items' && $blocks && end($blocks)['kind'] === 'items') {
+                $blocks[array_key_last($blocks)]['items'][] = $item;
+            } else {
+                $blocks[] = ['kind' => $kind, 'items' => [$item]];
+            }
+        }
+        $headerShown = false;
+    @endphp
+
+    @foreach($blocks as $block)
+        @if($block['kind'] === 'text')
+            <div class="q-rich text-block">{{ $block['items'][0]->formattedDescription() }}</div>
+        @else
+            <table class="items-table">
+                @unless($headerShown)
+                <thead>
+                    <tr>
+                        <th style="width: 40%;">{{ __('Kirjeldus') }}</th>
+                        <th style="width: 15%;">{{ __('Kogus') }}</th>
+                        <th style="width: 15%;">{{ __('Ühik') }}</th>
+                        <th style="width: 15%;">{{ __('Ühiku hind') }}</th>
+                        <th style="width: 15%;">{{ __('Summa') }}</th>
+                    </tr>
+                </thead>
+                @php($headerShown = true)
+                @endunless
+                <tbody>
+                    @foreach($block['items'] as $item)
+                        <tr>
+                            <td class="q-rich" style="width: 40%;">{{ $item->formattedDescription() }}</td>
+                            <td style="width: 15%;">{{ number_format($item->quantity, 2) }}</td>
+                            <td style="width: 15%;">{{ $item->unit }}</td>
+                            <td style="width: 15%;">€{{ number_format($item->unit_price, 2) }}</td>
+                            <td style="width: 15%;">€{{ number_format($item->subtotal, 2) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    @endforeach
+    <div style="border-top: 1px solid #ddd; margin-bottom: 15px;"></div>
 
     <div style="display: flex; justify-content: flex-end;">
         <table class="totals" style="margin-bottom: 10px;">
