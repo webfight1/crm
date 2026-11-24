@@ -61,6 +61,20 @@ class QuotationItemsTest extends TestCase
         $this->assertEquals(10, $q->subtotal);
     }
 
+    public function test_rows_are_saved_in_submitted_order_not_by_index(): void
+    {
+        $user = User::factory()->create();
+        $deal = $this->deal($user);
+        // A row moved up in the form keeps its higher index but comes first.
+        $this->actingAs($user)->post(route('quotations.store'), $this->payload($deal, [
+            3 => ['type' => 'text', 'description' => 'Esimene'],
+            0 => ['type' => 'item', 'description' => 'Teine', 'quantity' => 1, 'unit' => 'tk', 'unit_price' => 5],
+            1 => ['type' => 'text', 'description' => 'Kolmas'],
+        ]))->assertRedirect();
+
+        $this->assertSame(['Esimene', 'Teine', 'Kolmas'], Quotation::firstOrFail()->items->pluck('description')->all());
+    }
+
     public function test_description_formatting_is_safe(): void
     {
         $html = (string) (new \App\Models\QuotationItem(['description' => "## Osa\n**paks** <script>x</script>\n- a"]))->formattedDescription();

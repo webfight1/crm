@@ -137,11 +137,24 @@
         return d.innerHTML.replace(/"/g, '&quot;');
     }
 
+    // Rows are saved in on-screen order (POST keeps DOM order), so moving the
+    // element is enough; index names stay unique.
+    function moveItem(btn, dir) {
+        const row = btn.closest('.item-row');
+        const sibling = dir < 0 ? row.previousElementSibling : row.nextElementSibling;
+        if (!sibling) return;
+        dir < 0 ? sibling.before(row) : sibling.after(row);
+    }
+
     function addItem(item = {}) {
         const container = document.getElementById('items-container');
         const i = itemIndex++;
         const isText = item.type === 'text';
-        const removeBtn = `<div class="col-span-1 pt-7">
+        const removeBtn = `<div class="col-span-1 pt-7 flex items-center gap-2">
+                <div class="flex flex-col leading-none">
+                    <button type="button" onclick="moveItem(this, -1)" class="text-gray-500 hover:text-gray-900 px-1" title="{{ __('Liiguta üles') }}">&#9650;</button>
+                    <button type="button" onclick="moveItem(this, 1)" class="text-gray-500 hover:text-gray-900 px-1" title="{{ __('Liiguta alla') }}">&#9660;</button>
+                </div>
                 <button type="button" onclick="this.closest('.item-row').remove()" class="text-red-600 hover:text-red-900" title="{{ __('Eemalda') }}">${trashIcon}</button>
             </div>`;
 
