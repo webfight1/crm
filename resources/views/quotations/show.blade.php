@@ -94,6 +94,14 @@
                     <div class="mb-8">
                         <h3 class="text-lg font-medium mb-4">{{ __('Pakkumise read') }}</h3>
                         <div class="overflow-x-auto">
+                            <style>
+                                .q-rich h1,.q-rich h2,.q-rich h3{font-weight:600;font-size:1rem;margin:.75rem 0 .25rem}
+                                .q-rich h1:first-child,.q-rich h2:first-child,.q-rich h3:first-child,.q-rich p:first-child{margin-top:0}
+                                .q-rich p{margin:.25rem 0}
+                                .q-rich ul{list-style:disc;padding-left:1.25rem;margin:.25rem 0}
+                                .q-rich ol{list-style:decimal;padding-left:1.25rem;margin:.25rem 0}
+                                .q-rich strong{font-weight:600}
+                            </style>
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
@@ -118,12 +126,12 @@
                                     @foreach($quotation->items as $item)
                                         @if($item->isText())
                                         <tr>
-                                            <td colspan="5" class="px-6 py-4 text-sm text-gray-900 whitespace-pre-line">{{ $item->description }}</td>
+                                            <td colspan="5" class="px-6 py-4 text-sm text-gray-900 q-rich">{{ $item->formattedDescription() }}</td>
                                         </tr>
                                         @continue
                                         @endif
                                         <tr>
-                                            <td class="px-6 py-4 text-sm text-gray-900 whitespace-pre-line">{{ $item->description }}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-900 q-rich">{{ $item->formattedDescription() }}</td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 {{ number_format($item->quantity, 2) }}
                                             </td>

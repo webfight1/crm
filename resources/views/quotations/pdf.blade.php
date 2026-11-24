@@ -61,6 +61,9 @@
             background-color: #f1f5f9;
             font-weight: 600;
         }
+        .q-rich h1, .q-rich h2, .q-rich h3 { font-size: 12px; margin: 8px 0 3px 0; color: #111; }
+        .q-rich p { margin: 2px 0; }
+        .q-rich ul, .q-rich ol { margin: 2px 0; padding-left: 16px; }
         .totals {
             margin-left: auto;
             width: 200px;
@@ -188,12 +191,12 @@
             @foreach($quotation->items as $item)
                 @if($item->isText())
                 <tr>
-                    <td colspan="5">{!! nl2br(e($item->description)) !!}</td>
+                    <td colspan="5" class="q-rich">{{ $item->formattedDescription() }}</td>
                 </tr>
                 @continue
                 @endif
                 <tr>
-                    <td>{!! nl2br(e($item->description)) !!}</td>
+                    <td class="q-rich">{{ $item->formattedDescription() }}</td>
                     <td>{{ number_format($item->quantity, 2) }}</td>
                     <td>{{ $item->unit }}</td>
                     <td>€{{ number_format($item->unit_price, 2) }}</td>

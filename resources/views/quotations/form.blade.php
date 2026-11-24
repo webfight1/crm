@@ -150,7 +150,8 @@
                 <input type="hidden" name="items[${i}][type]" value="text">
                 <div style="grid-column: span 11 / span 11;">
                     <label class="block font-medium text-sm text-gray-700">{{ __('Tekst') }} <span class="text-gray-400 font-normal">({{ __('ilma hinnata') }})</span></label>
-                    <textarea name="items[${i}][description]" rows="3" class="${itemInput} bg-gray-50" required>${esc(item.description)}</textarea>
+                    <textarea name="items[${i}][description]" rows="6" class="${itemInput} bg-gray-50" required>${esc(item.description)}</textarea>
+                    <p class="mt-1 text-xs text-gray-500">{{ __('Vormindus') }}: <code>## Pealkiri</code> · <code>**paks tekst**</code> · <code>- loetelu punkt</code></p>
                 </div>
                 ${removeBtn}
             </div>` : `

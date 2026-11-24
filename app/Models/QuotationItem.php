@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 
 class QuotationItem extends Model
 {
@@ -27,6 +29,22 @@ class QuotationItem extends Model
     public function isText(): bool
     {
         return $this->type === 'text';
+    }
+
+    /**
+     * Description with light formatting for the view and PDF:
+     * "## Pealkiri", "**paks**", "- loetelu"; single line breaks are kept.
+     * Typed <b>/<strong>/<br> are honoured, any other HTML is stripped.
+     */
+    public function formattedDescription(): HtmlString
+    {
+        $text = preg_replace(['~</?(b|strong)\s*>~i', '~<br\s*/?>~i'], ['**', "\n"], (string) $this->description);
+
+        return new HtmlString(Str::markdown($text, [
+            'html_input' => 'strip',
+            'allow_unsafe_links' => false,
+            'renderer' => ['soft_break' => "<br>\n"],
+        ]));
     }
 
     public function quotation()

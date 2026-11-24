@@ -61,6 +61,15 @@ class QuotationItemsTest extends TestCase
         $this->assertEquals(10, $q->subtotal);
     }
 
+    public function test_description_formatting_is_safe(): void
+    {
+        $html = (string) (new \App\Models\QuotationItem(['description' => "## Osa\n**paks** <script>x</script>\n- a"]))->formattedDescription();
+        $this->assertStringContainsString('<h2>Osa</h2>', $html);
+        $this->assertStringContainsString('<strong>paks</strong>', $html);
+        $this->assertStringContainsString('<li>a</li>', $html);
+        $this->assertStringNotContainsString('<script>', $html);
+    }
+
     public function test_price_row_still_requires_price(): void
     {
         $user = User::factory()->create();
